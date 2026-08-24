@@ -1,26 +1,207 @@
 @import "tailwindcss";
 
+/*
+  Prime Vantage design tokens — from the Design System (v0.1, tokens locked).
+  Accent is reserved for the point of decision: primary action, active step,
+  focus ring. At most twice per viewport.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --pv-surface: #f4f2ef;
+  --pv-surface-raised: #ffffff;
+  --pv-surface-sunken: #eae6e1;
+  --pv-surface-tint: #efede9;
+  --pv-ink: #1a1917;
+  --pv-ink-soft: #4a4741;
+  --pv-ink-muted: #6e6a64;
+  --pv-ink-faint: #8a857e;
+  --pv-ink-disabled: #a8a29a;
+  --pv-line: #dfdad3;
+  --pv-line-strong: #c9c2b8;
+  --pv-accent: #1f3d8c;
+  --pv-accent-press: #16307a;
+  --pv-positive: #4a6b3a;
+  --pv-positive-deep: #3c5730;
+  --pv-warning: #a8710e;
+  --pv-warning-deep: #8a5c0b;
+  --pv-danger: #8c2f2a;
+  --pv-danger-press: #74251f;
+  /* dark surfaces (compare section, console header, footer) */
+  --pv-dark: #1a1917;
+  --pv-dark-raised: #232120;
+  --pv-dark-line: #3a3733;
+  --pv-dark-line-soft: #2c2a28;
+  --pv-dark-ink: #f4f2ef;
+  --pv-dark-ink-bright: #f7f5f2;
+  --pv-dark-ink-soft: #d6d1ca;
+  --pv-dark-ink-muted: #b8b2a9;
+  --pv-positive-bright: #8fbf74;
+  --pv-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-surface: var(--pv-surface);
+  --color-raised: var(--pv-surface-raised);
+  --color-sunken: var(--pv-surface-sunken);
+  --color-tint: var(--pv-surface-tint);
+  --color-ink: var(--pv-ink);
+  --color-ink-soft: var(--pv-ink-soft);
+  --color-ink-muted: var(--pv-ink-muted);
+  --color-ink-faint: var(--pv-ink-faint);
+  --color-ink-disabled: var(--pv-ink-disabled);
+  --color-line: var(--pv-line);
+  --color-line-strong: var(--pv-line-strong);
+  --color-accent: var(--pv-accent);
+  --color-accent-press: var(--pv-accent-press);
+  --color-positive: var(--pv-positive);
+  --color-positive-deep: var(--pv-positive-deep);
+  --color-warning: var(--pv-warning);
+  --color-warning-deep: var(--pv-warning-deep);
+  --color-danger: var(--pv-danger);
+  --color-danger-press: var(--pv-danger-press);
+  --color-dark: var(--pv-dark);
+  --color-dark-raised: var(--pv-dark-raised);
+  --color-dark-line: var(--pv-dark-line);
+  --color-dark-line-soft: var(--pv-dark-line-soft);
+  --color-dark-ink: var(--pv-dark-ink);
+  --color-dark-ink-bright: var(--pv-dark-ink-bright);
+  --color-dark-ink-soft: var(--pv-dark-ink-soft);
+  --color-dark-ink-muted: var(--pv-dark-ink-muted);
+  --color-positive-bright: var(--pv-positive-bright);
+  --font-display: var(--font-archivo);
+  --font-sans: var(--font-franklin);
+  --font-mono: var(--font-plex-mono);
+  --ease-pv: var(--pv-ease);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background: var(--pv-surface);
+  color: var(--pv-ink);
+  font-family: var(--font-franklin), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--pv-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Mono numeric figures everywhere the mono font is used */
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Design-system label style: mono, uppercase, wide tracking */
+.pv-label {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--pv-ink-muted);
+}
+
+@keyframes pv-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pv-row {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pv-fwd {
+  from {
+    opacity: 0;
+    transform: translateX(26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pv-back {
+  from {
+    opacity: 0;
+    transform: translateX(-26px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pv-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pv-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes pv-skeleton {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.pv-skeleton {
+  border-radius: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--pv-surface-sunken) 25%,
+    var(--pv-surface) 50%,
+    var(--pv-surface-sunken) 75%
+  );
+  background-size: 200% 100%;
+  animation: pv-skeleton 1.4s linear infinite;
+}
+
+/* Scroll reveal (landing page) */
+.pv-reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 400ms var(--pv-ease),
+    transform 400ms var(--pv-ease);
+}
+.pv-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .pv-reveal {
+    opacity: 1;
+    transform: none;
+  }
 }
