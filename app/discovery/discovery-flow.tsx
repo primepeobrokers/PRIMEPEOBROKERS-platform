@@ -61,7 +61,7 @@ export function DiscoveryFlow({ resumed }: Props) {
   const handleRef = useRef<DraftHandle | null>(resumed?.handle ?? null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const exitShown = useRef(false);
-  const saving = useRef(false);
+  const savingChain = useRef<Promise<void>>(Promise.resolve());
 
   // ---- hydration: an emailed resume link is applied at first render above;
   // otherwise restore any same-browser draft from localStorage. This must run
@@ -155,26 +155,33 @@ export function DiscoveryFlow({ resumed }: Props) {
     );
   }, []);
 
-  /** Persists the draft to the server. */
+  /**
+   * Persists the draft to the server. Saves are serialised rather than
+   * dropped: a click that lands mid-flight (picking an option, then hitting
+   * Continue) queues behind the in-flight request instead of returning early,
+   * so the visitor always sees the SAVED confirmation for their latest answers.
+   */
   const syncDraft = useCallback(
     async (a: Answers, stepsCompleted: number) => {
-      if (saving.current) return;
-      saving.current = true;
-      try {
-        const res = await saveDraft({
-          handle: handleRef.current,
-          answers: a,
-          stepsCompleted,
-        });
-        if (res.ok) {
-          handleRef.current = res.handle;
-          markSaved();
+      const run = async () => {
+        try {
+          const res = await saveDraft({
+            handle: handleRef.current,
+            answers: a,
+            stepsCompleted,
+          });
+          if (res.ok) {
+            handleRef.current = res.handle;
+            markSaved();
+          }
+        } catch {
+          /* offline — localStorage still holds the answers */
         }
-      } catch {
-        /* offline — localStorage still holds the answers */
-      } finally {
-        saving.current = false;
-      }
+      };
+      // Chain onto whatever is in flight so the draft row is never written
+      // concurrently (which would race on creating the initial row).
+      savingChain.current = savingChain.current.then(run, run);
+      return savingChain.current;
     },
     [markSaved],
   );
@@ -216,6 +223,9 @@ export function DiscoveryFlow({ resumed }: Props) {
     if (busy) return;
     setBusy(true);
     try {
+      // Let any in-flight draft save finish first, so handleRef points at the
+      // existing row rather than submitting a second one.
+      await savingChain.current;
       const res = await submitRecord({
         handle: handleRef.current,
         answers,

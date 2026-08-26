@@ -131,7 +131,7 @@ export function LoginCard({
                   setError("");
                   setSent(false);
                 }}
-                className="cursor-pointer text-[13px] text-accent hover:text-accent-press"
+                className="-my-2 cursor-pointer py-2 text-[13px] text-accent hover:text-accent-press"
               >
                 Forgot password
               </button>
