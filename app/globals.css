@@ -134,6 +134,15 @@
   --ease-pv: var(--pv-ease);
 }
 
+/*
+  Single-look brand: the guide defines one palette and there is no dark theme.
+  Declaring the scheme stops browsers dark-ifying form controls and scrollbars
+  on devices set to dark mode.
+*/
+:root {
+  color-scheme: light;
+}
+
 body {
   margin: 0;
   background: var(--pv-surface);
