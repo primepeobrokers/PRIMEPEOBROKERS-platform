@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 /**
  * Keeps the Supabase session cookie fresh and gates the console.
- * This is the optimistic check only — every console page re-verifies the
+ * This is the optimistic check only. Every console page re-verifies the
  * session server-side, and RLS enforces tenant isolation at the data layer.
  */
 export async function proxy(request: NextRequest) {
@@ -30,7 +30,7 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  // Refreshes the token if expired — required for Server Components.
+  // Refreshes the token if expired, which Server Components require.
   const {
     data: { user },
   } = await supabase.auth.getUser();

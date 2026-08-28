@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { logRecordOpen } from "./actions";
 
 /**
- * Writes a "record opened" event once per mount, from the client — so link
+ * Writes a "record opened" event once per mount, from the client, so link
  * prefetching never counts as an open.
  */
 export function LogOpen({ submissionId }: { submissionId: string }) {

@@ -33,20 +33,20 @@ export function stateTone(row: Pick<SubmissionRow, "status" | "steps_completed">
   };
 }
 
-/** "2026-08-24 14:32" in UTC — mono, sortable at a glance. */
+/** "2026-08-24 14:32" in UTC. Mono, sortable at a glance. */
 export function formatWhen(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "–";
   const d = new Date(iso);
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
 
 export function formatMoney(n: number | null): string {
-  if (n === null || n === undefined) return "—";
+  if (n === null || n === undefined) return "–";
   return "$" + Number(n).toLocaleString("en-US");
 }
 
-/** ISO timestamp for `days` ago — filter boundaries in list queries. */
+/** ISO timestamp for `days` ago, for filter boundaries in list queries. */
 export function isoDaysAgo(days: number): string {
   return new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
 }

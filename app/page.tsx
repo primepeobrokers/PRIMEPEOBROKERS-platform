@@ -4,11 +4,13 @@ import Link from "next/link";
 import { Logo } from "@/app/components/logo";
 import { RevealInit } from "@/app/components/reveal";
 import { Faq } from "@/app/components/faq";
+import { PROOF_READY, OUTCOMES, QUOTES } from "@/lib/content/proof";
+import { STEPS } from "@/lib/discovery/schema";
 
 export const metadata: Metadata = {
-  title: "Prime PEO Brokers — A PEO quote should be arithmetic, not a negotiation",
+  title: "Prime PEO Brokers: the easiest way to shop for PEO, Payroll & HR tech",
   description:
-    "Answer six questions about your headcount, payroll setup, and benefits spend. We take that record to the provider market and come back with the math — what each model would cost you, and where you are overpaying today.",
+    "Research, evaluate, and choose the right PEO, payroll, and HR software for free. Answer a structured set of questions once; a Prime PEO Brokers expert does the legwork and delivers your tailored proposal. No pushy vendor reps. You never pay us.",
   alternates: { canonical: "/" },
 };
 
@@ -46,42 +48,42 @@ const PROBLEMS = [
   },
 ];
 
+/*
+ * The six steps, described for the landing page. Titles come from the schema
+ * so they cannot drift from the real flow. The field counts are deliberately
+ * absent: the count now varies by category (39 to 46 fields), so a fixed
+ * number on this page would be wrong for most visitors.
+ */
 const FLOW_STEPS = [
   {
     n: "1",
-    fields: "4 fields",
-    title: "Company basics",
-    body: "Legal entity, states you operate in, industry, and whether you have run payroll before.",
+    title: STEPS[0].title,
+    body: "PEO, payroll, HRIS, recruiting, performance, or learning. What you pick decides what we ask next.",
   },
   {
     n: "2",
-    fields: "5 fields",
-    title: "Headcount & growth",
-    body: "Full-time, part-time, contractors, and where you expect to be in twelve months. Ranges are fine.",
+    title: STEPS[1].title,
+    body: "Who is running the search, and the company it is for. Size and footprint shape every recommendation.",
   },
   {
     n: "3",
-    fields: "6 fields",
-    title: "Current payroll & HR",
-    body: "Who runs payroll today, what you pay them, what is bundled, and your contract end date.",
+    title: STEPS[2].title,
+    body: "How your people are classified and paid, who runs payroll today, and what you pay them. Ranges are fine.",
   },
   {
     n: "4",
-    fields: "5 fields",
-    title: "Benefits & compensation",
-    body: "Medical, dental, retirement, and salary bands by role. Bands, not individual salaries.",
+    title: STEPS[3].title,
+    body: "Time tracking, the HR support you need, and what you offer today. Bands, never individual salaries.",
   },
   {
     n: "5",
-    fields: "3 fields",
-    title: "Pain points & priorities",
-    body: "What broke, what you will not compromise on, and what you would trade for a lower rate.",
+    title: STEPS[4].title,
+    body: "What is driving this, what you want quoted alongside it, and the timeline you are working to.",
   },
   {
     n: "6",
-    fields: "3 fields",
-    title: "Contact details",
-    body: "Who the broker should reach, and how. This is the only step that asks for personal detail.",
+    title: STEPS[5].title,
+    body: "Renewal dates, anything else your advisor should know, and how you would like the proposal delivered.",
   },
 ];
 
@@ -154,39 +156,6 @@ const SEGMENTS = [
   },
 ];
 
-const OUTCOMES = [
-  {
-    figure: "$2,940",
-    label: "Median annual saving per employee across completed comparisons",
-  },
-  {
-    figure: "11 days",
-    label: "Median time from submitted record to a signed provider agreement",
-  },
-  { figure: "340", label: "Companies placed since 2023" },
-];
-
-const QUOTES = [
-  {
-    text: "We had three quotes that could not be compared to each other. Prime PEO Brokers put them on one axis and the cheapest one turned out to be the most expensive over a year.",
-    initials: "DK",
-    name: "Dana Kessler",
-    role: "COO, Northgate Logistics",
-  },
-  {
-    text: "The questionnaire asked for ranges, which meant I could finish it without pulling a report. The comparison came back the next morning with the assumptions written out.",
-    initials: "MR",
-    name: "Marcus Reyes",
-    role: "Head of People, Ravenswood Analytics",
-  },
-  {
-    text: "They told us to stay where we were for another year and explained why. That is when I started trusting the rest of it.",
-    initials: "AO",
-    name: "Alice Okonjo",
-    role: "Founder, Coyle Street Provisions",
-  },
-];
-
 const TRUST = [
   {
     tag: "In transit & at rest",
@@ -241,6 +210,21 @@ const FAQS = [
   },
 ];
 
+/*
+ * Named on the home page as the platforms we compare. Taken from the original
+ * site's own tech-stack question, so this is the client's list. Flagged for
+ * client sign-off before launch: naming vendors sits next to the "no sponsored
+ * rankings" claim.
+ */
+const PLATFORMS = [
+  "ADP",
+  "Paychex",
+  "Gusto",
+  "Rippling",
+  "Paylocity",
+  "Paycom",
+];
+
 const FOOTER_COLS = [
   {
     head: "Product",
@@ -248,7 +232,7 @@ const FOOTER_COLS = [
       { label: "How it works", href: "/#how" },
       { label: "What we compare", href: "/#compare" },
       { label: "Start discovery", href: "/discovery" },
-      { label: "For partners", href: "/#trust" },
+      { label: "For brokers", href: "/#brokers" },
     ],
   },
   {
@@ -256,17 +240,17 @@ const FOOTER_COLS = [
     links: [
       { label: "About", href: "/#how" },
       { label: "Contact", href: "mailto:hello@primepeobrokers.com" },
-      { label: "Licensing", href: "/#trust" },
+      { label: "Renewals", href: "/#renewals" },
       { label: "Sign in", href: "/login" },
     ],
   },
   {
     head: "Legal",
     links: [
-      { label: "Privacy policy", href: "/#trust" },
-      { label: "Terms of service", href: "/#trust" },
-      { label: "Security", href: "/#trust" },
-      { label: "Do not sell my data", href: "/#trust" },
+      { label: "Privacy policy", href: "/privacy" },
+      { label: "Terms of service", href: "/terms" },
+      { label: "Data handling", href: "/#trust" },
+      { label: "Do not sell my data", href: "/privacy#resale" },
     ],
   },
 ];
@@ -288,6 +272,8 @@ export default function LandingPage() {
           >
             <a href="#how" className="text-ink-soft hover:text-accent-press">How it works</a>
             <a href="#compare" className="text-ink-soft hover:text-accent-press">What we compare</a>
+            <a href="#renewals" className="text-ink-soft hover:text-accent-press">Renewals</a>
+            <a href="#brokers" className="text-ink-soft hover:text-accent-press">For brokers</a>
             <a href="#trust" className="text-ink-soft hover:text-accent-press">Data handling</a>
             <a href="#faq" className="text-ink-soft hover:text-accent-press">FAQ</a>
           </nav>
@@ -302,7 +288,7 @@ export default function LandingPage() {
               href="/discovery"
               className="whitespace-nowrap rounded-[4px] bg-accent px-[17px] py-2.5 text-[14.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press max-sm:px-3"
             >
-              Start discovery
+              Start shopping
             </Link>
           </div>
         </div>
@@ -354,22 +340,22 @@ export default function LandingPage() {
             className="font-mono text-[11.5px] uppercase tracking-[.14em] text-dark-ink-muted"
             style={{ animation: "pv-in 500ms var(--pv-ease) both" }}
           >
-            PEO · Payroll · HR brokerage
+            PEO · Payroll · HR
           </div>
           <h1
             className="mt-[22px] font-display text-[clamp(34px,6.4vw,60px)] font-semibold leading-[1.02] tracking-[-.032em] text-dark-ink-bright [text-wrap:balance]"
             style={{ animation: "pv-in 500ms var(--pv-ease) 50ms both" }}
           >
-            A PEO quote should be arithmetic, not a negotiation.
+            The easiest way to shop for PEO, Payroll &amp; HR tech.
           </h1>
           <p
             className="mt-6 max-w-[50ch] text-[19px] leading-normal text-line-strong [text-wrap:pretty]"
             style={{ animation: "pv-in 500ms var(--pv-ease) 100ms both" }}
           >
-            Answer six questions about your headcount, payroll setup, and
-            benefits spend. We take that record to the provider market and come
-            back with the math — what each model would cost you, and where you
-            are overpaying today.
+            Research, evaluate, and choose the right PEO, payroll, and HR
+            software for free. Answer a structured set of questions once; a
+            Prime PEO Brokers expert does the legwork and delivers your
+            tailored proposal. No pushy vendor reps. You never pay us.
           </p>
           <div
             className="mt-[34px] flex flex-wrap gap-3.5"
@@ -379,17 +365,24 @@ export default function LandingPage() {
               href="/discovery"
               className="rounded-[4px] bg-accent px-[26px] py-[15px] text-base font-semibold text-white transition-all duration-150 hover:bg-accent-press active:translate-y-px"
             >
-              Start the six-step discovery
+              Start shopping
             </Link>
             <a
-              href="#compare"
+              href="#how"
               className="rounded-[4px] border border-ink-muted px-6 py-[15px] text-base font-semibold text-dark-ink transition-colors duration-150 hover:border-dark-ink hover:bg-[rgba(255,255,255,.08)]"
             >
-              See what we compare
+              How it works
             </a>
           </div>
           <div
-            className="mt-11 flex gap-[34px] border-t border-dark-line pt-[26px] max-sm:flex-wrap max-sm:gap-[22px]"
+            className="mt-4 text-[13.5px] text-dark-ink-muted"
+            style={{ animation: "pv-in 500ms var(--pv-ease) 175ms both" }}
+          >
+            Free to start · No sales calls · Renewing? We will benchmark your
+            deal
+          </div>
+          <div
+            className="mt-9 flex gap-[34px] border-t border-dark-line pt-[26px] max-sm:flex-wrap max-sm:gap-[22px]"
             style={{ animation: "pv-in 500ms var(--pv-ease) 200ms both" }}
           >
             {[
@@ -449,6 +442,55 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+        </div>
+      </section>
+
+      {/* TRUST STRIP · the four promises from the original site */}
+      <section className="border-b border-line bg-tint">
+        <div className="mx-auto grid max-w-[1240px] grid-cols-4 gap-8 px-10 py-6 max-lg:grid-cols-2 max-lg:gap-6 max-sm:grid-cols-1 max-sm:px-5">
+          {[
+            "Free for our users, always",
+            "Expert advisor, no pushy reps",
+            "No sponsored rankings",
+            "Your data stays yours",
+          ].map((line) => (
+            <div key={line} className="flex items-start gap-2.5">
+              <svg
+                aria-hidden
+                viewBox="0 0 16 16"
+                className="mt-0.5 h-4 w-4 flex-none text-accent"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.25"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M3 8.5 6.2 12 13 4.5" />
+              </svg>
+              <span className="text-[14.5px] leading-snug text-ink-soft">
+                {line}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* PLATFORM STRIP */}
+      <section className="border-b border-line bg-surface">
+        <div className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-x-10 gap-y-4 px-10 py-7 max-sm:px-5">
+          <div className="text-[14.5px] text-ink-muted">
+            Compare across the leading PEO, payroll &amp; HR platforms
+          </div>
+          <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+            {PLATFORMS.map((name) => (
+              <span
+                key={name}
+                className="font-display text-[15px] font-semibold tracking-[-.01em] text-ink-faint"
+              >
+                {name}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -526,13 +568,8 @@ export default function LandingPage() {
                 key={s.n}
                 className="bg-raised px-[26px] pb-7 pt-[26px] transition-colors duration-150 hover:bg-tint"
               >
-                <div className="flex items-center justify-between">
-                  <div className="font-mono text-xs tracking-[.08em] text-accent">
-                    STEP {s.n}
-                  </div>
-                  <div className="font-mono text-[11px] text-ink-muted">
-                    {s.fields}
-                  </div>
+                <div className="font-mono text-xs tracking-[.08em] text-accent">
+                  STEP {s.n}
                 </div>
                 <h3 className="mt-4 font-display text-xl font-semibold tracking-[-.01em]">
                   {s.title}
@@ -551,6 +588,60 @@ export default function LandingPage() {
               Start step 1
             </Link>
             <span className="text-sm text-ink-muted">No account needed to begin.</span>
+          </div>
+        </div>
+      </section>
+
+      {/* TWO WAYS TO START · restored from the original site */}
+      <section id="renewals" className="border-b border-line bg-tint py-[84px] max-sm:py-14">
+        <div className="mx-auto max-w-[1240px] px-10 max-sm:px-5">
+          <div className="pv-label">Two ways to start</div>
+          <h2 className="mt-3.5 max-w-[20ch] font-display text-[clamp(27px,3.5vw,40px)] font-semibold leading-[1.08] tracking-[-.025em]">
+            Shop fresh, or let us benchmark what you have.
+          </h2>
+          <div className="mt-9 grid grid-cols-2 gap-5 max-lg:grid-cols-1">
+            {[
+              {
+                eyebrow: "Start shopping",
+                title: "Find your best-fit platform",
+                body: "Run a quick, guided discovery and get matched against the market. Ideal if you are evaluating options, switching, or buying for the first time.",
+                cta: "Start shopping",
+                href: "/discovery",
+                primary: true,
+              },
+              {
+                eyebrow: "Already have a quote?",
+                title: "Renewing? We will benchmark your deal",
+                body: "Renewing or holding a competing bid? Run the same discovery and tell us who you are with. Our team benchmarks your current terms against the market and shops your options, so you know if you are getting a fair deal. Your advisor will ask for the paperwork if seeing it would help.",
+                cta: "Benchmark my renewal",
+                href: "/discovery?intent=renewal",
+                primary: false,
+              },
+            ].map((c) => (
+              <div
+                key={c.eyebrow}
+                data-reveal
+                className="flex flex-col rounded-[4px] border border-line bg-raised p-8 max-sm:p-6"
+              >
+                <div className="pv-label">{c.eyebrow}</div>
+                <h3 className="mt-3 font-display text-[21px] font-semibold leading-snug tracking-[-.015em]">
+                  {c.title}
+                </h3>
+                <p className="mt-3 flex-1 text-[15.5px] leading-relaxed text-ink-soft">
+                  {c.body}
+                </p>
+                <Link
+                  href={c.href}
+                  className={
+                    c.primary
+                      ? "mt-7 inline-flex w-fit rounded-[4px] bg-accent px-[22px] py-3 text-[15px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
+                      : "mt-7 inline-flex w-fit rounded-[4px] border border-line-strong px-[22px] py-3 text-[15px] font-semibold text-ink transition-colors duration-150 hover:border-ink"
+                  }
+                >
+                  {c.cta} &rarr;
+                </Link>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -673,7 +764,9 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PROOF — placeholder references, replace with approved client references before launch */}
+      {/* PROOF · hidden until the client supplies real references. See
+          lib/content/proof.ts: the current content is invented. */}
+      {PROOF_READY && (
       <section data-reveal className="border-t border-line bg-tint">
         <div className="mx-auto max-w-[1240px] px-10 pb-[84px] pt-[78px] max-sm:px-5">
           <div className="grid grid-cols-3 gap-px border border-line bg-line max-sm:grid-cols-1">
@@ -707,8 +800,36 @@ export default function LandingPage() {
               </blockquote>
             ))}
           </div>
-          <div className="mt-[18px] font-mono text-[11.5px] tracking-[.06em] text-ink-faint">
-            Placeholder references — replace before launch.
+        </div>
+      </section>
+      )}
+
+      {/* FOR BROKERS · partner referral. Copy is a placeholder: the original
+          site had a nav link with little behind it, so this needs client copy. */}
+      <section id="brokers" className="border-b border-line bg-dark py-[76px] max-sm:py-14">
+        <div className="mx-auto grid max-w-[1240px] grid-cols-[1.1fr_1fr] items-center gap-14 px-10 max-lg:grid-cols-1 max-lg:gap-8 max-sm:px-5">
+          <div>
+            <div className="pv-label text-dark-ink-muted">For brokers</div>
+            <h2 className="mt-3.5 max-w-[22ch] font-display text-[clamp(26px,3.2vw,36px)] font-semibold leading-[1.1] tracking-[-.025em] text-dark-ink-bright">
+              Refer a client, keep the relationship.
+            </h2>
+            <p className="mt-4 max-w-[52ch] text-[16px] leading-relaxed text-dark-ink-soft">
+              We work alongside brokers, accountants, and fractional HR teams
+              who would rather not run a PEO search themselves. You bring the
+              relationship, we run the discovery and the market comparison, and
+              your client sees the whole shortlist.
+            </p>
+          </div>
+          <div className="rounded-[4px] border border-dark-line bg-dark-raised p-7">
+            <div className="text-[15px] leading-relaxed text-dark-ink-soft">
+              Partner enquiries go straight to the brokerage team.
+            </div>
+            <a
+              href="mailto:hello@primepeobrokers.com?subject=Partner%20enquiry"
+              className="mt-5 inline-flex rounded-[4px] bg-accent px-[22px] py-3 text-[15px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
+            >
+              Talk to us about partnering
+            </a>
           </div>
         </div>
       </section>
@@ -768,7 +889,7 @@ export default function LandingPage() {
         <div className="mx-auto grid max-w-[1240px] grid-cols-[1.1fr_1fr] items-center gap-[72px] px-10 pb-[92px] pt-[88px] max-lg:grid-cols-1 max-lg:gap-10 max-sm:px-5">
           <div>
             <h2 className="font-display text-[clamp(30px,4.6vw,44px)] font-semibold leading-[1.03] tracking-[-.03em] text-dark-ink-bright [text-wrap:balance]">
-              Six questions, and you will know what you should be paying.
+              Six steps, and you will know what you should be paying.
             </h2>
             <p className="mt-5 max-w-[46ch] text-[17px] leading-normal text-dark-ink-muted">
               Start now, or start the parts you know and finish later from the
@@ -780,7 +901,7 @@ export default function LandingPage() {
                 href="/discovery"
                 className="rounded-[4px] bg-dark-ink px-[26px] py-[15px] text-base font-semibold text-ink transition-colors duration-150 hover:bg-white"
               >
-                Start the discovery
+                Start shopping
               </Link>
               <a
                 href="mailto:hello@primepeobrokers.com?subject=Talk%20to%20a%20broker"
@@ -792,7 +913,7 @@ export default function LandingPage() {
           </div>
           <div className="rounded-[4px] border border-dark-line">
             {[
-              ["Now", "You answer six steps. Each one is saved as you go."],
+              ["Now", "You pick a category and answer five short steps. Each one is saved as you go."],
               ["< 1 day", "A broker reads the record and confirms which providers fit it."],
               ["3–5 days", "A written comparison, one axis, with the assumptions stated."],
             ].map(([when, what], i, arr) => (
@@ -824,12 +945,9 @@ export default function LandingPage() {
               Licensed insurance and PEO brokerage. We are paid by the provider
               you select, never by you.
             </p>
-            <div className="mt-[18px] font-mono text-[11.5px]">
-              CA lic. #0M00000 · NPN 00000000
-            </div>
-            <div className="mt-2.5 font-mono text-[10.5px] text-ink-muted">
-              Photography: Adrian Sulyok, Lance Chang — Unsplash licence · Hero
-              footage: Pressmaster — Pexels licence
+            <div className="mt-[18px] font-mono text-[10.5px] text-ink-muted">
+              Photography: Adrian Sulyok, Lance Chang, Unsplash licence · Hero
+              footage: Pressmaster, Pexels licence
             </div>
           </div>
           {FOOTER_COLS.map((col) => (
@@ -856,7 +974,7 @@ export default function LandingPage() {
           <div className="flex gap-6">
             <Link href="/#trust" className="text-ink-faint hover:text-dark-ink">Privacy</Link>
             <Link href="/#trust" className="text-ink-faint hover:text-dark-ink">Terms</Link>
-            <Link href="/#trust" className="text-ink-faint hover:text-dark-ink">Security</Link>
+            <Link href="/privacy" className="text-ink-faint hover:text-dark-ink">Privacy</Link>
           </div>
         </div>
       </footer>

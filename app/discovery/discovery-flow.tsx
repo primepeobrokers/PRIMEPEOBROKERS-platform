@@ -117,7 +117,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
         }
       }
     } catch {
-      /* corrupted local state — start fresh */
+      /* corrupted local state: start fresh */
     }
     setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,7 +135,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
         JSON.stringify({ handle, answers: a, step: s, visited }),
       );
     } catch {
-      /* private mode — in-tab state still works */
+      /* private mode: in-tab state still works */
     }
   }
 
@@ -199,7 +199,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
             markSaved();
           }
         } catch {
-          /* offline — localStorage still holds the answers */
+          /* offline: localStorage still holds the answers */
         }
       };
       // Chain onto whatever is in flight so the draft row is never written
@@ -598,7 +598,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                   when: "Within 1 day",
                   what: "A broker reads the record",
                   detail:
-                    "If anything is ambiguous — classification, the renewal date, the bundled fee — they ask you before quoting.",
+                    "If anything is ambiguous (classification, the renewal date, the bundled fee) they ask you before quoting.",
                 },
                 {
                   when: "Days 1–2",

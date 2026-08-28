@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 /**
  * Session-scoped Supabase client for Server Components, Server Actions and
- * Route Handlers. Uses the publishable (anon) key — all reads go through RLS,
+ * Route Handlers. Uses the publishable (anon) key, so all reads go through RLS,
  * so an authenticated staff user can only ever see their own tenant's rows.
  */
 export async function createClient() {
@@ -23,7 +23,7 @@ export async function createClient() {
               cookieStore.set(name, value, options),
             );
           } catch {
-            // Called from a Server Component — session refresh is handled by
+            // Called from a Server Component, where session refresh is handled by
             // the proxy, so writes here can be safely ignored.
           }
         },

@@ -218,7 +218,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
                   </div>
                 </div>
                 <Cell label="Heads" right>
-                  <span className="font-mono text-sm">{r.fte_count ?? "—"}</span>
+                  <span className="font-mono text-sm">{r.fte_count ?? "–"}</span>
                 </Cell>
                 <Cell label="Benefits spend" right>
                   <span className="font-mono text-sm">
@@ -227,7 +227,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
                 </Cell>
                 <Cell label="Current setup">
                   <span className="text-sm text-ink-soft">
-                    {r.current_setup ?? "—"}
+                    {r.current_setup ?? "–"}
                   </span>
                 </Cell>
                 <Cell label="Submitted">
@@ -297,7 +297,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
               The leads service did not respond.
             </h2>
             <p className="mx-auto mt-3 max-w-[46ch] text-[15px] leading-normal text-ink-soft">
-              Nothing was lost — submissions are still being accepted and will
+              Nothing was lost. Submissions are still being accepted and will
               appear once this clears.
             </p>
             <Link

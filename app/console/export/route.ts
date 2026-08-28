@@ -4,7 +4,7 @@ import { STEPS, formatAnswer, type Answers } from "@/lib/discovery/schema";
 
 /**
  * CSV export of the signed-in user's tenant leads. Auth is required and RLS
- * scopes the rows — an unauthenticated request gets a 401, never data.
+ * scopes the rows: an unauthenticated request gets a 401, never data.
  */
 export async function GET() {
   const supabase = await createClient();
@@ -47,7 +47,7 @@ export async function GET() {
         row.submitted_at ?? "",
         ...fieldCols.map((f) => {
           const v = formatAnswer(f.id, answers);
-          return v === "—" ? "" : v;
+          return v === "–" ? "" : v;
         }),
       ]
         .map(esc)

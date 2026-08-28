@@ -41,7 +41,7 @@ export async function sendResetLink(input: {
 
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const supabase = await createClient();
-  // Always report success — the form must not reveal which emails exist.
+  // Always report success, so the form cannot reveal which emails exist.
   await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${site}/auth/confirm?next=/auth/update-password`,
   });
@@ -68,7 +68,7 @@ export async function updatePassword(input: {
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error) {
-    return { error: "Setting the password failed — try again." };
+    return { error: "Setting the password failed. Try again." };
   }
   redirect("/console");
 }

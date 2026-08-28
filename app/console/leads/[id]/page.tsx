@@ -188,7 +188,7 @@ export default async function LeadDetailPage(
               />
               <SideRow
                 label="Submitted"
-                value={lead.submitted_at ? formatWhen(lead.submitted_at) : "—"}
+                value={lead.submitted_at ? formatWhen(lead.submitted_at) : "–"}
               />
               {runway && <SideRow label="Renewal pressure" value={runway} />}
             </div>

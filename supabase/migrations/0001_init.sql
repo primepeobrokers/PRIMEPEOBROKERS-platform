@@ -10,7 +10,7 @@ create table public.tenants (
   id          uuid primary key default gen_random_uuid(),
   slug        text not null unique check (slug ~ '^[a-z0-9-]{2,63}$'),
   name        text not null,
-  -- logo, colour palette, company name — configurable without redeploy (Phase 3)
+  -- logo, colour palette, company name, configurable without redeploy (Phase 3)
   branding    jsonb not null default '{}'::jsonb,
   created_at  timestamptz not null default now()
 );
@@ -62,7 +62,7 @@ create table public.submissions (
   id              uuid primary key default gen_random_uuid(),
   tenant_id       uuid not null references public.tenants (id),
   -- Human-facing reference shown in the console and in emails. Global (not
-  -- per-tenant) sequence — documented trade-off in docs/data-model.md.
+  -- per-tenant) sequence. Documented trade-off in docs/data-model.md.
   ref             bigint generated always as identity (start with 1001) unique,
   status          text not null default 'partial' check (status in ('partial', 'complete')),
   -- Phase 2 lead pipeline. Stored as text (not an enum) so the stage list
@@ -132,7 +132,7 @@ create index submission_events_submission_idx
 -- The anon role gets NO policies on any table: there is no public or
 -- anonymous read path to submission data. The discovery flow writes through
 -- server-only code using the service-role key. Authenticated staff read
--- strictly within their own tenant — enforced here, at the data layer,
+-- strictly within their own tenant, enforced here at the data layer,
 -- not in the UI.
 -- ---------------------------------------------------------------------------
 alter table public.tenants            enable row level security;

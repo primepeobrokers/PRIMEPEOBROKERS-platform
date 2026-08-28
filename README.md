@@ -1,10 +1,10 @@
-# Prime PEO Brokers — Phase 1
+# Prime PEO Brokers
 
 Marketing site, six-step discovery flow, and internal leads console for the
 Prime PEO Brokers PEO/payroll/HR brokerage. Next.js 16 (App Router) + Supabase
 (Postgres, Auth, RLS) + Resend for transactional email.
 
-Every completed — and partial — discovery flow is captured, stored, and
+Every discovery flow, complete or partial, is captured, stored, and
 surfaced to the team. Multi-tenancy is designed into the data model from
 day one (see `docs/data-model.md`).
 
@@ -21,18 +21,18 @@ day one (see `docs/data-model.md`).
 
 Key code:
 
-- `lib/discovery/schema.ts` — the six steps: fields, options, validation. One
+- `lib/discovery/schema.ts`: the six steps, their fields, options, branching, and validation. One
   file drives the flow UI, server validation, review, console detail, email
   and CSV.
-- `app/discovery/actions.ts` — server-only writes (service role), draft
+- `app/discovery/actions.ts`: server-only writes (service role), draft
   guarded by `(id, resume_token)`.
-- `supabase/migrations/0001_init.sql` — schema + RLS.
-- `proxy.ts` — session refresh + console gate (Next 16's middleware).
+- `supabase/migrations/`: schema and RLS.
+- `proxy.ts`: session refresh and the console gate (Next 16's middleware).
 
 ## Setup
 
 1. **Supabase**: create a project at [supabase.com](https://supabase.com),
-   then run the migration — either paste
+   then run the migrations, either pasting
    `supabase/migrations/0001_init.sql` into the SQL editor, or:
 
    ```bash
@@ -64,11 +64,11 @@ Key code:
 
 Deploy to Netlify (client's account) or Vercel; set the env vars from
 `.env.example` with `NEXT_PUBLIC_SITE_URL` as the production domain. Deploy
-previews work out of the box — the SOW asks for preview links throughout
+previews work out of the box, and the SOW asks for preview links throughout
 Phase 1.
 
 ## Phase boundaries
 
 Phase 1 deliberately excludes: multiple roles/permissions, assignment, status
 tracking, notes, partner portals. The schema already anticipates them
-(`lead_stage`, `profiles.role`, `tenants`) — see `docs/data-model.md`.
+(`lead_stage`, `profiles.role`, `tenants`). See `docs/data-model.md`.

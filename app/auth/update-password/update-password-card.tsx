@@ -20,7 +20,7 @@ export function UpdatePasswordCard({
   const lvlLabel = [
     "Nothing yet",
     "Too short",
-    "Weak — add length",
+    "Weak: add length",
     "Good",
     "Strong",
   ][lvl];

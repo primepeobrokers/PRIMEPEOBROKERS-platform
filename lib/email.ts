@@ -10,7 +10,7 @@ function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     console.warn(
-      "[email] RESEND_API_KEY is not set — transactional email skipped.",
+      "[email] RESEND_API_KEY is not set: transactional email skipped.",
     );
     return null;
   }
@@ -30,7 +30,7 @@ export async function sendSubmissionNotification(input: {
   const resend = getResend();
   const to = process.env.LEAD_NOTIFY_EMAIL;
   if (!resend || !to) {
-    if (!to) console.warn("[email] LEAD_NOTIFY_EMAIL is not set — skipped.");
+    if (!to) console.warn("[email] LEAD_NOTIFY_EMAIL is not set: skipped.");
     return;
   }
 
@@ -43,7 +43,7 @@ export async function sendSubmissionNotification(input: {
     const rows = step.fields
       .map(
         (f) =>
-          `<tr><td style="padding:6px 16px 6px 0;color:#6E6A64;font-size:14px;vertical-align:top;">${f.label}</td><td style="padding:6px 0;font-size:14px;">${escapeHtml(formatAnswer(f.id, input.answers))}</td></tr>`,
+          `<tr><td style="padding:6px 16px 6px 0;color:#63697A;font-size:14px;vertical-align:top;">${f.label}</td><td style="padding:6px 0;font-size:14px;">${escapeHtml(formatAnswer(f.id, input.answers))}</td></tr>`,
       )
       .join("");
     return `<h3 style="font-size:15px;margin:20px 0 4px;">${step.title}</h3><table style="border-collapse:collapse;">${rows}</table>`;
@@ -54,10 +54,10 @@ export async function sendSubmissionNotification(input: {
     to,
     subject: `New discovery record · REF ${input.ref} · ${company}`,
     html: `
-      <div style="font-family:system-ui,sans-serif;color:#1A1917;max-width:640px;">
+      <div style="font-family:system-ui,sans-serif;color:#19233B;max-width:640px;">
         <p style="font-size:15px;">A new record just came through the discovery flow.</p>
-        <p style="font-size:15px;"><strong>${escapeHtml(company)}</strong> — ${escapeHtml(contact)} (${escapeHtml(email)})</p>
-        <p><a href="${consoleLink}" style="color:#1F3D8C;">Open REF ${input.ref} in the console</a></p>
+        <p style="font-size:15px;"><strong>${escapeHtml(company)}</strong>: ${escapeHtml(contact)} (${escapeHtml(email)})</p>
+        <p><a href="${consoleLink}" style="color:#FF2D00;">Open REF ${input.ref} in the console</a></p>
         ${sections}
       </div>`,
   });
@@ -76,12 +76,12 @@ export async function sendResumeLink(input: {
   await resend.emails.send({
     from: FROM,
     to: input.to,
-    subject: "Your Prime PEO Brokers discovery record — pick up where you left off",
+    subject: "Your Prime PEO Brokers discovery record: pick up where you left off",
     html: `
-      <div style="font-family:system-ui,sans-serif;color:#1A1917;max-width:560px;">
+      <div style="font-family:system-ui,sans-serif;color:#19233B;max-width:560px;">
         <p style="font-size:15px;">You are ${input.stepsCompleted} of 6 steps in. Your answers are saved.</p>
-        <p style="font-size:15px;"><a href="${link}" style="color:#1F3D8C;">Return to your record</a> — this link takes you back to the step you left and expires in 30 days.</p>
-        <p style="font-size:13px;color:#6E6A64;">No other mail follows from this. If you did not request the link, ignore this email.</p>
+        <p style="font-size:15px;"><a href="${link}" style="color:#FF2D00;">Return to your record</a>. This link takes you back to the step you left and expires in 30 days.</p>
+        <p style="font-size:13px;color:#63697A;">No other mail follows from this. If you did not request the link, ignore this email.</p>
       </div>`,
   });
 }
@@ -100,10 +100,10 @@ export async function sendSubmissionConfirmation(input: {
     to: input.to,
     subject: `Your record is in · REF ${input.ref}`,
     html: `
-      <div style="font-family:system-ui,sans-serif;color:#1A1917;max-width:560px;">
+      <div style="font-family:system-ui,sans-serif;color:#19233B;max-width:560px;">
         <p style="font-size:15px;">${escapeHtml(input.name)},</p>
         <p style="font-size:15px;">Your six steps are with a broker. They read the record within one business day and will confirm which providers fit before anything is quoted. Nothing is shared with a provider until you approve the shortlist.</p>
-        <p style="font-size:13px;color:#6E6A64;">Something wrong in the record? Reply to this email and it is corrected before quoting starts.</p>
+        <p style="font-size:13px;color:#63697A;">Something wrong in the record? Reply to this email and it is corrected before quoting starts.</p>
       </div>`,
   });
 }

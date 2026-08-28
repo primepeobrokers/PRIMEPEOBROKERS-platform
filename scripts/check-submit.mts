@@ -5,7 +5,7 @@
  * and that sanitizeAnswers does not drop the new checkbox arrays.
  */
 import {
-  STEPS, TOTAL_STEPS, CATEGORIES, visibleFields, validateStep, sanitizeAnswers,
+  TOTAL_STEPS, CATEGORIES, visibleFields, validateStep, sanitizeAnswers,
   type Answers, type Category,
 } from "../lib/discovery/schema";
 

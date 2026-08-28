@@ -10,7 +10,7 @@ export async function logRecordOpen(submissionId: string): Promise<void> {
   } = await supabase.auth.getUser();
   if (!user) return;
 
-  // RLS scopes this select to the user's tenant — no row, no log.
+  // RLS scopes this select to the user's tenant: no row, no log.
   const { data: lead } = await supabase
     .from("submissions")
     .select("tenant_id")
