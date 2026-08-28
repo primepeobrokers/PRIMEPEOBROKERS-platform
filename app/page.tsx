@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Wordmark } from "@/app/components/wordmark";
+import { Logo } from "@/app/components/logo";
 import { RevealInit } from "@/app/components/reveal";
 import { Faq } from "@/app/components/faq";
 
 export const metadata: Metadata = {
-  title: "Prime Vantage — A PEO quote should be arithmetic, not a negotiation",
+  title: "Prime PEO Brokers — A PEO quote should be arithmetic, not a negotiation",
   description:
     "Answer six questions about your headcount, payroll setup, and benefits spend. We take that record to the provider market and come back with the math — what each model would cost you, and where you are overpaying today.",
   alternates: { canonical: "/" },
@@ -168,7 +168,7 @@ const OUTCOMES = [
 
 const QUOTES = [
   {
-    text: "We had three quotes that could not be compared to each other. Prime Vantage put them on one axis and the cheapest one turned out to be the most expensive over a year.",
+    text: "We had three quotes that could not be compared to each other. Prime PEO Brokers put them on one axis and the cheapest one turned out to be the most expensive over a year.",
     initials: "DK",
     name: "Dana Kessler",
     role: "COO, Northgate Logistics",
@@ -255,7 +255,7 @@ const FOOTER_COLS = [
     head: "Company",
     links: [
       { label: "About", href: "/#how" },
-      { label: "Contact", href: "mailto:hello@primevantage.com" },
+      { label: "Contact", href: "mailto:hello@primepeobrokers.com" },
       { label: "Licensing", href: "/#trust" },
       { label: "Sign in", href: "/login" },
     ],
@@ -277,13 +277,10 @@ export default function LandingPage() {
       <RevealInit />
 
       {/* NAV */}
-      <header className="sticky top-0 z-40 border-b border-line bg-[rgba(244,242,239,.92)] backdrop-blur-[8px]">
+      <header className="sticky top-0 z-40 border-b border-line bg-[rgba(255,255,255,.92)] backdrop-blur-[8px]">
         <div className="mx-auto flex h-[68px] max-w-[1240px] items-center justify-between gap-8 px-10 max-sm:px-5">
-          <Link href="/" className="flex items-center gap-[11px]" aria-label="Prime Vantage home">
-            <Wordmark size={22} />
-            <span className="whitespace-nowrap font-display text-[17px] font-semibold tracking-[-.01em]">
-              Prime Vantage
-            </span>
+          <Link href="/" className="flex items-center" aria-label="Prime PEO Brokers home">
+            <Logo size={34} />
           </Link>
           <nav
             aria-label="Primary"
@@ -333,7 +330,7 @@ export default function LandingPage() {
             className="absolute inset-0"
             style={{
               backgroundImage:
-                "linear-gradient(rgba(244,242,239,.05) 1px,transparent 1px)",
+                "linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px)",
               backgroundSize: "100% 27px",
             }}
           />
@@ -341,13 +338,13 @@ export default function LandingPage() {
             className="absolute inset-0"
             style={{
               background:
-                "linear-gradient(100deg,rgba(26,25,23,.96) 0%,rgba(26,25,23,.88) 38%,rgba(26,25,23,.6) 74%,rgba(26,25,23,.46) 100%)",
+                "linear-gradient(100deg,rgba(25,35,59,.96) 0%,rgba(25,35,59,.88) 38%,rgba(25,35,59,.6) 74%,rgba(25,35,59,.46) 100%)",
             }}
           />
           <div
             className="absolute inset-x-0 bottom-0 h-[120px]"
             style={{
-              background: "linear-gradient(to bottom,rgba(26,25,23,0),#1A1917)",
+              background: "linear-gradient(to bottom,rgba(25,35,59,0),var(--pv-dark))",
             }}
           />
         </div>
@@ -386,7 +383,7 @@ export default function LandingPage() {
             </Link>
             <a
               href="#compare"
-              className="rounded-[4px] border border-ink-muted px-6 py-[15px] text-base font-semibold text-dark-ink transition-colors duration-150 hover:border-dark-ink hover:bg-[rgba(244,242,239,.08)]"
+              className="rounded-[4px] border border-ink-muted px-6 py-[15px] text-base font-semibold text-dark-ink transition-colors duration-150 hover:border-dark-ink hover:bg-[rgba(255,255,255,.08)]"
             >
               See what we compare
             </a>
@@ -412,7 +409,7 @@ export default function LandingPage() {
 
         {/* the record fills in on load */}
         <div
-          className="overflow-hidden rounded-[4px] border border-line bg-raised shadow-[0_1px_2px_rgba(26,25,23,.05),0_18px_40px_-26px_rgba(26,25,23,.3)]"
+          className="overflow-hidden rounded-[4px] border border-line bg-raised shadow-[0_1px_2px_rgba(25,35,59,.05),0_18px_40px_-26px_rgba(25,35,59,.3)]"
           style={{ animation: "pv-in 500ms var(--pv-ease) 120ms both" }}
         >
           <div className="flex items-center justify-between border-b border-line bg-sunken px-[22px] py-3.5">
@@ -527,7 +524,7 @@ export default function LandingPage() {
             {FLOW_STEPS.map((s) => (
               <div
                 key={s.n}
-                className="bg-raised px-[26px] pb-7 pt-[26px] transition-colors duration-150 hover:bg-[#FBFAF8]"
+                className="bg-raised px-[26px] pb-7 pt-[26px] transition-colors duration-150 hover:bg-tint"
               >
                 <div className="flex items-center justify-between">
                   <div className="font-mono text-xs tracking-[.08em] text-accent">
@@ -587,7 +584,7 @@ export default function LandingPage() {
             {MODELS.map((m) => (
               <div
                 key={m.name}
-                className="grid grid-cols-[1.1fr_1fr_1fr_1.2fr_92px] items-baseline gap-6 border-b border-dark-line-soft px-6 py-[19px] transition-colors duration-150 last:border-b-0 hover:bg-[#211F1E] max-md:grid-cols-1 max-md:gap-[11px] max-md:px-[18px] max-md:py-5"
+                className="grid grid-cols-[1.1fr_1fr_1fr_1.2fr_92px] items-baseline gap-6 border-b border-dark-line-soft px-6 py-[19px] transition-colors duration-150 last:border-b-0 hover:bg-dark-raised max-md:grid-cols-1 max-md:gap-[11px] max-md:px-[18px] max-md:py-5"
               >
                 <div className="font-display text-[16.5px] font-semibold text-dark-ink-bright">
                   {m.name}
@@ -627,7 +624,7 @@ export default function LandingPage() {
             className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-5 px-10 pb-6 pt-[26px] max-sm:px-5"
             style={{
               background:
-                "linear-gradient(to top,rgba(26,25,23,.82),rgba(26,25,23,0))",
+                "linear-gradient(to top,rgba(25,35,59,.82),rgba(25,35,59,0))",
             }}
           >
             <div className="max-w-[22ch] font-display text-[clamp(19px,2.4vw,26px)] font-semibold leading-[1.15] tracking-[-.02em] text-dark-ink-bright [text-wrap:balance]">
@@ -656,7 +653,7 @@ export default function LandingPage() {
               >
                 <div
                   className="font-mono text-2xl font-medium tracking-[-.02em]"
-                  style={{ color: g.highlight ? "#1F3D8C" : "#1A1917" }}
+                  style={{ color: g.highlight ? "var(--pv-accent)" : "var(--pv-ink)" }}
                 >
                   {g.range}
                 </div>
@@ -754,10 +751,10 @@ export default function LandingPage() {
             <p className="mt-[18px] text-[14.5px] leading-relaxed text-ink-soft">
               Anything else, email{" "}
               <a
-                href="mailto:hello@primevantage.com"
+                href="mailto:hello@primepeobrokers.com"
                 className="border-b border-[rgba(31,61,140,.3)] text-accent hover:border-accent-press hover:text-accent-press"
               >
-                hello@primevantage.com
+                hello@primepeobrokers.com
               </a>
               .
             </p>
@@ -786,7 +783,7 @@ export default function LandingPage() {
                 Start the discovery
               </Link>
               <a
-                href="mailto:hello@primevantage.com?subject=Talk%20to%20a%20broker"
+                href="mailto:hello@primepeobrokers.com?subject=Talk%20to%20a%20broker"
                 className="rounded-[4px] border border-ink-soft px-6 py-[15px] text-base font-semibold text-dark-ink transition-colors duration-150 hover:border-dark-ink-muted"
               >
                 Talk to a broker first
@@ -803,7 +800,7 @@ export default function LandingPage() {
                 key={when}
                 className="grid grid-cols-[52px_1fr] items-start gap-[18px] px-[22px] py-5"
                 style={{
-                  borderBottom: i < arr.length - 1 ? "1px solid #2C2A28" : "none",
+                  borderBottom: i < arr.length - 1 ? "1px solid var(--pv-dark-line-soft)" : "none",
                 }}
               >
                 <div className="font-mono text-xs text-positive-bright">{when}</div>
@@ -820,11 +817,8 @@ export default function LandingPage() {
       <footer className="border-t border-dark-line-soft bg-dark text-ink-faint">
         <div className="mx-auto grid max-w-[1240px] grid-cols-[1.4fr_1fr_1fr_1fr] gap-12 px-10 pb-11 pt-[52px] max-lg:grid-cols-2 max-lg:gap-9 max-sm:grid-cols-1 max-sm:px-5">
           <div>
-            <div className="flex items-center gap-[11px]">
-              <Wordmark size={20} variant="inverted" />
-              <span className="font-display text-base font-semibold text-dark-ink">
-                Prime Vantage
-              </span>
+            <div className="flex items-center">
+              <Logo size={32} variant="inverted" />
             </div>
             <p className="mt-4 max-w-[34ch] text-[13.5px] leading-relaxed">
               Licensed insurance and PEO brokerage. We are paid by the provider
@@ -858,7 +852,7 @@ export default function LandingPage() {
           ))}
         </div>
         <div className="mx-auto flex max-w-[1240px] flex-wrap justify-between gap-6 border-t border-dark-line-soft px-10 pb-12 pt-5 font-mono text-[11.5px] max-sm:px-5">
-          <div>© 2026 Prime Vantage Brokerage LLC</div>
+          <div>© 2026 Prime PEO Brokers</div>
           <div className="flex gap-6">
             <Link href="/#trust" className="text-ink-faint hover:text-dark-ink">Privacy</Link>
             <Link href="/#trust" className="text-ink-faint hover:text-dark-ink">Terms</Link>

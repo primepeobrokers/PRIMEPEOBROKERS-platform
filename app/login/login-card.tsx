@@ -7,7 +7,7 @@ const COPY = {
   signin: {
     eyebrow: "Broker console",
     heading: "Sign in",
-    sub: "For Prime Vantage staff and partner accounts.",
+    sub: "For Prime PEO Brokers staff and partner accounts.",
     cta: "Sign in",
     foot: "Access is by invitation. Ask an admin on your team if you need one.",
   },
@@ -76,7 +76,7 @@ export function LoginCard({
           className="mt-[22px] flex items-start gap-[11px] rounded-[4px] border border-[rgba(140,47,42,.35)] bg-[rgba(140,47,42,.06)] px-[15px] py-[13px]"
         >
           <span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-danger" />
-          <span className="text-sm leading-normal text-[#7A2823]">{error}</span>
+          <span className="text-sm leading-normal text-[var(--pv-danger)]">{error}</span>
         </div>
       )}
 
@@ -86,7 +86,7 @@ export function LoginCard({
           aria-live="polite"
           className="mt-[22px] rounded-[4px] border border-[rgba(74,107,58,.35)] bg-[rgba(74,107,58,.07)] px-4 py-3.5"
         >
-          <div className="text-[14.5px] font-semibold text-[#37522B]">
+          <div className="text-[14.5px] font-semibold text-[var(--pv-positive-deep)]">
             Reset link sent
           </div>
           <div className="mt-[5px] text-sm leading-normal text-ink-soft">
@@ -108,7 +108,7 @@ export function LoginCard({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={onKey}
-            placeholder="you@primevantage.com"
+            placeholder="you@primepeobrokers.com"
             className="mt-[9px] w-full rounded-[4px] border border-line-strong bg-raised px-[15px] py-3.5 text-base transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_rgba(31,61,140,.12)] focus:outline-none"
           />
           {view === "forgot" && (
@@ -153,7 +153,7 @@ export function LoginCard({
         type="button"
         onClick={submit}
         disabled={busy}
-        className="mt-[26px] w-full rounded-[4px] border border-accent bg-accent p-[15px] text-[15.5px] font-semibold text-white transition-all duration-150 hover:bg-accent-press active:translate-y-px disabled:cursor-wait disabled:bg-[#4A5A8C]"
+        className="mt-[26px] w-full rounded-[4px] border border-accent bg-accent p-[15px] text-[15.5px] font-semibold text-white transition-all duration-150 hover:bg-accent-press active:translate-y-px disabled:cursor-wait disabled:bg-[var(--pv-ink-disabled)]"
       >
         {busy ? "Working…" : copy.cta}
       </button>

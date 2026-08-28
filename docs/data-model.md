@@ -8,7 +8,7 @@ the schema. The schema itself lives in `supabase/migrations/0001_init.sql`.
 Every domain table (`submissions`, `profiles`, `submission_events`) carries a
 `tenant_id` referencing `tenants`. Phase 1 seeds exactly one tenant:
 
-- **Prime Vantage** — fixed id `00000000-0000-4000-8000-000000000001`
+- **Prime PEO Brokers** — fixed id `00000000-0000-4000-8000-000000000001`
   (constant `DEFAULT_TENANT_ID` in `lib/tenant.ts`).
 
 Phase 3 partners become additional `tenants` rows. `tenants.branding` (jsonb)
@@ -58,7 +58,7 @@ One row per discovery record, partial or complete.
 ## Profiles and roles
 
 `profiles` is keyed by the Supabase auth user id. A trigger creates the row on
-signup/invite and attaches it to the Prime Vantage tenant. `role` is
+signup/invite and attaches it to the Prime PEO Brokers tenant. `role` is
 `admin | member` — present now so Phase 2 permissions don't need a backfill,
 but Phase 1 treats everyone the same.
 

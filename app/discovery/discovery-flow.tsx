@@ -12,7 +12,7 @@ import {
   type Answers,
   type FieldDef,
 } from "@/lib/discovery/schema";
-import { Wordmark } from "@/app/components/wordmark";
+import { Logo } from "@/app/components/logo";
 import {
   saveDraft,
   submitRecord,
@@ -289,11 +289,8 @@ export function DiscoveryFlow({ resumed }: Props) {
       {/* header */}
       <header className="sticky top-0 z-30 border-b border-line bg-surface">
         <div className="mx-auto flex h-16 w-full max-w-[1120px] items-center justify-between gap-6 px-8 max-sm:px-[18px]">
-          <Link href="/" aria-label="Prime Vantage home" className="flex items-center gap-2.5">
-            <Wordmark size={20} />
-            <span className="font-display text-[15.5px] font-semibold">
-              Prime Vantage
-            </span>
+          <Link href="/" aria-label="Prime PEO Brokers home" className="flex items-center">
+            <Logo size={30} />
           </Link>
           <div className="flex items-center gap-5">
             <div
@@ -336,14 +333,14 @@ export function DiscoveryFlow({ resumed }: Props) {
                       className="grid w-full grid-cols-[22px_1fr] items-start gap-3 border-b border-sunken px-4 py-[13px] text-left transition-colors duration-150"
                       style={{
                         background: cur ? "rgba(31,61,140,.05)" : "#FFF",
-                        borderLeft: `2px solid ${cur ? "#1F3D8C" : done ? "#4A6B3A" : "#EAE6E1"}`,
+                        borderLeft: `2px solid ${cur ? "var(--pv-accent)" : done ? "var(--pv-positive)" : "var(--pv-surface-sunken)"}`,
                         cursor: reachable ? "pointer" : "default",
                       }}
                     >
                       <span
                         className="pt-0.5 font-mono text-xs"
                         style={{
-                          color: done ? "#4A6B3A" : cur ? "#1F3D8C" : "#A8A29A",
+                          color: done ? "var(--pv-positive)" : cur ? "var(--pv-accent)" : "var(--pv-ink-disabled)",
                         }}
                       >
                         {done ? "✓" : i + 1}
@@ -353,7 +350,7 @@ export function DiscoveryFlow({ resumed }: Props) {
                           className="block text-sm"
                           style={{
                             fontWeight: cur ? 600 : 500,
-                            color: reachable ? "#1A1917" : "#8A857E",
+                            color: reachable ? "var(--pv-ink)" : "var(--pv-ink-faint)",
                           }}
                         >
                           {s.title}
@@ -392,10 +389,10 @@ export function DiscoveryFlow({ resumed }: Props) {
                       style={{
                         background:
                           i === step
-                            ? "#1F3D8C"
+                            ? "var(--pv-accent)"
                             : visited.includes(i) && i < step
-                              ? "#4A6B3A"
-                              : "#EAE6E1",
+                              ? "var(--pv-positive)"
+                              : "var(--pv-surface-sunken)",
                       }}
                     />
                   ))}
@@ -404,7 +401,7 @@ export function DiscoveryFlow({ resumed }: Props) {
 
               <div
                 key={`${step}-${dir}`}
-                className="rounded-[4px] border border-line bg-raised p-10 pt-9 shadow-[0_1px_2px_rgba(26,25,23,.05)] max-sm:px-5 max-sm:py-[26px]"
+                className="rounded-[4px] border border-line bg-raised p-10 pt-9 shadow-[0_1px_2px_rgba(25,35,59,.05)] max-sm:px-5 max-sm:py-[26px]"
                 style={{
                   animation: `${dir === "fwd" ? "pv-fwd" : "pv-back"} 250ms var(--pv-ease) both`,
                 }}
@@ -420,7 +417,7 @@ export function DiscoveryFlow({ resumed }: Props) {
                 </p>
 
                 {stepDef.sensitive && (
-                  <div className="mt-[22px] flex items-start gap-[11px] rounded-[4px] border border-ink bg-[#FBFAF8] px-[15px] py-[13px]">
+                  <div className="mt-[22px] flex items-start gap-[11px] rounded-[4px] border border-ink bg-tint px-[15px] py-[13px]">
                     <span className="whitespace-nowrap rounded-[2px] border border-ink px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[.1em]">
                       Sensitive
                     </span>
@@ -456,7 +453,7 @@ export function DiscoveryFlow({ resumed }: Props) {
                       step === 0 ? setAbandon(true) : goTo(step - 1)
                     }
                     className="cursor-pointer rounded-[4px] border border-line-strong bg-transparent px-5 py-[13px] text-[15px] font-semibold transition-colors duration-150 hover:border-ink"
-                    style={{ color: step === 0 ? "#6E6A64" : "#1A1917" }}
+                    style={{ color: step === 0 ? "var(--pv-ink-muted)" : "var(--pv-ink)" }}
                   >
                     {step === 0 ? "Leave the flow" : "Back"}
                   </button>
@@ -498,7 +495,7 @@ export function DiscoveryFlow({ resumed }: Props) {
                 <div key={s.title} className="border-b border-line last:border-b-0">
                   <div
                     className="flex items-baseline justify-between gap-5 border-b border-sunken px-[22px] py-3.5"
-                    style={{ background: s.sensitive ? "#FBFAF8" : "#EAE6E1" }}
+                    style={{ background: s.sensitive ? "var(--pv-surface-tint)" : "var(--pv-surface-sunken)" }}
                   >
                     <div className="flex items-baseline gap-3">
                       <span className="font-mono text-[11.5px] text-ink-muted">
@@ -583,7 +580,7 @@ export function DiscoveryFlow({ resumed }: Props) {
                   when: "Days 1–2",
                   what: "You approve the shortlist",
                   detail:
-                    "They name the providers they intend to quote. Nothing leaves Prime Vantage until you confirm that list.",
+                    "They name the providers they intend to quote. Nothing leaves Prime PEO Brokers until you confirm that list.",
                 },
                 {
                   when: "Days 3–5",
@@ -633,7 +630,7 @@ export function DiscoveryFlow({ resumed }: Props) {
       {/* save-and-finish-later bar */}
       {abandon && view !== "done" && (
         <div
-          className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-raised shadow-[0_-8px_28px_-18px_rgba(26,25,23,.3)]"
+          className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-raised shadow-[0_-8px_28px_-18px_rgba(25,35,59,.3)]"
           style={{ animation: "pv-toast-in 250ms var(--pv-ease) both" }}
         >
           <div className="mx-auto flex w-full max-w-[1120px] flex-wrap items-center justify-between gap-5 px-8 pb-[22px] pt-5 max-sm:px-[18px]">
@@ -685,7 +682,7 @@ export function DiscoveryFlow({ resumed }: Props) {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-7 left-7 z-60 flex max-w-[380px] items-start gap-3 rounded-[4px] bg-dark px-[19px] py-[15px] text-dark-ink shadow-[0_12px_28px_-12px_rgba(26,25,23,.5)]"
+          className="fixed bottom-7 left-7 z-60 flex max-w-[380px] items-start gap-3 rounded-[4px] bg-dark px-[19px] py-[15px] text-dark-ink shadow-[0_12px_28px_-12px_rgba(25,35,59,.5)]"
           style={{ animation: "pv-toast-in 250ms var(--pv-ease) both" }}
         >
           <span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-positive-bright" />
@@ -719,7 +716,7 @@ function Field({
   onBlurValidate: () => void;
 }) {
   const val = answers[f.id];
-  const border = error ? "#8C2F2A" : "#C9C2B8";
+  const border = error ? "var(--pv-danger)" : "var(--pv-line-strong)";
   const mono = f.type === "num" || f.mono;
 
   return (
@@ -786,16 +783,16 @@ function Field({
                 className="flex cursor-pointer items-center gap-3 rounded-[4px] px-4 py-3.5 text-left text-[15.5px] transition-colors duration-150 hover:border-ink"
                 style={{
                   background: on ? "rgba(31,61,140,.05)" : "#FFF",
-                  border: `1px solid ${on ? "#1F3D8C" : "#DFDAD3"}`,
+                  border: `1px solid ${on ? "var(--pv-accent)" : "var(--pv-line)"}`,
                 }}
               >
                 <span
                   className="inline-flex h-4 w-4 flex-none items-center justify-center rounded-full"
-                  style={{ border: `1px solid ${on ? "#1F3D8C" : "#C9C2B8"}` }}
+                  style={{ border: `1px solid ${on ? "var(--pv-accent)" : "var(--pv-line-strong)"}` }}
                 >
                   <span
                     className="h-2 w-2 rounded-full"
-                    style={{ background: on ? "#1F3D8C" : "transparent" }}
+                    style={{ background: on ? "var(--pv-accent)" : "transparent" }}
                   />
                 </span>
                 <span>{label}</span>
@@ -832,9 +829,9 @@ function Field({
                 }
                 className="cursor-pointer rounded-[4px] px-[15px] py-[11px] text-[15px] transition-colors duration-150 hover:border-ink"
                 style={{
-                  background: on ? "#1F3D8C" : "#FFF",
-                  border: `1px solid ${on ? "#1F3D8C" : "#DFDAD3"}`,
-                  color: on ? "#FFF" : "#1A1917",
+                  background: on ? "var(--pv-accent)" : "#FFF",
+                  border: `1px solid ${on ? "var(--pv-accent)" : "var(--pv-line)"}`,
+                  color: on ? "#FFF" : "var(--pv-ink)",
                 }}
               >
                 {label}

@@ -25,14 +25,14 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Prime Vantage — PEO, Payroll & HR brokerage",
-    template: "%s · Prime Vantage",
+    default: "Prime PEO Brokers — PEO, Payroll & HR brokerage",
+    template: "%s · Prime PEO Brokers",
   },
   description:
     "Answer six questions about your headcount, payroll setup, and benefits spend. We take that record to the provider market and come back with the math.",
   alternates: { canonical: "/" },
   openGraph: {
-    siteName: "Prime Vantage",
+    siteName: "Prime PEO Brokers",
     type: "website",
     url: siteUrl,
   },

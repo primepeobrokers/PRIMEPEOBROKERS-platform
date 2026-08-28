@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { Wordmark } from "@/app/components/wordmark";
+import { Logo } from "@/app/components/logo";
 import { signOut } from "@/app/login/actions";
 
 export const metadata: Metadata = {
@@ -39,12 +39,9 @@ export default async function ConsoleLayout({
       <header className="bg-dark text-dark-ink">
         <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-6 px-7 max-sm:px-[18px]">
           <div className="flex items-center gap-[26px]">
-            <div className="flex items-center gap-[9px]">
-              <Wordmark size={18} variant="inverted" />
-              <span className="font-display text-[14.5px] font-semibold text-dark-ink-bright">
-                Prime Vantage
-              </span>
-              <span className="border-l border-dark-line pl-[9px] font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-faint">
+            <div className="flex items-center gap-[11px]">
+              <Logo size={26} variant="inverted" />
+              <span className="border-l border-dark-line pl-[11px] font-mono text-[10.5px] uppercase tracking-[.12em] text-dark-ink-muted">
                 Console
               </span>
             </div>

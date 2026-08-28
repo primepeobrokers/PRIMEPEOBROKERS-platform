@@ -39,7 +39,7 @@ export function UpdatePasswordCard({
   return (
     <>
       <div className="pv-label">
-        {flow === "invite" ? "Invitation · Prime Vantage" : "Password reset"}
+        {flow === "invite" ? "Invitation · Prime PEO Brokers" : "Password reset"}
       </div>
       <h1 className="mt-3 font-display text-[29px] font-semibold leading-[1.08] tracking-[-.022em]">
         Set your password

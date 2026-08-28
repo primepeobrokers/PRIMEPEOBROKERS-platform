@@ -59,7 +59,7 @@ export async function GET() {
   return new NextResponse(lines.join("\n") + "\n", {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="prime-vantage-leads-${today}.csv"`,
+      "Content-Disposition": `attachment; filename="prime-peo-brokers-leads-${today}.csv"`,
       "Cache-Control": "no-store",
     },
   });

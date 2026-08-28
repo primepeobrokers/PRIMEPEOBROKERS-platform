@@ -4,7 +4,7 @@ import { Resend } from "resend";
 import { STEPS, formatAnswer, type Answers } from "@/lib/discovery/schema";
 
 const FROM =
-  process.env.EMAIL_FROM ?? "Prime Vantage <onboarding@resend.dev>";
+  process.env.EMAIL_FROM ?? "Prime PEO Brokers <onboarding@resend.dev>";
 
 function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY;
@@ -76,7 +76,7 @@ export async function sendResumeLink(input: {
   await resend.emails.send({
     from: FROM,
     to: input.to,
-    subject: "Your Prime Vantage discovery record — pick up where you left off",
+    subject: "Your Prime PEO Brokers discovery record — pick up where you left off",
     html: `
       <div style="font-family:system-ui,sans-serif;color:#1A1917;max-width:560px;">
         <p style="font-size:15px;">You are ${input.stepsCompleted} of 6 steps in. Your answers are saved.</p>

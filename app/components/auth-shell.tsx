@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Wordmark } from "@/app/components/wordmark";
+import { Logo } from "@/app/components/logo";
 
 const EXAMPLE_LOG = [
   { who: "Broker", what: "opened a record · 14:32" },
@@ -14,17 +14,14 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
     <div className="grid min-h-screen grid-cols-[1fr_420px] bg-surface max-lg:grid-cols-1">
       <div className="flex flex-col px-10 pb-14 pt-8 max-sm:px-5">
         <div className="flex items-center justify-between gap-6">
-          <Link href="/" className="flex items-center gap-2.5" aria-label="Prime Vantage home">
-            <Wordmark size={20} />
-            <span className="font-display text-[15.5px] font-semibold">
-              Prime Vantage
-            </span>
+          <Link href="/" className="flex items-center" aria-label="Prime PEO Brokers home">
+            <Logo size={30} />
           </Link>
         </div>
 
         <div className="flex flex-1 items-center justify-center pt-12">
           <div
-            className="w-full max-w-[452px] rounded-[4px] border border-line bg-raised p-10 pb-[42px] shadow-[0_1px_2px_rgba(26,25,23,.05),0_18px_40px_-30px_rgba(26,25,23,.3)] max-sm:px-[22px] max-sm:py-[30px]"
+            className="w-full max-w-[452px] rounded-[4px] border border-line bg-raised p-10 pb-[42px] shadow-[0_1px_2px_rgba(25,35,59,.05),0_18px_40px_-30px_rgba(25,35,59,.3)] max-sm:px-[22px] max-sm:py-[30px]"
             style={{ animation: "pv-in 250ms var(--pv-ease) both" }}
           >
             {children}
@@ -64,8 +61,8 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
         <div className="text-[13px] leading-relaxed text-ink-faint">
           Trouble getting in? Ask an admin on your team to resend the invite, or
           email{" "}
-          <a href="mailto:ops@primevantage.com" className="text-dark-ink-soft">
-            ops@primevantage.com
+          <a href="mailto:ops@primepeobrokers.com" className="text-dark-ink-soft">
+            ops@primepeobrokers.com
           </a>
           .
         </div>

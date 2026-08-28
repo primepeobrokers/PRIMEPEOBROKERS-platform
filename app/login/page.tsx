@@ -4,7 +4,7 @@ import { LoginCard } from "./login-card";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to the Prime Vantage broker console.",
+  description: "Sign in to the Prime PEO Brokers broker console.",
   robots: { index: false },
 };
 

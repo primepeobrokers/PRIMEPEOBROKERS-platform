@@ -1,7 +1,7 @@
-# Prime Vantage — Phase 1
+# Prime PEO Brokers — Phase 1
 
 Marketing site, six-step discovery flow, and internal leads console for the
-Prime Vantage PEO/payroll/HR brokerage. Next.js 16 (App Router) + Supabase
+Prime PEO Brokers PEO/payroll/HR brokerage. Next.js 16 (App Router) + Supabase
 (Postgres, Auth, RLS) + Resend for transactional email.
 
 Every completed — and partial — discovery flow is captured, stored, and

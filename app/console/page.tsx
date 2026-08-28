@@ -160,7 +160,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
               className="rounded-[2px] px-3 py-2 text-[13.5px] transition-colors duration-150"
               style={{
                 background: complete === v ? "#FFF" : "transparent",
-                color: complete === v ? "#1A1917" : "#6E6A64",
+                color: complete === v ? "var(--pv-ink)" : "var(--pv-ink-muted)",
                 fontWeight: complete === v ? 600 : 500,
               }}
             >
@@ -175,8 +175,8 @@ export default async function LeadsPage(props: PageProps<"/console">) {
             className="rounded-[4px] px-[13px] py-[9px] font-mono text-[11.5px] uppercase tracking-[.06em] transition-colors duration-150 hover:border-ink"
             style={{
               background: range === v ? "rgba(31,61,140,.06)" : "#FFF",
-              border: `1px solid ${range === v ? "#1F3D8C" : "#DFDAD3"}`,
-              color: range === v ? "#1F3D8C" : "#4A4741",
+              border: `1px solid ${range === v ? "var(--pv-accent)" : "var(--pv-line)"}`,
+              color: range === v ? "var(--pv-accent)" : "var(--pv-ink-soft)",
             }}
           >
             {label}
@@ -204,7 +204,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
               <Link
                 key={r.id}
                 href={`/console/leads/${r.id}`}
-                className="grid grid-cols-[64px_1.5fr_92px_1fr_1fr_132px_108px] items-center gap-[18px] border-b border-sunken px-5 py-3.5 transition-colors duration-150 last:border-b-0 hover:bg-[#FBFAF8] max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-2.5 max-md:px-[18px] max-md:py-4"
+                className="grid grid-cols-[64px_1.5fr_92px_1fr_1fr_132px_108px] items-center gap-[18px] border-b border-sunken px-5 py-3.5 transition-colors duration-150 last:border-b-0 hover:bg-tint max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-2.5 max-md:px-[18px] max-md:py-4"
               >
                 <Cell label="Ref">
                   <span className="font-mono text-[13px] text-ink-muted">{r.ref}</span>
