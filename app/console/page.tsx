@@ -148,7 +148,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
             defaultValue={q}
             placeholder="Search company, contact, or ref"
             aria-label="Search leads"
-            className="w-full rounded-[4px] border border-line-strong bg-raised px-3.5 py-[11px] text-[14.5px] transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_rgba(31,61,140,.12)] focus:outline-none"
+            className="w-full rounded-[4px] border border-line-strong bg-raised px-3.5 py-[11px] text-[14.5px] transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
           />
         </form>
         <div className="flex gap-[3px] rounded-[4px] border border-line bg-tint p-[3px]">
@@ -174,7 +174,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
             href={`/console${qs({ range: v, page: 1 })}`}
             className="rounded-[4px] px-[13px] py-[9px] font-mono text-[11.5px] uppercase tracking-[.06em] transition-colors duration-150 hover:border-ink"
             style={{
-              background: range === v ? "rgba(31,61,140,.06)" : "#FFF",
+              background: range === v ? "color-mix(in oklab,var(--pv-accent) 6%,transparent)" : "#FFF",
               border: `1px solid ${range === v ? "var(--pv-accent)" : "var(--pv-line)"}`,
               color: range === v ? "var(--pv-accent)" : "var(--pv-ink-soft)",
             }}

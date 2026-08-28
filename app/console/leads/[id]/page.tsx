@@ -54,8 +54,8 @@ export default async function LeadDetailPage(
   const tone = stateTone(lead as SubmissionRow);
   const when = formatWhen(lead.submitted_at ?? lead.created_at);
 
-  // Renewal runway from the contract end date, when the visitor gave one.
-  const contractEnd = answers["contractEnd"];
+  // Renewal runway from the renewal date, when the visitor gave one.
+  const contractEnd = answers["renewalDate"];
   let runway: string | null = null;
   if (typeof contractEnd === "string" && /^\d{4}-\d{2}-\d{2}$/.test(contractEnd)) {
     const days = daysUntil(contractEnd);

@@ -433,7 +433,7 @@ export default function LandingPage() {
             </div>
           ))}
           <div
-            className="flex items-end justify-between gap-5 border-t border-[rgba(31,61,140,.18)] bg-[rgba(31,61,140,.05)] px-[22px] py-5"
+            className="flex items-end justify-between gap-5 border-t border-[color-mix(in oklab,var(--pv-accent) 18%,transparent)] bg-[color-mix(in oklab,var(--pv-accent) 5%,transparent)] px-[22px] py-5"
             style={{ animation: "pv-row 420ms var(--pv-ease) 560ms both" }}
           >
             <div>
@@ -649,7 +649,7 @@ export default function LandingPage() {
               <div
                 key={g.range}
                 className="px-6 pb-7 pt-[26px]"
-                style={{ background: g.highlight ? "rgba(31,61,140,.05)" : "#FFF" }}
+                style={{ background: g.highlight ? "color-mix(in oklab,var(--pv-accent) 5%,transparent)" : "#FFF" }}
               >
                 <div
                   className="font-mono text-2xl font-medium tracking-[-.02em]"
@@ -752,7 +752,7 @@ export default function LandingPage() {
               Anything else, email{" "}
               <a
                 href="mailto:hello@primepeobrokers.com"
-                className="border-b border-[rgba(31,61,140,.3)] text-accent hover:border-accent-press hover:text-accent-press"
+                className="border-b border-[color-mix(in oklab,var(--pv-accent) 30%,transparent)] text-accent hover:border-accent-press hover:text-accent-press"
               >
                 hello@primepeobrokers.com
               </a>

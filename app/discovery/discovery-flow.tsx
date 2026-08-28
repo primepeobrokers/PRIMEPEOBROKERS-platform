@@ -3,15 +3,24 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  CATEGORIES,
   STEPS,
   TOTAL_STEPS,
   formatAnswer,
   stepSummary,
   validateField,
   validateStep,
+  visibleFields,
   type Answers,
+  type Category,
   type FieldDef,
 } from "@/lib/discovery/schema";
+import { cn } from "@/lib/utils";
+import { Input } from "@/app/components/ui/input";
+import { Textarea } from "@/app/components/ui/textarea";
+import { Label } from "@/app/components/ui/label";
+import { Checkbox } from "@/app/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import { Logo } from "@/app/components/logo";
 import {
   saveDraft,
@@ -28,6 +37,10 @@ interface Props {
     answers: Answers;
     stepsCompleted: number;
   } | null;
+  /** 'shop' (default) or 'renewal', from the home page entry point. */
+  intent?: string;
+  /** Category named in the URL, so a deep link can skip the picker. */
+  presetCategory?: Category;
 }
 
 interface Toast {
@@ -35,18 +48,28 @@ interface Toast {
   body: string;
 }
 
-export function DiscoveryFlow({ resumed }: Props) {
+export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
   // A draft resumed from an emailed link is available at first render.
+  // A category in the URL skips the picker; a renewal entry preselects the
+  // driver that sent them here.
+  const seeded: Answers = {};
+  if (presetCategory) seeded.category = presetCategory;
+  if (intent === "renewal") seeded.drivers = ["Cost"];
+
   const resumedStep = resumed
     ? Math.min(resumed.stepsCompleted, TOTAL_STEPS - 1)
-    : 0;
+    : presetCategory
+      ? 1
+      : 0;
   const [view, setView] = useState<"flow" | "review" | "done">("flow");
   const [step, setStep] = useState(resumedStep);
   const [dir, setDir] = useState<"fwd" | "back">("fwd");
   const [visited, setVisited] = useState<number[]>(
     Array.from({ length: resumedStep + 1 }, (_, i) => i),
   );
-  const [answers, setAnswers] = useState<Answers>(resumed?.answers ?? {});
+  const [answers, setAnswers] = useState<Answers>(
+    resumed?.answers ?? seeded,
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<Toast | null>(null);
   const [abandon, setAbandon] = useState(false);
@@ -169,6 +192,7 @@ export function DiscoveryFlow({ resumed }: Props) {
             handle: handleRef.current,
             answers: a,
             stepsCompleted,
+            intent,
           });
           if (res.ok) {
             handleRef.current = res.handle;
@@ -183,7 +207,7 @@ export function DiscoveryFlow({ resumed }: Props) {
       savingChain.current = savingChain.current.then(run, run);
       return savingChain.current;
     },
-    [markSaved],
+    [markSaved, intent],
   );
 
   function set(id: string, value: Answers[string]) {
@@ -215,7 +239,7 @@ export function DiscoveryFlow({ resumed }: Props) {
     setVisited((v) => (v.includes(n) ? v : [...v, n]));
     fireToast(
       `Step ${step + 1} saved`,
-      "Six of six when you are done. Leave any time and resume from the emailed link.",
+      `${TOTAL_STEPS} of ${TOTAL_STEPS} when you are done. Leave any time and resume from the emailed link.`,
     );
   }
 
@@ -260,7 +284,7 @@ export function DiscoveryFlow({ resumed }: Props) {
     const res = await requestResumeLink({
       handle: handleRef.current,
       answers,
-      stepsCompleted: visited.length,
+      stepsCompleted: step + 1,
       email: resumeEmail,
     });
     if (res.ok) {
@@ -332,7 +356,7 @@ export function DiscoveryFlow({ resumed }: Props) {
                       onClick={() => reachable && goTo(i)}
                       className="grid w-full grid-cols-[22px_1fr] items-start gap-3 border-b border-sunken px-4 py-[13px] text-left transition-colors duration-150"
                       style={{
-                        background: cur ? "rgba(31,61,140,.05)" : "#FFF",
+                        background: cur ? "color-mix(in oklab,var(--pv-accent) 5%,transparent)" : "#FFF",
                         borderLeft: `2px solid ${cur ? "var(--pv-accent)" : done ? "var(--pv-positive)" : "var(--pv-surface-sunken)"}`,
                         cursor: reachable ? "pointer" : "default",
                       }}
@@ -379,7 +403,7 @@ export function DiscoveryFlow({ resumed }: Props) {
                   <span>
                     Step {step + 1} of {TOTAL_STEPS}
                   </span>
-                  <span>{Math.round((step / TOTAL_STEPS) * 100)}% complete</span>
+                  <span>{Math.round(((step + 1) / TOTAL_STEPS) * 100)}% complete</span>
                 </div>
                 <div className="mt-2.5 flex gap-1">
                   {STEPS.map((s, i) => (
@@ -430,7 +454,7 @@ export function DiscoveryFlow({ resumed }: Props) {
                 )}
 
                 <div className="mt-8 flex flex-col gap-[30px]">
-                  {stepDef.fields.map((f) => (
+                  {visibleFields(step, answers).map((f) => (
                     <Field
                       key={f.id}
                       field={f}
@@ -513,12 +537,12 @@ export function DiscoveryFlow({ resumed }: Props) {
                     <button
                       type="button"
                       onClick={() => goTo(i)}
-                      className="cursor-pointer border-b border-[rgba(31,61,140,.35)] pb-0.5 text-sm font-semibold text-accent transition-colors duration-150 hover:border-accent"
+                      className="cursor-pointer border-b border-accent/35 pb-0.5 text-sm font-semibold text-accent transition-colors duration-150 hover:border-accent"
                     >
                       Edit
                     </button>
                   </div>
-                  {s.fields.map((f) => (
+                  {visibleFields(i, answers).map((f) => (
                     <div
                       key={f.id}
                       className="grid grid-cols-[240px_1fr] items-baseline gap-6 border-b border-surface px-[22px] py-[13px] max-sm:grid-cols-1 max-sm:gap-1.5"
@@ -565,7 +589,7 @@ export function DiscoveryFlow({ resumed }: Props) {
               Your record is with the brokerage team.
             </h1>
             <p className="mt-4 max-w-[54ch] text-[17px] leading-normal text-ink-soft">
-              A licensed broker in your state has your six steps in front of
+              A licensed broker in your state has your record in front of
               them. Here is the sequence from here.
             </p>
             <div className="mt-[30px] rounded-[4px] border border-line bg-raised">
@@ -639,7 +663,7 @@ export function DiscoveryFlow({ resumed }: Props) {
                 Keep what you have answered.
               </div>
               <div className="mt-1 text-sm leading-normal text-ink-muted">
-                You are {step} of 6 steps in. We will email a link that returns
+                You are {step + 1} of {TOTAL_STEPS} steps in. We will email a link that returns
                 you to this step. No other mail.
               </div>
               {resumeError && (
@@ -656,7 +680,7 @@ export function DiscoveryFlow({ resumed }: Props) {
                 value={resumeEmail}
                 onChange={(e) => setResumeEmail(e.target.value)}
                 placeholder="you@company.com"
-                className="w-[236px] rounded-[4px] border border-line-strong bg-raised px-3.5 py-3 text-[15px] focus:border-accent focus:shadow-[0_0_0_3px_rgba(31,61,140,.12)] focus:outline-none"
+                className="w-[236px] rounded-[4px] border border-line-strong bg-raised px-3.5 py-3 text-[15px] focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
               />
               <button
                 type="button"
@@ -716,14 +740,62 @@ function Field({
   onBlurValidate: () => void;
 }) {
   const val = answers[f.id];
-  const border = error ? "var(--pv-danger)" : "var(--pv-line-strong)";
   const mono = f.type === "num" || f.mono;
+  const arr = Array.isArray(val) ? val : val ? [String(val)] : [];
+
+  // The category picker is the whole of step 1 and carries its own heading.
+  if (f.type === "cards") {
+    return (
+      <div>
+        <div className="pv-label">{f.label}</div>
+        <div className="mt-4 grid grid-cols-2 gap-3 max-sm:grid-cols-1">
+          {CATEGORIES.map((c) => {
+            const on = val === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => set(f.id, c.id)}
+                className={cn(
+                  "group flex cursor-pointer items-start gap-3.5 rounded-[4px] border bg-raised px-[18px] py-4 text-left transition-all duration-150",
+                  on
+                    ? "border-accent shadow-[0_0_0_1px_var(--pv-accent)]"
+                    : "border-line hover:border-line-strong",
+                )}
+              >
+                <span aria-hidden className="text-[22px] leading-none">
+                  {c.icon}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[15.5px] font-semibold">
+                    {c.name}
+                  </span>
+                  <span className="mt-1 block text-[13.5px] leading-snug text-ink-muted">
+                    {c.desc}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {error && (
+          <div aria-live="polite" className="mt-[9px] text-[13.5px] text-danger">
+            {error}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div>
-      <label htmlFor={f.id} className="block text-[14.5px] font-semibold">
+      <Label
+        htmlFor={f.id}
+        className="block text-[14.5px] font-semibold text-ink"
+      >
         {f.label}
-      </label>
+      </Label>
       {f.help && (
         <div className="mt-[5px] text-[13.5px] leading-snug text-ink-muted">
           {f.help}
@@ -731,7 +803,7 @@ function Field({
       )}
 
       {(f.type === "text" || f.type === "num") && (
-        <input
+        <Input
           id={f.id}
           type="text"
           inputMode={f.type === "num" ? "numeric" : undefined}
@@ -741,67 +813,94 @@ function Field({
           onKeyDown={onKey}
           placeholder={f.placeholder}
           aria-invalid={!!error}
-          className="mt-[11px] w-full rounded-[4px] bg-raised px-[15px] py-3.5 text-base transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_rgba(31,61,140,.12)] focus:outline-none"
-          style={{
-            maxWidth: f.w ?? "100%",
-            border: `1px solid ${border}`,
-            fontFamily: mono
-              ? "var(--font-plex-mono), monospace"
-              : "var(--font-franklin), sans-serif",
-            fontVariantNumeric: "tabular-nums",
-          }}
+          className={cn(
+            "mt-[11px] h-auto rounded-[4px] px-[15px] py-3.5 text-base tabular-nums md:text-base",
+            mono && "font-mono",
+          )}
+          style={{ maxWidth: f.w ?? "100%" }}
         />
       )}
 
       {f.type === "area" && (
-        <textarea
+        <Textarea
           id={f.id}
           rows={3}
           value={typeof val === "string" ? val : ""}
           onChange={(e) => set(f.id, e.target.value)}
           onBlur={onBlurValidate}
           placeholder={f.placeholder}
-          className="mt-[11px] w-full resize-y rounded-[4px] bg-raised px-[15px] py-3.5 text-base leading-normal transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_rgba(31,61,140,.12)] focus:outline-none"
-          style={{ border: `1px solid ${border}` }}
+          aria-invalid={!!error}
+          className="mt-[11px] resize-y rounded-[4px] px-[15px] py-3.5 text-base leading-normal md:text-base"
         />
       )}
 
       {f.type === "radio" && (
-        <div
-          role="radiogroup"
+        <RadioGroup
+          value={typeof val === "string" ? val : ""}
+          onValueChange={(v) => set(f.id, v)}
           aria-label={f.label}
-          className="mt-3 flex flex-col gap-2"
+          aria-invalid={!!error}
+          className="mt-3 gap-2"
         >
-          {(f.options as [string, string, string][]).map(([id, label, note]) => {
-            const on = val === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => set(f.id, id)}
-                aria-pressed={on}
-                className="flex cursor-pointer items-center gap-3 rounded-[4px] px-4 py-3.5 text-left text-[15.5px] transition-colors duration-150 hover:border-ink"
-                style={{
-                  background: on ? "rgba(31,61,140,.05)" : "#FFF",
-                  border: `1px solid ${on ? "var(--pv-accent)" : "var(--pv-line)"}`,
-                }}
-              >
-                <span
-                  className="inline-flex h-4 w-4 flex-none items-center justify-center rounded-full"
-                  style={{ border: `1px solid ${on ? "var(--pv-accent)" : "var(--pv-line-strong)"}` }}
+          {(f.options as [string, string, string][]).map(
+            ([id, label, note]) => {
+              const on = val === id;
+              return (
+                <Label
+                  key={id}
+                  htmlFor={`${f.id}-${id}`}
+                  className={cn(
+                    "flex cursor-pointer items-center gap-3 rounded-[4px] border bg-raised px-4 py-3.5 text-[15.5px] font-normal transition-colors duration-150",
+                    on
+                      ? "border-accent bg-[color-mix(in_oklab,var(--pv-accent)_5%,white)]"
+                      : "border-line hover:border-line-strong",
+                  )}
                 >
-                  <span
-                    className="h-2 w-2 rounded-full"
-                    style={{ background: on ? "var(--pv-accent)" : "transparent" }}
-                  />
-                </span>
-                <span>{label}</span>
-                {note && (
-                  <span className="ml-auto font-mono text-xs text-ink-muted">
-                    {note}
-                  </span>
+                  <RadioGroupItem id={`${f.id}-${id}`} value={id} />
+                  <span>{label}</span>
+                  {note && (
+                    <span className="ml-auto font-mono text-xs text-ink-muted">
+                      {note}
+                    </span>
+                  )}
+                </Label>
+              );
+            },
+          )}
+        </RadioGroup>
+      )}
+
+      {f.type === "check" && (
+        <div
+          role="group"
+          aria-label={f.label}
+          className="mt-3 grid grid-cols-2 gap-2 max-sm:grid-cols-1"
+        >
+          {(f.options as string[]).map((label) => {
+            const on = arr.includes(label);
+            return (
+              <Label
+                key={label}
+                htmlFor={`${f.id}-${label}`}
+                className={cn(
+                  "flex cursor-pointer items-center gap-3 rounded-[4px] border bg-raised px-4 py-3 text-[15px] font-normal transition-colors duration-150",
+                  on
+                    ? "border-accent bg-[color-mix(in_oklab,var(--pv-accent)_5%,white)]"
+                    : "border-line hover:border-line-strong",
                 )}
-              </button>
+              >
+                <Checkbox
+                  id={`${f.id}-${label}`}
+                  checked={on}
+                  onCheckedChange={() =>
+                    set(
+                      f.id,
+                      on ? arr.filter((x) => x !== label) : [...arr, label],
+                    )
+                  }
+                />
+                <span>{label}</span>
+              </Label>
             );
           })}
         </div>
@@ -810,7 +909,6 @@ function Field({
       {f.type === "chips" && (
         <div className="mt-3 flex flex-wrap gap-2">
           {(f.options as string[]).map((label) => {
-            const arr = Array.isArray(val) ? val : val ? [String(val)] : [];
             const on = f.single ? val === label : arr.includes(label);
             return (
               <button
@@ -819,7 +917,7 @@ function Field({
                 aria-pressed={on}
                 onClick={() =>
                   f.single
-                    ? set(f.id, label)
+                    ? set(f.id, on ? "" : label)
                     : set(
                         f.id,
                         arr.includes(label)
@@ -827,12 +925,12 @@ function Field({
                           : [...arr, label],
                       )
                 }
-                className="cursor-pointer rounded-[4px] px-[15px] py-[11px] text-[15px] transition-colors duration-150 hover:border-ink"
-                style={{
-                  background: on ? "var(--pv-accent)" : "#FFF",
-                  border: `1px solid ${on ? "var(--pv-accent)" : "var(--pv-line)"}`,
-                  color: on ? "#FFF" : "var(--pv-ink)",
-                }}
+                className={cn(
+                  "cursor-pointer rounded-[4px] border px-[15px] py-[11px] text-[15px] transition-colors duration-150",
+                  on
+                    ? "border-accent bg-accent text-white"
+                    : "border-line bg-raised text-ink hover:border-line-strong",
+                )}
               >
                 {label}
               </button>

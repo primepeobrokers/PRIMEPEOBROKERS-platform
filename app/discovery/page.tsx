@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sanitizeAnswers, type Answers } from "@/lib/discovery/schema";
+import { isCategory, sanitizeAnswers, type Answers } from "@/lib/discovery/schema";
 import type { DraftHandle } from "./actions";
 import { DiscoveryFlow } from "./discovery-flow";
 
 export const metadata: Metadata = {
   title: "Discovery",
   description:
-    "Six steps about your headcount, payroll setup, and benefits spend. Ranges are fine everywhere, and each answered step is saved.",
+    "Pick a category, then six steps about your team, payroll setup, and priorities. Ranges are fine everywhere, and each answered step is saved.",
   alternates: { canonical: "/discovery" },
   robots: { index: false },
 };
@@ -44,5 +44,15 @@ export default async function DiscoveryPage(props: PageProps<"/discovery">) {
   const token = typeof searchParams.r === "string" ? searchParams.r : null;
   const resumed = token ? await loadResumedDraft(token) : null;
 
-  return <DiscoveryFlow resumed={resumed} />;
+  // The home page offers two entry points: the standard discovery, and
+  // "benchmark my renewal", which preselects the renewal driver. Deep links
+  // may also name a category so the picker can be skipped.
+  const intent = searchParams.intent === "renewal" ? "renewal" : "shop";
+  const category = isCategory(searchParams.category)
+    ? searchParams.category
+    : undefined;
+
+  return (
+    <DiscoveryFlow resumed={resumed} intent={intent} presetCategory={category} />
+  );
 }

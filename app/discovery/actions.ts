@@ -7,6 +7,7 @@ import {
   sanitizeAnswers,
   validateStep,
   formatAnswer,
+  answeredCategory,
   type Answers,
 } from "@/lib/discovery/schema";
 import {
@@ -39,6 +40,10 @@ interface DraftRow {
   steps_completed: number;
 }
 
+/**
+ * Mirrors the handful of answers the console lists and filters on into flat
+ * columns. The full record stays in the answers jsonb; these are for querying.
+ */
 function denormalize(answers: Answers) {
   const num = (id: string) => {
     const v = answers[id];
@@ -50,14 +55,15 @@ function denormalize(answers: Answers) {
     return typeof v === "string" && v !== "" ? v : null;
   };
   return {
-    company_name: str("legal"),
-    contact_name: str("name"),
+    company_name: str("company"),
+    contact_name: str("fullName"),
     contact_email: str("email"),
     fte_count: num("fte"),
     benefits_spend: num("spend"),
     current_setup: answers["provider"]
       ? formatAnswer("provider", answers)
       : null,
+    category: answeredCategory(answers) ?? null,
   };
 }
 
@@ -87,6 +93,8 @@ export async function saveDraft(input: {
   handle: DraftHandle | null;
   answers: unknown;
   stepsCompleted: number;
+  /** 'shop' (default) or 'renewal', set by the home page entry point. */
+  intent?: string;
 }): Promise<
   | { ok: true; handle: DraftHandle }
   | { ok: false; error: string }
@@ -105,6 +113,7 @@ export async function saveDraft(input: {
         tenant_id: DEFAULT_TENANT_ID,
         answers,
         steps_completed: stepsCompleted,
+        intent: input.intent === "renewal" ? "renewal" : "shop",
         ...denormalize(answers),
       })
       .select("id, resume_token")
@@ -199,7 +208,7 @@ export async function submitRecord(input: {
 
   // Notifications are best-effort: a mail failure must never lose the lead.
   const contactEmail = answers["email"];
-  const contactName = answers["name"];
+  const contactName = answers["fullName"];
   try {
     await sendSubmissionNotification({
       ref: data.ref,

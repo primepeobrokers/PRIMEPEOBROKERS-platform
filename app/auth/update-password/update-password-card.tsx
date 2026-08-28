@@ -81,7 +81,7 @@ export function UpdatePasswordCard({
                 submit();
               }
             }}
-            className="mt-[9px] w-full rounded-[4px] border border-line-strong bg-raised px-[15px] py-3.5 text-base transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_rgba(31,61,140,.12)] focus:outline-none"
+            className="mt-[9px] w-full rounded-[4px] border border-line-strong bg-raised px-[15px] py-3.5 text-base transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
           />
         </div>
 

@@ -34,8 +34,8 @@ export async function sendSubmissionNotification(input: {
     return;
   }
 
-  const company = formatAnswer("legal", input.answers);
-  const contact = formatAnswer("name", input.answers);
+  const company = formatAnswer("company", input.answers);
+  const contact = formatAnswer("fullName", input.answers);
   const email = formatAnswer("email", input.answers);
   const consoleLink = `${siteUrl()}/console/leads/${input.id}`;
 
