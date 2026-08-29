@@ -13,7 +13,8 @@ day one (see `docs/data-model.md`).
 | Surface | Route | Notes |
 | --- | --- | --- |
 | Landing page | `/` | Public, indexed |
-| Discovery flow | `/discovery` | Public, noindex; resumes via `?r=<token>` |
+| Privacy / terms | `/privacy`, `/terms` | Public. Drafts, pending counsel review |
+| Discovery flow | `/discovery` | Public, noindex. `?r=<token>` resumes, `?intent=renewal` and `?category=` seed it |
 | Broker console | `/console` | Auth required; leads list, filters, CSV export |
 | Lead detail | `/console/leads/[id]` | Full record, history, open-logging |
 | Sign in / reset | `/login` | Supabase Auth (email + password) |
@@ -26,14 +27,38 @@ Key code:
   and CSV.
 - `app/discovery/actions.ts`: server-only writes (service role), draft
   guarded by `(id, resume_token)`.
-- `supabase/migrations/`: schema and RLS.
+- `supabase/migrations/`: schema and RLS. All migrations are idempotent.
+- `app/components/ui/`: shadcn/ui components, wired to the `--pv-*` tokens.
+- `lib/content/proof.ts`: home-page testimonials, currently placeholder and
+  flagged off. Do not launch with them.
+- `scripts/check-*.mts`: run with `npx tsx`. They assert that the flow UI,
+  client validation, and server revalidation agree about which fields each
+  category sees.
 - `proxy.ts`: session refresh and the console gate (Next 16's middleware).
+
+## Design system
+
+Colours are defined once as `--pv-*` custom properties in `app/globals.css`
+and bridged to Tailwind utilities through `@theme inline`. shadcn's
+`--background` / `--primary` / `--border` are aliases of the same tokens, so
+there is one palette rather than two. Change a colour there, never inline.
+
+Palette comes from the brand guide in `docs/brand/`: navy `#19233B`, orange
+`#FF2D00`, white. The greys are derived by mixing navy into white.
+
+The orange measures 3.73:1 on white, which fails WCAG AA for normal text. Use
+it for large text, bold button labels, and the logo mark. Body copy is navy or
+`--pv-ink-muted` (5.48:1).
+
+Type deliberately departs from the guide, which specifies Gotham (a paid
+Hoefler face) and Arial. We use Archivo for display and Libre Franklin for
+body.
 
 ## Setup
 
 1. **Supabase**: create a project at [supabase.com](https://supabase.com),
    then run the migrations, either pasting
-   `supabase/migrations/0001_init.sql` into the SQL editor, or:
+   the files in `supabase/migrations/` into the SQL editor in order, or:
 
    ```bash
    npx supabase link --project-ref <ref>
