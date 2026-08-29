@@ -73,6 +73,33 @@
   --input: var(--pv-line);
   --ring: var(--pv-accent);
   --radius: 2px;
+
+  /*
+    Console density scale. The list view was built from one-off pixel values
+    (13.5px, 11px, 26px); these give the same rhythm a name so a row, a chip
+    and a filter all step on the same grid.
+  */
+  --pv-row-y: 14px;
+  --pv-row-x: 20px;
+  --pv-gutter: 28px;
+  --pv-gutter-sm: 18px;
+
+  /*
+    State tones, previously computed inline in lib/console.ts. Declared here so
+    a badge colourway is a token lookup, not a JS object of colour strings.
+  */
+  --pv-tone-positive-fg: var(--pv-positive-deep);
+  --pv-tone-positive-bg: color-mix(in oklab, var(--pv-positive) 9%, transparent);
+  --pv-tone-positive-bd: color-mix(in oklab, var(--pv-positive) 28%, transparent);
+  --pv-tone-warning-fg: var(--pv-warning-deep);
+  --pv-tone-warning-bg: color-mix(in oklab, var(--pv-warning) 9%, transparent);
+  --pv-tone-warning-bd: color-mix(in oklab, var(--pv-warning) 30%, transparent);
+  --pv-tone-accent-fg: var(--pv-accent);
+  --pv-tone-accent-bg: color-mix(in oklab, var(--pv-accent) 7%, transparent);
+  --pv-tone-accent-bd: color-mix(in oklab, var(--pv-accent) 30%, transparent);
+  --pv-tone-neutral-fg: var(--pv-ink-soft);
+  --pv-tone-neutral-bg: var(--pv-surface-tint);
+  --pv-tone-neutral-bd: var(--pv-line);
 }
 
 @theme inline {
@@ -132,6 +159,10 @@
   --font-sans: var(--font-franklin);
   --font-mono: var(--font-plex-mono);
   --ease-pv: var(--pv-ease);
+  --spacing-row-y: var(--pv-row-y);
+  --spacing-row-x: var(--pv-row-x);
+  --spacing-gutter: var(--pv-gutter);
+  --spacing-gutter-sm: var(--pv-gutter-sm);
 }
 
 /*
@@ -141,6 +172,30 @@
 */
 :root {
   color-scheme: light;
+
+  /*
+    In-page anchors scroll rather than jump. Declared on :root so it applies to
+    the whole document, including the browser's own restore-on-back behaviour,
+    and so it needs no JavaScript to work.
+
+    scroll-padding-top clears the sticky 68px header. Without it a jump to a
+    section parks its heading underneath the bar; the extra 12px keeps the
+    heading off the header's bottom border rather than flush against it.
+  */
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+/*
+  Reduced motion means no scroll animation. This has to be explicit: the
+  blanket transition/animation override further down does not affect
+  scroll-behavior, and a long smooth scroll is exactly the kind of vestibular
+  trigger that preference exists for. The jump still lands correctly offset.
+*/
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    scroll-behavior: auto;
+  }
 }
 
 body {
@@ -155,6 +210,131 @@ body {
   outline: 2px solid var(--pv-accent);
   outline-offset: 2px;
   border-radius: 2px;
+}
+
+/*
+  Browser surfaces we did not draw but still own. Left at defaults these ship
+  someone else's blue and undo the restraint everywhere else.
+*/
+::selection {
+  background: color-mix(in oklab, var(--pv-accent) 18%, transparent);
+  color: var(--pv-ink);
+}
+
+:root {
+  accent-color: var(--pv-accent);
+  caret-color: var(--pv-accent);
+  scrollbar-color: var(--pv-line-strong) transparent;
+  scrollbar-width: thin;
+}
+
+/*
+  Flat by default. The guide's world is white, navy and one orange with no
+  elevation language; shadcn ships shadow-xs/sm on Card, Input and Button
+  outline, which reads as a different design system bolted on. A border does
+  the separating work instead.
+*/
+[data-slot="card"],
+[data-slot="input"],
+[data-slot="button"][data-variant="outline"],
+[data-slot="select-trigger"],
+[data-slot="textarea"],
+[data-slot="tabs-trigger"] {
+  box-shadow: none;
+}
+
+/*
+  Focus and hover restraint.
+
+  shadcn ships a 3px ring at --ring/50, which with this brand's orange lands a
+  wide translucent halo around every focused field. On a console that is mostly
+  white and navy it reads as an alarm, not a focus state. Narrow the ring, and
+  let the border carry most of the signal: the accent border alone already
+  identifies the active field, and the 1px ring just firms up the edge.
+
+  Focus-visible only, so clicking a field does not flash a ring at the mouse.
+*/
+[data-slot="input"]:focus-visible,
+[data-slot="textarea"]:focus-visible,
+[data-slot="select-trigger"]:focus-visible,
+[data-slot="button"]:focus-visible,
+[data-slot="tabs-trigger"]:focus-visible {
+  --tw-ring-shadow: 0 0 0 1px var(--pv-accent);
+  box-shadow: 0 0 0 1px var(--pv-accent);
+  border-color: var(--pv-accent);
+  outline: none;
+}
+
+/*
+  Hover on a field is an invitation, not a state change: a border that darkens
+  one step. shadcn's default swaps the background, which makes a whole row of
+  filters flicker as the pointer crosses them.
+*/
+[data-slot="input"]:hover:not(:focus-visible):not(:disabled),
+[data-slot="textarea"]:hover:not(:focus-visible):not(:disabled),
+[data-slot="select-trigger"]:hover:not(:focus-visible):not([data-state="open"]) {
+  border-color: var(--pv-line-strong);
+}
+
+/* An open Select keeps the accent edge so the trigger and its menu read as one. */
+[data-slot="select-trigger"][data-state="open"] {
+  border-color: var(--pv-accent);
+}
+
+/*
+  Ghost and outline buttons: tint, never a grey fill. --accent resolves to the
+  sunken grey, which is heavy behind small mono labels.
+*/
+[data-slot="button"][data-variant="ghost"]:hover:not(:disabled),
+[data-slot="button"][data-variant="outline"]:hover:not(:disabled) {
+  background: var(--pv-surface-tint);
+}
+[data-slot="button"][data-variant="outline"]:hover:not(:disabled) {
+  border-color: var(--pv-line-strong);
+}
+
+/*
+  Floating surfaces (menus, popovers, tooltips) are the one place this world
+  uses elevation, because they sit above the page and need to detach from it.
+  Offset and blur, never a zero-offset halo.
+*/
+[data-slot="dropdown-menu-content"],
+[data-slot="select-content"],
+[data-slot="popover-content"] {
+  border-color: var(--pv-line);
+  box-shadow: 0 10px 28px -14px rgba(25, 35, 59, 0.35);
+}
+
+[data-slot="tooltip-content"] {
+  background: var(--pv-dark);
+  color: var(--pv-dark-ink);
+  border-radius: 2px;
+}
+
+/*
+  Modal surfaces. shadcn ships rounded-lg and a neutral black scrim; this world
+  is square-cornered and its darkness is navy, not black, so the scrim is mixed
+  from the brand ink instead. The shadow carries a real offset rather than the
+  default even spread.
+*/
+[data-slot="alert-dialog-overlay"],
+[data-slot="dialog-overlay"] {
+  background: color-mix(in oklab, var(--pv-dark) 55%, transparent);
+}
+
+[data-slot="alert-dialog-content"],
+[data-slot="dialog-content"] {
+  border-radius: var(--radius);
+  border-color: var(--pv-line);
+  box-shadow: 0 18px 44px -20px rgba(25, 35, 59, 0.45);
+}
+[data-slot="tooltip-content"] .bg-primary {
+  background: var(--pv-dark);
+}
+
+/* Tabular figures for every mono numeral, including inside components. */
+[data-slot="badge"] {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Mono numeric figures everywhere the mono font is used */
@@ -252,15 +432,66 @@ body {
   animation: pv-skeleton 1.4s linear infinite;
 }
 
-/* Scroll reveal (landing page) */
+/*
+  Scroll reveal (landing page).
+
+  Three levels, because eleven identical section fades is wallpaper, not motion:
+
+    .pv-reveal        a section arriving: short rise, confident deceleration
+    [data-stagger]    a real list, where the items arrive in sequence
+    [data-sequence]   the focal moment: the comparison table resolving
+
+  Easing is an exponential ease-out so things arrive and settle rather than
+  drifting. Distance is small on purpose; this is a broker's console-adjacent
+  marketing page, not a showreel.
+*/
+:root {
+  --pv-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .pv-reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 520ms var(--pv-ease-out),
+    transform 520ms var(--pv-ease-out);
+}
+.pv-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+  Staggered children. The delay is set inline from the reveal script and capped
+  there, so a long list never leaves the reader waiting on the last item.
+*/
+[data-stagger].pv-armed > * {
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 460ms var(--pv-ease-out),
+    transform 460ms var(--pv-ease-out);
+  transition-delay: var(--pv-delay, 0ms);
+}
+[data-stagger].pv-armed.is-visible > * {
+  opacity: 1;
+  transform: none;
+}
+
+/*
+  The focal sequence: comparison rows resolving into one readable axis. Rows
+  come in from a slightly greater distance and hold a beat longer than a
+  routine reveal, because this table is the page's actual argument.
+*/
+[data-sequence].pv-armed > * {
   opacity: 0;
   transform: translateY(14px);
   transition:
-    opacity 400ms var(--pv-ease),
-    transform 400ms var(--pv-ease);
+    opacity 560ms var(--pv-ease-out),
+    transform 560ms var(--pv-ease-out);
+  transition-delay: var(--pv-delay, 0ms);
 }
-.pv-reveal.is-visible {
+[data-sequence].pv-armed.is-visible > * {
   opacity: 1;
   transform: none;
 }
@@ -270,8 +501,11 @@ body {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
-  .pv-reveal {
+  .pv-reveal,
+  [data-stagger] > *,
+  [data-sequence] > * {
     opacity: 1;
     transform: none;
+    transition-delay: 0ms !important;
   }
 }

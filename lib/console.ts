@@ -17,21 +17,21 @@ export interface SubmissionRow {
   submitted_at: string | null;
 }
 
-/** Badge colourway per submission state, from the design system. */
-export function stateTone(row: Pick<SubmissionRow, "status" | "steps_completed">) {
+/**
+ * Badge colourway per submission state. Returns a Badge variant name rather
+ * than colour strings: the colours live in globals.css as --pv-tone-* tokens,
+ * so a state reads as one word here and stays themeable in one place.
+ */
+export function stateTone(row: Pick<SubmissionRow, "status" | "steps_completed">): {
+  label: string;
+  variant: "positive" | "warning";
+} {
   if (row.status === "complete") {
-    return {
-      label: "Complete",
-      fg: "var(--pv-positive-deep)",
-      bg: "color-mix(in oklab,var(--pv-positive) 9%,transparent)",
-      bd: "color-mix(in oklab,var(--pv-positive) 28%,transparent)",
-    };
+    return { label: "Complete", variant: "positive" };
   }
   return {
     label: `Partial ${row.steps_completed}/${TOTAL_STEPS}`,
-    fg: "var(--pv-warning-deep)",
-    bg: "color-mix(in oklab,var(--pv-warning) 9%,transparent)",
-    bd: "color-mix(in oklab,var(--pv-warning) 30%,transparent)",
+    variant: "warning",
   };
 }
 

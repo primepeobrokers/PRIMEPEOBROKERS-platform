@@ -28,7 +28,13 @@ export async function signIn(input: {
 
   const next =
     input.next && input.next.startsWith("/console") ? input.next : "/console";
-  redirect(next);
+  /*
+    Both sign-in and sign-out end in a redirect, so a toast fired before it
+    would be torn down with the page. The destination is flagged instead and
+    the landing page raises the toast once, then strips the parameter so a
+    refresh or a shared URL does not repeat it.
+  */
+  redirect(`${next}${next.includes("?") ? "&" : "?"}welcome=1`);
 }
 
 export async function sendResetLink(input: {
@@ -76,5 +82,5 @@ export async function updatePassword(input: {
 export async function signOut(): Promise<never> {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/login");
+  redirect("/login?signedout=1");
 }

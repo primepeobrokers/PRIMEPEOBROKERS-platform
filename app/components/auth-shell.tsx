@@ -21,7 +21,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
 
         <div className="flex flex-1 items-center justify-center pt-12">
           <div
-            className="w-full max-w-[452px] rounded-[4px] border border-line bg-raised p-10 pb-[42px] shadow-[0_1px_2px_rgba(25,35,59,.05),0_18px_40px_-30px_rgba(25,35,59,.3)] max-sm:px-[22px] max-sm:py-[30px]"
+            className="w-full max-w-[452px] rounded-md border border-line bg-raised p-10 pb-[42px] shadow-[0_1px_2px_rgba(25,35,59,.05),0_18px_40px_-30px_rgba(25,35,59,.3)] max-sm:px-[22px] max-sm:py-[30px]"
             style={{ animation: "pv-in 250ms var(--pv-ease) both" }}
           >
             {children}
@@ -44,7 +44,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             Every record you open is logged with your name and the time.
           </p>
         </div>
-        <div className="rounded-[4px] border border-dark-line">
+        <div className="rounded-md border border-dark-line">
           <div className="border-b border-dark-line bg-dark-raised px-4 py-3 font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-faint">
             Access log · example
           </div>

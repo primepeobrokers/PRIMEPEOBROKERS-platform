@@ -1,15 +1,33 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
+import { FilterXIcon, InboxIcon, PlugZapIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import {
-  formatMoney,
-  formatWhen,
-  isoDaysAgo,
-  stateTone,
-  type SubmissionRow,
-} from "@/lib/console";
-import { CopyDiscoveryLink } from "./copy-link";
+import { isoDaysAgo, type SubmissionRow } from "@/lib/console";
 import { CATEGORIES, categoryName } from "@/lib/discovery/schema";
+import { CopyDiscoveryLink } from "./copy-link";
+import { ExportCsvButton } from "./export-button";
+import { LeadFilters } from "./lead-filters";
+import { LeadCard } from "./lead-card";
+import { LeadRow } from "./lead-row";
+import { LeadsTableSkeleton } from "./leads-skeleton";
+import { Button } from "@/app/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/app/components/ui/empty";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/app/components/ui/table";
 
 export const metadata: Metadata = {
   title: "Leads",
@@ -18,31 +36,21 @@ export const metadata: Metadata = {
 
 const PAGE_SIZE = 25;
 
-const COMPLETE_TABS = [
-  ["all", "All"],
-  ["complete", "Complete"],
-  ["partial", "Partial"],
-] as const;
-
-const RANGE_TABS = [
-  ["7d", "7 days"],
-  ["30d", "30 days"],
-  ["all", "All time"],
-] as const;
-
-function buildQueryString(params: {
+interface Filters {
   q: string;
   complete: string;
   range: string;
   category: string;
-  page?: number;
-}): string {
+  page: number;
+}
+
+function buildQueryString(f: Partial<Filters>): string {
   const sp = new URLSearchParams();
-  if (params.q) sp.set("q", params.q);
-  if (params.complete !== "all") sp.set("complete", params.complete);
-  if (params.range !== "30d") sp.set("range", params.range);
-  if (params.category !== "all") sp.set("category", params.category);
-  if (params.page && params.page > 1) sp.set("page", String(params.page));
+  if (f.q) sp.set("q", f.q);
+  if (f.complete && f.complete !== "all") sp.set("complete", f.complete);
+  if (f.range && f.range !== "30d") sp.set("range", f.range);
+  if (f.category && f.category !== "all") sp.set("category", f.category);
+  if (f.page && f.page > 1) sp.set("page", String(f.page));
   const s = sp.toString();
   return s ? `?${s}` : "";
 }
@@ -64,10 +72,75 @@ export default async function LeadsPage(props: PageProps<"/console">) {
       ? searchParams.category
       : "all";
   const page = Math.max(1, Number(searchParams.page) || 1);
+  const filters: Filters = { q, complete, range, category, page };
 
+  return (
+    <main className="mx-auto max-w-[1400px] px-gutter pb-20 pt-8 max-sm:px-gutter-sm">
+      <div className="flex flex-wrap items-end justify-between gap-7">
+        <div>
+          <h1 className="font-display text-[30px] font-semibold tracking-[-.022em]">
+            Leads
+          </h1>
+          <Suspense
+            fallback={
+              <div className="mt-2 h-[19px] font-mono text-[12.5px] text-ink-muted">
+                Loading records…
+              </div>
+            }
+          >
+            <LeadsSummary />
+          </Suspense>
+        </div>
+        <div className="flex gap-2.5">
+          <ExportCsvButton />
+          <CopyDiscoveryLink className="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-accent-press" />
+        </div>
+      </div>
+
+      <div className="mt-[26px] border-b border-line pb-4">
+        <LeadFilters initial={{ q, complete, range, category }} />
+      </div>
+
+      <div className="mt-[22px]">
+        {/*
+          The key restarts the boundary whenever a filter changes, so switching
+          tabs shows the skeleton again instead of leaving stale rows on screen
+          while the new query runs.
+        */}
+        <Suspense
+          key={`${q}|${complete}|${range}|${category}|${page}`}
+          fallback={<LeadsTableSkeleton />}
+        >
+          <LeadsTable filters={filters} />
+        </Suspense>
+      </div>
+    </main>
+  );
+}
+
+/** Record counts under the title. Split out so it streams independently. */
+async function LeadsSummary() {
+  const supabase = await createClient();
+  const [{ count: totalCount }, { count: partialCount }] = await Promise.all([
+    supabase.from("submissions").select("id", { count: "exact", head: true }),
+    supabase
+      .from("submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "partial"),
+  ]);
+
+  return (
+    <div className="mt-2 font-mono text-[12.5px] text-ink-muted">
+      {totalCount ?? 0} {totalCount === 1 ? "record" : "records"} ·{" "}
+      {partialCount ?? 0} partial
+    </div>
+  );
+}
+
+async function LeadsTable({ filters }: { filters: Filters }) {
+  const { q, complete, range, category, page } = filters;
   const supabase = await createClient();
 
-  // Is there anything at all? (distinguishes "empty" from "no results")
   const { count: totalCount, error: totalError } = await supabase
     .from("submissions")
     .select("id", { count: "exact", head: true });
@@ -106,332 +179,166 @@ export default async function LeadsPage(props: PageProps<"/console">) {
   const isEmpty = !hasError && (totalCount ?? 0) === 0;
   const isNoResults = !hasError && !isEmpty && rows.length === 0;
 
-  const { count: partialCount } = await supabase
-    .from("submissions")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "partial");
-
-  const newest = rows[0]?.created_at ? formatWhen(rows[0].created_at) : null;
-  const filterSummaryParts = [
+  const filterSummary = [
     q ? `Search “${q}”` : null,
-    complete !== "all" ? `${complete === "partial" ? "Partial" : "Complete"} only` : null,
+    complete !== "all"
+      ? `${complete === "partial" ? "Partial" : "Complete"} only`
+      : null,
     category !== "all" ? `${categoryName(category)} only` : null,
     range === "7d" ? "Last 7 days" : range === "30d" ? "Last 30 days" : "All time",
-  ].filter(Boolean);
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
-  const qs = (
-    over: Partial<{
-      q: string;
-      complete: string;
-      range: string;
-      category: string;
-      page: number;
-    }>,
-  ) => buildQueryString({ q, complete, range, category, ...over });
-
-  return (
-    <main className="mx-auto max-w-[1400px] px-7 pb-20 pt-[34px] max-sm:px-[18px]">
-      <div className="flex flex-wrap items-end justify-between gap-7">
-        <div>
-          <h1 className="font-display text-[30px] font-semibold tracking-[-.022em]">
-            Leads
-          </h1>
-          <div className="mt-2 font-mono text-[12.5px] text-ink-muted">
-            {totalCount ?? 0} records · {partialCount ?? 0} partial
-            {newest ? ` · newest ${newest.slice(11)} UTC` : ""}
-          </div>
-        </div>
-        <div className="flex gap-2.5">
-          <a
-            href="/console/export"
-            className="cursor-pointer rounded-[4px] border border-line-strong bg-transparent px-4 py-[11px] text-sm font-semibold transition-colors duration-150 hover:border-ink"
-          >
-            Export CSV
-          </a>
-          <CopyDiscoveryLink className="rounded-[4px] border border-accent bg-accent px-4 py-[11px] text-sm font-semibold text-white transition-colors duration-150 hover:bg-accent-press" />
-        </div>
-      </div>
-
-      {/* filters */}
-      <div className="mt-[26px] flex flex-wrap items-center gap-2.5 border-b border-line pb-4">
-        <form method="get" action="/console" className="min-w-[220px] max-w-[380px] flex-1">
-          {complete !== "all" && (
-            <input type="hidden" name="complete" value={complete} />
-          )}
-          {range !== "30d" && <input type="hidden" name="range" value={range} />}
-          {category !== "all" && (
-            <input type="hidden" name="category" value={category} />
-          )}
-          <input
-            type="search"
-            name="q"
-            defaultValue={q}
-            placeholder="Search company, contact, or ref"
-            aria-label="Search leads"
-            className="w-full rounded-[4px] border border-line-strong bg-raised px-3.5 py-[11px] text-[14.5px] transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
-          />
-        </form>
-        <div className="flex gap-[3px] rounded-[4px] border border-line bg-tint p-[3px]">
-          {COMPLETE_TABS.map(([v, label]) => (
-            <Link
-              key={v}
-              href={`/console${qs({ complete: v, page: 1 })}`}
-              aria-pressed={complete === v}
-              className="rounded-[2px] px-3 py-2 text-[13.5px] transition-colors duration-150"
-              style={{
-                background: complete === v ? "#FFF" : "transparent",
-                color: complete === v ? "var(--pv-ink)" : "var(--pv-ink-muted)",
-                fontWeight: complete === v ? 600 : 500,
-              }}
-            >
-              {label}
-            </Link>
-          ))}
-        </div>
-        {RANGE_TABS.map(([v, label]) => (
-          <Link
-            key={v}
-            href={`/console${qs({ range: v, page: 1 })}`}
-            className="rounded-[4px] px-[13px] py-[9px] font-mono text-[11.5px] uppercase tracking-[.06em] transition-colors duration-150 hover:border-ink"
-            style={{
-              background: range === v ? "color-mix(in oklab,var(--pv-accent) 6%,transparent)" : "#FFF",
-              border: `1px solid ${range === v ? "var(--pv-accent)" : "var(--pv-line)"}`,
-              color: range === v ? "var(--pv-accent)" : "var(--pv-ink-soft)",
-            }}
-          >
-            {label}
-          </Link>
-        ))}
-      </div>
-
-      {/* Category is the primary segmentation now, so it gets its own row. */}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="pv-label mr-1">Category</span>
-        {[["all", "All"] as const, ...CATEGORIES.map((c) => [c.id, c.name] as const)].map(
-          ([v, label]) => (
-            <Link
-              key={v}
-              href={`/console${qs({ category: v, page: 1 })}`}
-              aria-pressed={category === v}
-              className="rounded-[4px] px-[11px] py-[7px] text-[13px] transition-colors duration-150"
-              style={{
-                background:
-                  category === v
-                    ? "color-mix(in oklab,var(--pv-accent) 6%,transparent)"
-                    : "#FFF",
-                border: `1px solid ${category === v ? "var(--pv-accent)" : "var(--pv-line)"}`,
-                color: category === v ? "var(--pv-accent)" : "var(--pv-ink-soft)",
-                fontWeight: category === v ? 600 : 400,
-              }}
-            >
-              {label}
-            </Link>
-          ),
-        )}
-      </div>
-
-      <div className="mt-[22px] overflow-hidden rounded-[4px] border border-line bg-raised">
-        {(rows.length > 0 || isNoResults) && !hasError && rows.length > 0 && (
-          <div className="grid grid-cols-[64px_1.5fr_92px_1fr_104px_132px_108px] gap-[18px] border-b border-line bg-sunken px-5 py-3 font-mono text-[10.5px] uppercase tracking-[.11em] text-ink-muted max-md:hidden">
-            <div>Ref</div>
-            <div>Company</div>
-            <div className="text-right">Heads</div>
-            <div className="text-right">Benefits spend</div>
-            <div>Category</div>
-            <div>Submitted</div>
-            <div>State</div>
-          </div>
-        )}
-
-        {!hasError &&
-          rows.map((r) => {
-            const tone = stateTone(r);
-            return (
-              <Link
-                key={r.id}
-                href={`/console/leads/${r.id}`}
-                className="grid grid-cols-[64px_1.5fr_92px_1fr_104px_132px_108px] items-center gap-[18px] border-b border-sunken px-5 py-3.5 transition-colors duration-150 last:border-b-0 hover:bg-tint max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-2.5 max-md:px-[18px] max-md:py-4"
-              >
-                <Cell label="Ref">
-                  <span className="font-mono text-[13px] text-ink-muted">{r.ref}</span>
-                </Cell>
-                <div className="max-md:col-span-2">
-                  <div className="text-[15px] font-semibold">
-                    {r.company_name || "Unnamed company"}
-                  </div>
-                  <div className="mt-[3px] text-[13px] text-ink-muted">
-                    {r.contact_name || r.contact_email || "No contact yet"}
-                  </div>
-                </div>
-                <Cell label="Heads" right>
-                  <span className="font-mono text-sm">{r.fte_count ?? "–"}</span>
-                </Cell>
-                <Cell label="Benefits spend" right>
-                  <span className="font-mono text-sm">
-                    {formatMoney(r.benefits_spend)}
-                  </span>
-                </Cell>
-                <Cell label="Category">
-                  {r.category ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="whitespace-nowrap rounded-[2px] border border-line bg-tint px-[7px] py-1 font-mono text-[10.5px] uppercase tracking-[.07em] text-ink-soft">
-                        {categoryName(r.category)}
-                      </span>
-                      {r.intent === "renewal" && (
-                        <span
-                          title="Benchmarking an existing deal"
-                          className="whitespace-nowrap rounded-[2px] px-[6px] py-1 font-mono text-[10px] uppercase tracking-[.07em]"
-                          style={{
-                            color: "var(--pv-accent)",
-                            background:
-                              "color-mix(in oklab,var(--pv-accent) 8%,transparent)",
-                            border:
-                              "1px solid color-mix(in oklab,var(--pv-accent) 28%,transparent)",
-                          }}
-                        >
-                          Renewal
-                        </span>
-                      )}
-                    </span>
-                  ) : (
-                    <span className="text-sm text-ink-faint">–</span>
-                  )}
-                </Cell>
-                <Cell label="Submitted">
-                  <span className="font-mono text-[13px] text-ink-muted">
-                    {formatWhen(r.submitted_at ?? r.created_at)}
-                  </span>
-                </Cell>
-                <Cell label="State">
-                  <span
-                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-[2px] px-[7px] py-1 font-mono text-[10.5px] uppercase tracking-[.07em]"
-                    style={{
-                      color: tone.fg,
-                      background: tone.bg,
-                      border: `1px solid ${tone.bd}`,
-                    }}
-                  >
-                    <span
-                      className="h-[5px] w-[5px] rounded-full"
-                      style={{ background: tone.fg }}
-                    />
-                    {tone.label}
-                  </span>
-                </Cell>
-              </Link>
-            );
-          })}
-
-        {isEmpty && (
-          <div className="px-8 pb-[78px] pt-[72px] text-center">
-            <div className="pv-label">No records yet</div>
-            <h2 className="mt-3.5 font-display text-2xl font-semibold tracking-[-.015em]">
-              Nothing has come through the flow.
-            </h2>
-            <p className="mx-auto mt-3 max-w-[44ch] text-[15px] leading-normal text-ink-soft">
-              Submissions land here the moment a visitor finishes step 6. Send
-              the discovery link to someone to get started.
-            </p>
-            <div className="mt-6 flex justify-center gap-3">
-              <CopyDiscoveryLink className="cursor-pointer rounded-[4px] border border-accent bg-accent px-5 py-3 text-[14.5px] font-semibold text-white" />
-            </div>
-          </div>
-        )}
-
-        {isNoResults && (
-          <div className="px-8 pb-[70px] pt-16 text-center">
-            <h2 className="font-display text-[22px] font-semibold tracking-[-.015em]">
-              No leads match those filters.
-            </h2>
-            <p className="mt-3 font-mono text-[13px] text-ink-muted">
-              {filterSummaryParts.join(" · ")}
-            </p>
-            <Link
-              href="/console"
-              className="mt-[22px] inline-block rounded-[4px] border border-line-strong px-[18px] py-[11px] text-[14.5px] font-semibold transition-colors duration-150 hover:border-ink"
-            >
-              Clear all filters
-            </Link>
-          </div>
-        )}
-
-        {hasError && (
-          <div className="px-8 pb-[66px] pt-[60px] text-center">
-            <div className="font-mono text-[11px] uppercase tracking-[.13em] text-danger">
-              Request failed
-            </div>
-            <h2 className="mt-3.5 font-display text-[23px] font-semibold tracking-[-.015em]">
+  if (hasError) {
+    return (
+      <div className="rounded-md border border-line bg-raised">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="frame-danger">
+              <PlugZapIcon />
+            </EmptyMedia>
+            <EmptyTitle className="font-display text-[23px] font-semibold tracking-[-.015em]">
               The leads service did not respond.
-            </h2>
-            <p className="mx-auto mt-3 max-w-[46ch] text-[15px] leading-normal text-ink-soft">
+            </EmptyTitle>
+            <EmptyDescription>
               Nothing was lost. Submissions are still being accepted and will
               appear once this clears.
-            </p>
-            <Link
-              href={`/console${qs({})}`}
-              className="mt-6 inline-block rounded-[4px] bg-accent px-5 py-3 text-[14.5px] font-semibold text-white"
-            >
-              Retry
-            </Link>
-          </div>
-        )}
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button asChild>
+              <Link href={`/console${buildQueryString(filters)}`}>Retry</Link>
+            </Button>
+          </EmptyContent>
+        </Empty>
+      </div>
+    );
+  }
+
+  if (isEmpty) {
+    return (
+      <div className="rounded-md border border-line bg-raised">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="frame">
+              <InboxIcon />
+            </EmptyMedia>
+            <EmptyTitle className="font-display text-2xl font-semibold tracking-[-.015em]">
+              Nothing has come through the flow.
+            </EmptyTitle>
+            <EmptyDescription>
+              Submissions land here the moment a visitor finishes step 6. Send
+              the discovery link to someone to get started.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <CopyDiscoveryLink className="inline-flex h-9 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-accent-press" />
+          </EmptyContent>
+        </Empty>
+      </div>
+    );
+  }
+
+  if (isNoResults) {
+    return (
+      <div className="rounded-md border border-line bg-raised">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="frame">
+              <FilterXIcon />
+            </EmptyMedia>
+            <EmptyTitle className="font-display text-[22px] font-semibold tracking-[-.015em]">
+              No leads match those filters.
+            </EmptyTitle>
+            <EmptyDescription className="font-mono text-[13px]">
+              {filterSummary}
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button asChild variant="outline">
+              <Link href="/console">Clear all filters</Link>
+            </Button>
+          </EmptyContent>
+        </Empty>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="overflow-hidden rounded-md border border-line bg-raised">
+        {/* Cards below the table breakpoint: a fixed-layout table cannot
+            reflow into anything readable at phone widths. */}
+        <div className="hidden max-md:block">
+          {rows.map((r) => (
+            <LeadCard key={r.id} row={r} />
+          ))}
+        </div>
+        <div className="max-md:hidden">
+        <Table className="table-fixed">
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[76px]">Ref</TableHead>
+              <TableHead className="w-[38%]">Company</TableHead>
+              <TableHead className="w-[84px] text-right">Heads</TableHead>
+              <TableHead className="w-[126px] text-right">
+                Benefits spend
+              </TableHead>
+              <TableHead className="w-[186px]">Category</TableHead>
+              <TableHead className="w-[136px]">Submitted</TableHead>
+              <TableHead className="w-[128px]">State</TableHead>
+              <TableHead className="w-[52px]">
+                <span className="sr-only">Actions</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <LeadRow key={r.id} row={r} />
+            ))}
+          </TableBody>
+        </Table>
+        </div>
       </div>
 
-      {rows.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-5 font-mono text-xs text-ink-muted">
-          <div>
-            Showing {from + 1}–{from + rows.length} of {filteredCount}
-          </div>
-          <div className="flex gap-2">
-            {page > 1 ? (
-              <Link
-                href={`/console${qs({ page: page - 1 })}`}
-                className="rounded-[4px] border border-line-strong px-3 py-[7px] font-mono text-[11.5px] transition-colors duration-150 hover:border-ink"
-              >
-                PREV
-              </Link>
-            ) : (
-              <span className="cursor-not-allowed rounded-[4px] border border-line px-3 py-[7px] font-mono text-[11.5px] text-ink-disabled">
-                PREV
-              </span>
-            )}
-            {from + rows.length < filteredCount ? (
-              <Link
-                href={`/console${qs({ page: page + 1 })}`}
-                className="rounded-[4px] border border-line-strong px-3 py-[7px] font-mono text-[11.5px] transition-colors duration-150 hover:border-ink"
-              >
-                NEXT
-              </Link>
-            ) : (
-              <span className="cursor-not-allowed rounded-[4px] border border-line px-3 py-[7px] font-mono text-[11.5px] text-ink-disabled">
-                NEXT
-              </span>
-            )}
-          </div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-5 font-mono text-xs text-ink-muted">
+        <div>
+          Showing {from + 1}–{from + rows.length} of {filteredCount}
         </div>
-      )}
-    </main>
-  );
-}
-
-/** Table cell that grows a mono label above itself on mobile. */
-function Cell({
-  label,
-  right,
-  children,
-}: {
-  label: string;
-  right?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`${right ? "text-right max-md:text-left" : ""} max-md:flex max-md:flex-col max-md:gap-[3px]`}
-    >
-      <span className="hidden font-mono text-[10px] uppercase tracking-[.11em] text-ink-faint max-md:block">
-        {label}
-      </span>
-      {children}
-    </div>
+        <div className="flex gap-2">
+          <Button
+            asChild={page > 1}
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            className="font-mono text-[11.5px]"
+          >
+            {page > 1 ? (
+              <Link href={`/console${buildQueryString({ ...filters, page: page - 1 })}`}>
+                PREV
+              </Link>
+            ) : (
+              <span>PREV</span>
+            )}
+          </Button>
+          <Button
+            asChild={from + rows.length < filteredCount}
+            variant="outline"
+            size="sm"
+            disabled={from + rows.length >= filteredCount}
+            className="font-mono text-[11.5px]"
+          >
+            {from + rows.length < filteredCount ? (
+              <Link href={`/console${buildQueryString({ ...filters, page: page + 1 })}`}>
+                NEXT
+              </Link>
+            ) : (
+              <span>NEXT</span>
+            )}
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }

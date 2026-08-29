@@ -25,7 +25,7 @@ export function LegalPage({
           </Link>
           <Link
             href="/discovery"
-            className="whitespace-nowrap rounded-[4px] bg-accent px-[17px] py-2.5 text-[14.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
+            className="whitespace-nowrap rounded-md bg-accent px-[17px] py-2.5 text-[14.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
           >
             Start shopping
           </Link>
@@ -33,7 +33,7 @@ export function LegalPage({
       </header>
 
       <main className="mx-auto max-w-[820px] px-10 pb-28 pt-14 max-sm:px-5">
-        <div className="rounded-[4px] border border-warning/40 bg-warning/5 px-[18px] py-3.5">
+        <div className="rounded-md border border-warning/40 bg-warning/5 px-[18px] py-3.5">
           <div className="pv-label text-warning-deep">Draft</div>
           <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">
             This document is a working draft prepared from how the site

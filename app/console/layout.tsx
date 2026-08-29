@@ -4,6 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Logo } from "@/app/components/logo";
 import { signOut } from "@/app/login/actions";
+import { Toaster } from "@/app/components/ui/sonner";
+import { SignOutButton } from "./sign-out-button";
+import { ArrivalToast } from "@/app/components/arrival-toast";
 
 export const metadata: Metadata = {
   title: "Console",
@@ -26,6 +29,7 @@ export default async function ConsoleLayout({
     .maybeSingle();
 
   const name = profile?.full_name || user.email || "";
+  const firstName = (profile?.full_name || "").trim().split(/\s+/)[0] || "";
   const initials =
     name
       .split(/[\s@.]+/)
@@ -61,17 +65,10 @@ export default async function ConsoleLayout({
             </nav>
           </div>
           <div className="flex items-center gap-3.5">
-            <form action={signOut}>
-              <button
-                type="submit"
-                className="cursor-pointer text-[12.5px] text-ink-faint transition-colors duration-150 hover:text-dark-ink"
-              >
-                Sign out
-              </button>
-            </form>
+            <SignOutButton action={signOut} />
             <div
               title={name}
-              className="flex h-[26px] w-[26px] items-center justify-center rounded-[2px] bg-dark-line font-mono text-[11px] text-dark-ink-soft"
+              className="flex h-[26px] w-[26px] items-center justify-center rounded-sm bg-dark-line font-mono text-[11px] text-dark-ink-soft"
             >
               {initials}
             </div>
@@ -79,6 +76,12 @@ export default async function ConsoleLayout({
         </div>
       </header>
       {children}
+      <Toaster />
+      <ArrivalToast
+        param="welcome"
+        title={firstName ? `Signed in as ${firstName}` : "Signed in"}
+        description="Leads are scoped to your team."
+      />
     </div>
   );
 }

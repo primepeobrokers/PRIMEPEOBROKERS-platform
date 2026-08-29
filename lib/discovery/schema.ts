@@ -22,37 +22,31 @@ export type FieldType =
 export const CATEGORIES = [
   {
     id: "peo",
-    icon: "\u{1F3E2}",
     name: "PEO",
     desc: "Co-employment, bundled payroll, HR & compliance",
   },
   {
     id: "payroll",
-    icon: "\u{1F4B5}",
     name: "Payroll",
     desc: "Payroll processing, tax filing, and wage management",
   },
   {
     id: "hris",
-    icon: "\u{1F465}",
     name: "HRIS",
     desc: "Core HR management and employee records",
   },
   {
     id: "recruiting",
-    icon: "\u{2705}",
     name: "Recruiting",
     desc: "ATS, sourcing, and hiring workflows",
   },
   {
     id: "performance",
-    icon: "\u{1F4CA}",
     name: "Performance",
     desc: "Reviews, goals, and feedback",
   },
   {
     id: "learning",
-    icon: "\u{1F4D8}",
     name: "Learning",
     desc: "LMS, training, and employee development",
   },

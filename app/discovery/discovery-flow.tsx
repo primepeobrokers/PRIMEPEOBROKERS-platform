@@ -15,6 +15,8 @@ import {
   type Category,
   type FieldDef,
 } from "@/lib/discovery/schema";
+import { CheckIcon } from "lucide-react";
+import { CategoryIcon } from "./category-icon";
 import { cn } from "@/lib/utils";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
@@ -327,7 +329,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
               <button
                 type="button"
                 onClick={() => setAbandon(true)}
-                className="cursor-pointer rounded-[4px] border border-line-strong bg-transparent px-3.5 py-2 text-[13.5px] font-semibold transition-colors duration-150 hover:border-ink"
+                className="cursor-pointer rounded-md border border-line-strong bg-transparent px-3.5 py-2 text-[13.5px] font-semibold transition-colors duration-150 hover:border-ink"
               >
                 Finish later
               </button>
@@ -338,11 +340,11 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
 
       <main className="mx-auto w-full max-w-[1120px] flex-1 px-8 pb-24 pt-11 max-sm:px-[18px]">
         {view === "flow" && (
-          <div className="grid grid-cols-[312px_1fr] items-start gap-14 max-lg:grid-cols-1 max-lg:gap-7">
+          <div className="grid grid-cols-[312px_1fr] items-start gap-14 [&>*]:min-w-0 max-lg:grid-cols-1 max-lg:gap-7">
             {/* the record, doubling as progress */}
             <aside className="sticky top-[108px] max-lg:hidden">
               <div className="pv-label">Your record</div>
-              <div className="mt-3.5 overflow-hidden rounded-[4px] border border-line bg-raised">
+              <div className="mt-3.5 overflow-hidden rounded-md border border-line bg-raised">
                 {STEPS.map((s, i) => {
                   const done = visited.includes(i) && i < step;
                   const cur = i === step;
@@ -353,29 +355,24 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                       type="button"
                       disabled={!reachable}
                       aria-current={cur ? "step" : undefined}
+                      data-state={cur ? "current" : done ? "done" : "todo"}
                       onClick={() => reachable && goTo(i)}
-                      className="grid w-full grid-cols-[22px_1fr] items-start gap-3 border-b border-sunken px-4 py-[13px] text-left transition-colors duration-150"
-                      style={{
-                        background: cur ? "color-mix(in oklab,var(--pv-accent) 5%,transparent)" : "#FFF",
-                        borderLeft: `2px solid ${cur ? "var(--pv-accent)" : done ? "var(--pv-positive)" : "var(--pv-surface-sunken)"}`,
-                        cursor: reachable ? "pointer" : "default",
-                      }}
+                      className="group/step grid w-full cursor-pointer grid-cols-[22px_1fr] items-start gap-3 border-b border-sunken bg-raised px-4 py-[13px] text-left transition-colors duration-150 disabled:cursor-default data-[state=current]:bg-[var(--pv-tone-accent-bg)]"
                     >
-                      <span
-                        className="pt-0.5 font-mono text-xs"
-                        style={{
-                          color: done ? "var(--pv-positive)" : cur ? "var(--pv-accent)" : "var(--pv-ink-disabled)",
-                        }}
-                      >
-                        {done ? "✓" : i + 1}
+                      <span className="pt-0.5 font-mono text-xs text-ink-disabled group-data-[state=current]/step:text-accent group-data-[state=done]/step:text-positive">
+                        {done ? (
+                          <CheckIcon className="mt-px size-3.5" />
+                        ) : (
+                          i + 1
+                        )}
                       </span>
                       <span className="block">
                         <span
-                          className="block text-sm"
-                          style={{
-                            fontWeight: cur ? 600 : 500,
-                            color: reachable ? "var(--pv-ink)" : "var(--pv-ink-faint)",
-                          }}
+                          className={
+                            reachable
+                              ? "block text-sm font-medium text-ink group-data-[state=current]/step:font-semibold"
+                              : "block text-sm font-medium text-ink-faint"
+                          }
                         >
                           {s.title}
                         </span>
@@ -409,15 +406,14 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                   {STEPS.map((s, i) => (
                     <div
                       key={s.title}
-                      className="h-1 flex-1 rounded-[2px] transition-colors duration-250"
-                      style={{
-                        background:
-                          i === step
-                            ? "var(--pv-accent)"
-                            : visited.includes(i) && i < step
-                              ? "var(--pv-positive)"
-                              : "var(--pv-surface-sunken)",
-                      }}
+                      data-state={
+                        i === step
+                          ? "current"
+                          : visited.includes(i) && i < step
+                            ? "done"
+                            : "todo"
+                      }
+                      className="h-1 flex-1 rounded-sm bg-sunken transition-colors duration-250 data-[state=current]:bg-accent data-[state=done]:bg-positive"
                     />
                   ))}
                 </div>
@@ -425,7 +421,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
 
               <div
                 key={`${step}-${dir}`}
-                className="rounded-[4px] border border-line bg-raised p-10 pt-9 shadow-[0_1px_2px_rgba(25,35,59,.05)] max-sm:px-5 max-sm:py-[26px]"
+                className="rounded-md border border-line bg-raised p-10 pt-9 shadow-[0_1px_2px_rgba(25,35,59,.05)] max-sm:px-5 max-sm:py-[26px]"
                 style={{
                   animation: `${dir === "fwd" ? "pv-fwd" : "pv-back"} 250ms var(--pv-ease) both`,
                 }}
@@ -441,8 +437,8 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                 </p>
 
                 {stepDef.sensitive && (
-                  <div className="mt-[22px] flex items-start gap-[11px] rounded-[4px] border border-ink bg-tint px-[15px] py-[13px]">
-                    <span className="whitespace-nowrap rounded-[2px] border border-ink px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[.1em]">
+                  <div className="mt-[22px] flex items-start gap-[11px] rounded-md border border-ink bg-tint px-[15px] py-[13px]">
+                    <span className="whitespace-nowrap rounded-sm border border-ink px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[.1em]">
                       Sensitive
                     </span>
                     <span className="text-[13.5px] leading-normal text-ink-soft">
@@ -476,8 +472,10 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                     onClick={() =>
                       step === 0 ? setAbandon(true) : goTo(step - 1)
                     }
-                    className="cursor-pointer rounded-[4px] border border-line-strong bg-transparent px-5 py-[13px] text-[15px] font-semibold transition-colors duration-150 hover:border-ink"
-                    style={{ color: step === 0 ? "var(--pv-ink-muted)" : "var(--pv-ink)" }}
+                    className={cn(
+                      "h-12 cursor-pointer rounded-md border border-line-strong bg-transparent px-5 text-[15px] font-semibold transition-colors duration-150 hover:border-ink",
+                      step === 0 ? "text-ink-muted" : "text-ink",
+                    )}
                   >
                     {step === 0 ? "Leave the flow" : "Back"}
                   </button>
@@ -488,7 +486,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                     <button
                       type="button"
                       onClick={goNext}
-                      className="cursor-pointer rounded-[4px] border border-accent bg-accent px-6 py-3.5 text-[15.5px] font-semibold text-white transition-all duration-150 hover:bg-accent-press active:translate-y-px max-sm:w-full"
+                      className="cursor-pointer rounded-md border border-accent bg-accent px-6 py-3.5 text-[15.5px] font-semibold text-white transition-all duration-150 hover:bg-accent-press active:translate-y-px max-sm:w-full"
                     >
                       {step === TOTAL_STEPS - 1 ? "Review your record" : "Continue"}
                     </button>
@@ -514,12 +512,12 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
               Nothing here is shared with a provider until you approve the
               shortlist. Edit any answer and you return to this page.
             </p>
-            <div className="mt-[30px] overflow-hidden rounded-[4px] border border-line bg-raised">
+            <div className="mt-[30px] overflow-hidden rounded-md border border-line bg-raised">
               {STEPS.map((s, i) => (
                 <div key={s.title} className="border-b border-line last:border-b-0">
                   <div
-                    className="flex items-baseline justify-between gap-5 border-b border-sunken px-[22px] py-3.5"
-                    style={{ background: s.sensitive ? "var(--pv-surface-tint)" : "var(--pv-surface-sunken)" }}
+                    data-sensitive={s.sensitive ? "true" : undefined}
+                    className="flex items-baseline justify-between gap-5 border-b border-sunken bg-sunken px-[22px] py-3.5 data-[sensitive]:bg-tint"
                   >
                     <div className="flex items-baseline gap-3">
                       <span className="font-mono text-[11.5px] text-ink-muted">
@@ -529,7 +527,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                         {s.title}
                       </span>
                       {s.sensitive && (
-                        <span className="rounded-[2px] border border-ink px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[.1em]">
+                        <span className="rounded-sm border border-ink px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[.1em]">
                           Sensitive
                         </span>
                       )}
@@ -560,7 +558,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
               <button
                 type="button"
                 onClick={() => goTo(TOTAL_STEPS - 1)}
-                className="cursor-pointer rounded-[4px] border border-line-strong bg-transparent px-5 py-[13px] text-[15px] font-semibold"
+                className="cursor-pointer rounded-md border border-line-strong bg-transparent px-5 py-[13px] text-[15px] font-semibold"
               >
                 Back to step 6
               </button>
@@ -568,7 +566,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                 type="button"
                 onClick={submit}
                 disabled={busy}
-                className="cursor-pointer rounded-[4px] border border-accent bg-accent px-[26px] py-3.5 text-[15.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press disabled:cursor-wait disabled:opacity-70"
+                className="cursor-pointer rounded-md border border-accent bg-accent px-[26px] py-3.5 text-[15.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press disabled:cursor-wait disabled:opacity-70"
               >
                 {busy ? "Submitting…" : "Submit the record"}
               </button>
@@ -592,7 +590,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
               A licensed broker in your state has your record in front of
               them. Here is the sequence from here.
             </p>
-            <div className="mt-[30px] rounded-[4px] border border-line bg-raised">
+            <div className="mt-[30px] rounded-md border border-line bg-raised">
               {[
                 {
                   when: "Within 1 day",
@@ -638,7 +636,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
             <div className="mt-7 flex flex-wrap gap-3.5">
               <Link
                 href="/"
-                className="rounded-[4px] bg-accent px-[22px] py-3.5 text-[15.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
+                className="rounded-md bg-accent px-[22px] py-3.5 text-[15.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
               >
                 Back to the homepage
               </Link>
@@ -680,12 +678,12 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                 value={resumeEmail}
                 onChange={(e) => setResumeEmail(e.target.value)}
                 placeholder="you@company.com"
-                className="w-[236px] rounded-[4px] border border-line-strong bg-raised px-3.5 py-3 text-[15px] focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
+                className="w-[236px] rounded-md border border-line-strong bg-raised px-3.5 py-3 text-[15px] focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
               />
               <button
                 type="button"
                 onClick={sendLink}
-                className="cursor-pointer rounded-[4px] border border-accent bg-accent px-[18px] py-3 text-[15px] font-semibold text-white"
+                className="cursor-pointer rounded-md border border-accent bg-accent px-[18px] py-3 text-[15px] font-semibold text-white"
               >
                 Send the link
               </button>
@@ -706,7 +704,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-7 left-7 z-60 flex max-w-[380px] items-start gap-3 rounded-[4px] bg-dark px-[19px] py-[15px] text-dark-ink shadow-[0_12px_28px_-12px_rgba(25,35,59,.5)]"
+          className="fixed bottom-7 left-7 z-60 flex max-w-[380px] items-start gap-3 rounded-md bg-dark px-[19px] py-[15px] text-dark-ink shadow-[0_12px_28px_-12px_rgba(25,35,59,.5)]"
           style={{ animation: "pv-toast-in 250ms var(--pv-ease) both" }}
         >
           <span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-positive-bright" />
@@ -758,20 +756,24 @@ function Field({
                 aria-pressed={on}
                 onClick={() => set(f.id, c.id)}
                 className={cn(
-                  "group flex cursor-pointer items-start gap-3.5 rounded-[4px] border bg-raised px-[18px] py-4 text-left transition-all duration-150",
+                  "group flex min-w-0 cursor-pointer items-start gap-3.5 rounded-md border bg-raised px-[18px] py-4 text-left transition-all duration-150",
                   on
                     ? "border-accent shadow-[0_0_0_1px_var(--pv-accent)]"
                     : "border-line hover:border-line-strong",
                 )}
               >
-                <span aria-hidden className="text-[22px] leading-none">
-                  {c.icon}
-                </span>
+                <CategoryIcon
+                  id={c.id}
+                  className={cn(
+                    "mt-0.5 size-5 shrink-0 transition-colors duration-150",
+                    on ? "text-accent" : "text-ink-muted",
+                  )}
+                />
                 <span className="min-w-0">
                   <span className="block text-[15.5px] font-semibold">
                     {c.name}
                   </span>
-                  <span className="mt-1 block text-[13.5px] leading-snug text-ink-muted">
+                  <span className="mt-1 block text-pretty text-[13.5px] leading-snug text-ink-muted">
                     {c.desc}
                   </span>
                 </span>
@@ -814,7 +816,7 @@ function Field({
           placeholder={f.placeholder}
           aria-invalid={!!error}
           className={cn(
-            "mt-[11px] h-auto rounded-[4px] px-[15px] py-3.5 text-base tabular-nums md:text-base",
+            "mt-[11px] h-auto rounded-md px-[15px] py-3.5 text-base tabular-nums md:text-base",
             mono && "font-mono",
           )}
           style={{ maxWidth: f.w ?? "100%" }}
@@ -830,7 +832,7 @@ function Field({
           onBlur={onBlurValidate}
           placeholder={f.placeholder}
           aria-invalid={!!error}
-          className="mt-[11px] resize-y rounded-[4px] px-[15px] py-3.5 text-base leading-normal md:text-base"
+          className="mt-[11px] resize-y rounded-md px-[15px] py-3.5 text-base leading-normal md:text-base"
         />
       )}
 
@@ -850,7 +852,7 @@ function Field({
                   key={id}
                   htmlFor={`${f.id}-${id}`}
                   className={cn(
-                    "flex cursor-pointer items-center gap-3 rounded-[4px] border bg-raised px-4 py-3.5 text-[15.5px] font-normal transition-colors duration-150",
+                    "flex cursor-pointer items-center gap-3 rounded-md border bg-raised px-4 py-3.5 text-[15.5px] font-normal transition-colors duration-150",
                     on
                       ? "border-accent bg-[color-mix(in_oklab,var(--pv-accent)_5%,white)]"
                       : "border-line hover:border-line-strong",
@@ -883,7 +885,7 @@ function Field({
                 key={label}
                 htmlFor={`${f.id}-${label}`}
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-[4px] border bg-raised px-4 py-3 text-[15px] font-normal transition-colors duration-150",
+                  "flex cursor-pointer items-center gap-3 rounded-md border bg-raised px-4 py-3 text-[15px] font-normal transition-colors duration-150",
                   on
                     ? "border-accent bg-[color-mix(in_oklab,var(--pv-accent)_5%,white)]"
                     : "border-line hover:border-line-strong",
@@ -926,7 +928,7 @@ function Field({
                       )
                 }
                 className={cn(
-                  "cursor-pointer rounded-[4px] border px-[15px] py-[11px] text-[15px] transition-colors duration-150",
+                  "cursor-pointer rounded-md border px-[15px] py-[11px] text-[15px] transition-colors duration-150",
                   on
                     ? "border-accent bg-accent text-white"
                     : "border-line bg-raised text-ink hover:border-line-strong",

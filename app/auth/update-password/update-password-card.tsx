@@ -54,7 +54,7 @@ export function UpdatePasswordCard({
         <div
           role="alert"
           aria-live="assertive"
-          className="mt-[22px] flex items-start gap-[11px] rounded-[4px] border border-[rgba(140,47,42,.35)] bg-[rgba(140,47,42,.06)] px-[15px] py-[13px]"
+          className="mt-[22px] flex items-start gap-[11px] rounded-md border border-[rgba(140,47,42,.35)] bg-[rgba(140,47,42,.06)] px-[15px] py-[13px]"
         >
           <span className="mt-[7px] h-1.5 w-1.5 flex-none rounded-full bg-danger" />
           <span className="text-sm leading-normal text-[var(--pv-danger)]">{error}</span>
@@ -81,7 +81,7 @@ export function UpdatePasswordCard({
                 submit();
               }
             }}
-            className="mt-[9px] w-full rounded-[4px] border border-line-strong bg-raised px-[15px] py-3.5 text-base transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
+            className="mt-[9px] w-full rounded-md border border-line-strong bg-raised px-[15px] py-3.5 text-base transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
           />
         </div>
 
@@ -90,7 +90,7 @@ export function UpdatePasswordCard({
             {[0, 1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-1 flex-1 rounded-[2px] transition-colors duration-150"
+                className="h-1 flex-1 rounded-sm transition-colors duration-150"
                 style={{ background: i < lvl ? lvlColor : "var(--pv-surface-sunken)" }}
               />
             ))}
@@ -112,7 +112,7 @@ export function UpdatePasswordCard({
         type="button"
         onClick={submit}
         disabled={busy}
-        className="mt-[26px] w-full rounded-[4px] border border-accent bg-accent p-[15px] text-[15.5px] font-semibold text-white transition-all duration-150 hover:bg-accent-press active:translate-y-px disabled:cursor-wait disabled:bg-[var(--pv-ink-disabled)]"
+        className="mt-[26px] w-full rounded-md border border-accent bg-accent p-[15px] text-[15.5px] font-semibold text-white transition-all duration-150 hover:bg-accent-press active:translate-y-px disabled:cursor-wait disabled:bg-[var(--pv-ink-disabled)]"
       >
         {busy ? "Working…" : "Set password and sign in"}
       </button>

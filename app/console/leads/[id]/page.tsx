@@ -16,7 +16,11 @@ import {
   stateTone,
   type SubmissionRow,
 } from "@/lib/console";
+import { ArrowLeftIcon } from "lucide-react";
 import { LogOpen } from "./log-open";
+import { Badge } from "@/app/components/ui/badge";
+import { Button } from "@/app/components/ui/button";
+import { Card, CardContent } from "@/app/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Lead",
@@ -71,16 +75,17 @@ export default async function LeadDetailPage(
 
   return (
     <main
-      className="mx-auto max-w-[1400px] px-7 pb-[90px] pt-[26px] max-sm:px-[18px]"
+      className="mx-auto max-w-[1400px] px-gutter pb-[90px] pt-7 max-sm:px-gutter-sm"
       style={{ animation: "pv-in 250ms var(--pv-ease) both" }}
     >
       <LogOpen submissionId={lead.id} />
 
       <Link
         href="/console"
-        className="font-mono text-[11.5px] uppercase tracking-[.1em] text-ink-muted transition-colors duration-150 hover:text-ink"
+        className="inline-flex items-center gap-1.5 font-mono text-[11.5px] uppercase tracking-[.1em] text-ink-muted transition-colors duration-150 hover:text-ink"
       >
-        ← All leads
+        <ArrowLeftIcon className="size-3.5" />
+        All leads
       </Link>
 
       <div className="mt-[18px] flex flex-wrap items-end justify-between gap-7">
@@ -89,20 +94,10 @@ export default async function LeadDetailPage(
             <span className="font-mono text-[13px] text-ink-muted">
               REF {lead.ref}
             </span>
-            <span
-              className="inline-flex items-center gap-1.5 rounded-[2px] px-[7px] py-1 font-mono text-[10.5px] uppercase tracking-[.07em]"
-              style={{
-                color: tone.fg,
-                background: tone.bg,
-                border: `1px solid ${tone.bd}`,
-              }}
-            >
-              <span
-                className="h-[5px] w-[5px] rounded-full"
-                style={{ background: tone.fg }}
-              />
+            <Badge variant={tone.variant} tone="mono" className="gap-1.5">
+              <span className="h-[5px] w-[5px] rounded-full bg-current" />
               {tone.label}
-            </span>
+            </Badge>
           </div>
           <h1 className="mt-3 font-display text-[clamp(26px,3.4vw,33px)] font-semibold tracking-[-.024em]">
             {lead.company_name || "Unnamed company"}
@@ -119,34 +114,28 @@ export default async function LeadDetailPage(
         </div>
         {lead.contact_email && (
           <div className="flex gap-2.5">
-            <a
-              href={`mailto:${lead.contact_email}?subject=Your%20Prime%20Vantage%20record%20(REF%20${lead.ref})`}
-              className="rounded-[4px] border border-accent bg-accent px-4 py-[11px] text-sm font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
-            >
-              Email the client
-            </a>
+            <Button asChild size="lg">
+              <a
+                href={`mailto:${lead.contact_email}?subject=${encodeURIComponent(
+                  `Your Prime PEO Brokers record (REF ${lead.ref})`,
+                )}`}
+              >
+                Email the client
+              </a>
+            </Button>
           </div>
         )}
       </div>
 
-      <div className="mt-[26px] grid grid-cols-[1fr_320px] items-start gap-7 max-lg:grid-cols-1">
+      <div className="mt-[26px] grid grid-cols-[1fr_320px] items-start gap-7 [&>*]:min-w-0 max-lg:grid-cols-1">
         <div className="flex flex-col gap-5 max-lg:order-2">
           {STEPS.map((step, i) => (
             <section
               key={step.title}
-              className="overflow-hidden rounded-[4px]"
-              style={{
-                background: step.sensitive ? "var(--pv-surface-tint)" : "var(--pv-surface-raised)",
-                border: `1px solid ${step.sensitive ? "var(--pv-ink)" : "var(--pv-line)"}`,
-              }}
+              data-sensitive={step.sensitive ? "true" : undefined}
+              className="group/step overflow-hidden rounded-md border border-line bg-raised data-[sensitive]:border-ink data-[sensitive]:bg-tint"
             >
-              <div
-                className="flex items-center justify-between gap-4 px-5 py-[13px]"
-                style={{
-                  background: step.sensitive ? "var(--pv-surface-tint)" : "var(--pv-surface-sunken)",
-                  borderBottom: `1px solid ${step.sensitive ? "var(--pv-ink)" : "var(--pv-line)"}`,
-                }}
-              >
+              <div className="flex items-center justify-between gap-4 border-b border-line bg-sunken px-row-x py-[13px] group-data-[sensitive]/step:border-ink group-data-[sensitive]/step:bg-tint">
                 <div className="flex items-baseline gap-[11px]">
                   <span className="font-mono text-[11.5px] text-ink-muted">
                     {String(i + 1).padStart(2, "0")}
@@ -156,20 +145,24 @@ export default async function LeadDetailPage(
                   </h2>
                 </div>
                 {step.sensitive && (
-                  <span className="rounded-[2px] border border-ink px-[7px] py-[3px] font-mono text-[10px] uppercase tracking-[.1em]">
+                  <Badge
+                    variant="outline"
+                    tone="mono"
+                    className="border-ink text-ink"
+                  >
                     Sensitive · logged on open
-                  </span>
+                  </Badge>
                 )}
               </div>
-              <div
-                className="grid grid-cols-2 gap-px max-sm:grid-cols-1"
-                style={{ background: step.sensitive ? "var(--pv-ink)" : "var(--pv-line)" }}
-              >
+              {/*
+                The 1px grid gap is the divider: the wrapper paints the line
+                colour and each cell paints the surface over it.
+              */}
+              <div className="grid grid-cols-2 gap-px bg-line max-sm:grid-cols-1 group-data-[sensitive]/step:bg-ink">
                 {visibleFields(i, answers).map((f) => (
                   <div
                     key={f.id}
-                    className="px-5 py-[15px]"
-                    style={{ background: step.sensitive ? "var(--pv-surface-tint)" : "var(--pv-surface-raised)" }}
+                    className="bg-raised px-row-x py-4 group-data-[sensitive]/step:bg-tint"
                   >
                     <div className="text-[13px] text-ink-muted">{f.label}</div>
                     <div className="mt-1.5 font-mono text-[15px] leading-snug">
@@ -183,7 +176,8 @@ export default async function LeadDetailPage(
         </div>
 
         <aside className="flex flex-col gap-5 max-lg:order-1">
-          <div className="rounded-[4px] border border-line bg-raised p-5">
+          <Card className="gap-0 rounded-md py-row-x">
+            <CardContent className="px-row-x">
             <div className="font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
               Record
             </div>
@@ -211,36 +205,42 @@ export default async function LeadDetailPage(
               />
               {runway && <SideRow label="Renewal pressure" value={runway} />}
             </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="overflow-hidden rounded-[4px] border border-line bg-raised">
-            <div className="border-b border-line bg-sunken px-[18px] py-3 font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
+          <Card className="gap-0 overflow-hidden rounded-md py-0">
+            <div className="border-b border-line bg-sunken px-gutter-sm py-3 font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
               Record history
             </div>
             {(events ?? []).length === 0 && (
-              <div className="px-[18px] py-[13px] text-sm text-ink-muted">
+              <div className="px-gutter-sm py-[13px] text-sm text-ink-muted">
                 Nothing yet.
               </div>
             )}
             {(events ?? []).map((h: EventRow) => (
-              <div key={h.id} className="border-b border-sunken px-[18px] py-[13px] last:border-b-0">
+              <div
+                key={h.id}
+                className="border-b border-sunken px-gutter-sm py-[13px] last:border-b-0"
+              >
                 <div className="text-sm">{h.detail || h.action}</div>
                 <div className="mt-1 font-mono text-[11.5px] text-ink-muted">
                   {h.actor} · {formatWhen(h.created_at)}
                 </div>
               </div>
             ))}
-          </div>
+          </Card>
 
-          <div className="rounded-[4px] border border-line bg-raised p-5">
-            <div className="font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
-              Assigned
-            </div>
-            <div className="mt-3 text-[14.5px] font-semibold">Unassigned</div>
-            <div className="mt-3 text-[13px] leading-normal text-ink-muted">
-              Assignment and the status pipeline arrive in Phase 2.
-            </div>
-          </div>
+          <Card className="gap-0 rounded-md py-row-x">
+            <CardContent className="px-row-x">
+              <div className="font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
+                Assigned
+              </div>
+              <div className="mt-3 text-[14.5px] font-semibold">Unassigned</div>
+              <div className="mt-3 text-[13px] leading-normal text-ink-muted">
+                Assignment and the status pipeline arrive in Phase 2.
+              </div>
+            </CardContent>
+          </Card>
         </aside>
       </div>
     </main>
