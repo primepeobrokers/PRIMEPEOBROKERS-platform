@@ -47,7 +47,7 @@ export function UpdatePasswordCard({
       <p className="mt-3 text-[15px] leading-normal text-ink-soft">
         {flow === "invite"
           ? `You are setting the password for ${email}. This link is single-use.`
-          : `New password for ${email}. The reset link is single-use.`}
+          : `New password for ${email}. That code is now used up.`}
       </p>
 
       {error && (

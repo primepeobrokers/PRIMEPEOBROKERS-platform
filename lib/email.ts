@@ -49,7 +49,7 @@ export async function sendSubmissionNotification(input: {
     return `<h3 style="font-size:15px;margin:20px 0 4px;">${step.title}</h3><table style="border-collapse:collapse;">${rows}</table>`;
   }).join("");
 
-  await resend.emails.send({
+  const { error: sendError } = await resend.emails.send({
     from: FROM,
     to,
     subject: `New discovery record · REF ${input.ref} · ${company}`,
@@ -61,6 +61,47 @@ export async function sendSubmissionNotification(input: {
         ${sections}
       </div>`,
   });
+
+  if (sendError) console.error("[email] send failed:", sendError.message);
+}
+
+/**
+ * Emails a one-time password-reset code.
+ *
+ * Unlike the notification senders, this one reports whether delivery actually
+ * happened. Resend signals API-level failures through the `error` field rather
+ * than throwing, so an unchecked send would leave the user staring at a
+ * code-entry box waiting for a code that was never accepted for delivery.
+ */
+export async function sendPasswordResetCode(input: {
+  to: string;
+  code: string;
+  expiresInMinutes: number;
+}): Promise<{ ok: boolean }> {
+  const resend = getResend();
+  if (!resend) return { ok: false };
+
+  const code = escapeHtml(input.code);
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: input.to,
+    // The code goes in the subject too: on a phone it is readable from the
+    // notification without opening the message.
+    subject: `Your Prime PEO Brokers reset code is ${input.code}`,
+    html: `
+      <div style="font-family:system-ui,sans-serif;color:#19233B;max-width:560px;">
+        <p style="font-size:15px;">Enter this code to set a new console password.</p>
+        <p style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:30px;font-weight:600;letter-spacing:.16em;color:#19233B;margin:26px 0;">${code}</p>
+        <p style="font-size:15px;">It expires in ${input.expiresInMinutes} minutes and can be used once. Asking for another code cancels this one.</p>
+        <p style="font-size:13px;color:#63697A;">If you did not ask for this, ignore this email. Your password has not changed, and nobody can use this code without your inbox.</p>
+      </div>`,
+  });
+
+  if (error) {
+    console.error("[email] reset code delivery failed:", error.message);
+    return { ok: false };
+  }
+  return { ok: true };
 }
 
 /** Emails the visitor a link that returns them to the step they left. */
@@ -73,7 +114,7 @@ export async function sendResumeLink(input: {
   if (!resend) return;
 
   const link = `${siteUrl()}/discovery?r=${input.token}`;
-  await resend.emails.send({
+  const { error: sendError } = await resend.emails.send({
     from: FROM,
     to: input.to,
     subject: "Your Prime PEO Brokers discovery record: pick up where you left off",
@@ -84,6 +125,8 @@ export async function sendResumeLink(input: {
         <p style="font-size:13px;color:#63697A;">No other mail follows from this. If you did not request the link, ignore this email.</p>
       </div>`,
   });
+
+  if (sendError) console.error("[email] send failed:", sendError.message);
 }
 
 /** Confirms submission to the visitor. */
@@ -95,7 +138,7 @@ export async function sendSubmissionConfirmation(input: {
   const resend = getResend();
   if (!resend) return;
 
-  await resend.emails.send({
+  const { error: sendError } = await resend.emails.send({
     from: FROM,
     to: input.to,
     subject: `Your record is in · REF ${input.ref}`,
@@ -106,6 +149,8 @@ export async function sendSubmissionConfirmation(input: {
         <p style="font-size:13px;color:#63697A;">Something wrong in the record? Reply to this email and it is corrected before quoting starts.</p>
       </div>`,
   });
+
+  if (sendError) console.error("[email] send failed:", sendError.message);
 }
 
 function escapeHtml(s: string): string {

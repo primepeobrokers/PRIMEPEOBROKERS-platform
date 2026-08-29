@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { claimRequest, clientIp } from "@/lib/auth/throttle";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 import {
   TOTAL_STEPS,
@@ -107,6 +108,16 @@ export async function saveDraft(input: {
   const supabase = createAdminClient();
 
   if (!input.handle) {
+    // Creating a brand-new draft is the only unauthenticated write that adds a
+    // row, so it is the one that needs a ceiling.
+    const gate = await claimRequest("save_draft", await clientIp(), 20, "1 hour");
+    if (!gate.allowed) {
+      return {
+        ok: false,
+        error: "Too many drafts started from this connection. Try again shortly.",
+      };
+    }
+
     const { data, error } = await supabase
       .from("submissions")
       .insert({
@@ -239,6 +250,31 @@ export async function requestResumeLink(input: {
   const email = String(input.email ?? "").trim();
   if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
     return { ok: false, error: "That address is missing an @ or a domain." };
+  }
+
+  /*
+    This action mails an arbitrary caller-supplied address from the brand's
+    verified domain, with no sign-in required. Unmetered, that is a relay: it
+    burns the Resend quota and, worse, spends the domain's sending reputation
+    on traffic we did not intend.
+
+    Two ceilings. Per-connection stops one caller fanning out across many
+    addresses; per-recipient stops the same inbox being mailed repeatedly from
+    rotating connections.
+  */
+  const ip = await clientIp();
+  const byIp = await claimRequest("resume_link_ip", ip, 5, "1 hour");
+  const byRecipient = await claimRequest(
+    "resume_link_to",
+    email.toLowerCase(),
+    3,
+    "1 hour",
+  );
+  if (!byIp.allowed || !byRecipient.allowed) {
+    return {
+      ok: false,
+      error: "That link was just sent. Check your inbox, including spam.",
+    };
   }
 
   // Make sure the latest answers are on the draft before mailing the link.

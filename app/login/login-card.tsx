@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { signIn, sendResetLink } from "./actions";
+import { useEffect, useState, useTransition } from "react";
+import { signIn, sendResetCode, verifyResetCode } from "./actions";
 
 const COPY = {
   signin: {
@@ -13,10 +13,17 @@ const COPY = {
   },
   forgot: {
     eyebrow: "Password reset",
-    heading: "Send a reset link",
-    sub: "We email a single-use link that expires in one hour.",
-    cta: "Send reset link",
-    foot: "The link only works on the address already on the account. We will not change it for you over email.",
+    heading: "Email me a code",
+    sub: "We send an 8-digit code that expires in 15 minutes.",
+    cta: "Send the code",
+    foot: "The code only goes to the address already on the account. We will not change it for you over email.",
+  },
+  code: {
+    eyebrow: "Password reset",
+    heading: "Enter your code",
+    sub: "Check your inbox. The code is 8 digits and expires in 15 minutes.",
+    cta: "Verify and continue",
+    foot: "Asking for a new code cancels the previous one.",
   },
 };
 
@@ -27,14 +34,23 @@ export function LoginCard({
   next: string;
   linkError: boolean;
 }) {
-  const [view, setView] = useState<"signin" | "forgot">("signin");
+  const [view, setView] = useState<"signin" | "forgot" | "code">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(
     linkError ? "That link has expired or was already used. Ask for a fresh one." : "",
   );
-  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState("");
+  // Mirrors the server's 60s minimum gap, so the button cannot invite a
+  // request that is going to be refused.
+  const [cooldown, setCooldown] = useState(0);
   const [busy, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const copy = COPY[view];
 
@@ -46,10 +62,17 @@ export function LoginCard({
         const res = await signIn({ email, password, next });
         if (res?.error) setError(res.error);
         // on success the action redirects
-      } else {
-        const res = await sendResetLink({ email });
+      } else if (view === "forgot") {
+        const res = await sendResetCode({ email });
         if ("error" in res) setError(res.error);
-        else setSent(true);
+        else {
+          setView("code");
+          setCooldown(60);
+        }
+      } else {
+        const res = await verifyResetCode({ email, code });
+        // Only failures return; success redirects to set a new password.
+        if (res?.error) setError(res.error);
       }
     });
   }
@@ -80,18 +103,18 @@ export function LoginCard({
         </div>
       )}
 
-      {sent && view === "forgot" && (
+      {view === "code" && (
         <div
           role="status"
           aria-live="polite"
           className="mt-[22px] rounded-md border border-[rgba(74,107,58,.35)] bg-[rgba(74,107,58,.07)] px-4 py-3.5"
         >
           <div className="text-[14.5px] font-semibold text-[var(--pv-positive-deep)]">
-            Reset link sent
+            Code sent
           </div>
           <div className="mt-[5px] text-sm leading-normal text-ink-soft">
-            If that address is on an account, a link reaches it within a minute
-            and expires in one hour. Check spam before asking for another.
+            If {email || "that address"} is on an account, an 8-digit code
+            reaches it within a minute. Check spam before asking for another.
           </div>
         </div>
       )}
@@ -108,6 +131,7 @@ export function LoginCard({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={onKey}
+            readOnly={view === "code"}
             placeholder="you@primepeobrokers.com"
             className="mt-[9px] w-full rounded-md border border-line-strong bg-raised px-[15px] py-3.5 text-base transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
           />
@@ -129,7 +153,7 @@ export function LoginCard({
                 onClick={() => {
                   setView("forgot");
                   setError("");
-                  setSent(false);
+                  setCode("");
                 }}
                 className="-my-2 cursor-pointer py-2 text-[13px] text-accent hover:text-accent-press"
               >
@@ -147,6 +171,43 @@ export function LoginCard({
             />
           </div>
         )}
+
+        {view === "code" && (
+          <div>
+            <label htmlFor="auth-code" className="text-sm font-semibold">
+              8-digit code
+            </label>
+            <input
+              id="auth-code"
+              // one-time-code lets iOS and Android offer the code straight from
+              // the notification, which is most of the value of this flow.
+              autoComplete="one-time-code"
+              inputMode="numeric"
+              maxLength={8}
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+              onKeyDown={onKey}
+              placeholder="00000000"
+              className="mt-[9px] w-full rounded-md border border-line-strong bg-raised px-[15px] py-3.5 text-center font-mono text-[22px] tracking-[.32em] transition-all duration-150 focus:border-accent focus:outline-none"
+            />
+            <button
+              type="button"
+              disabled={busy || cooldown > 0}
+              onClick={() => {
+                setError("");
+                setCode("");
+                startTransition(async () => {
+                  const res = await sendResetCode({ email });
+                  if ("error" in res) setError(res.error);
+                  else setCooldown(60);
+                });
+              }}
+              className="mt-[11px] cursor-pointer text-[13px] text-accent hover:text-accent-press disabled:cursor-default disabled:text-ink-faint"
+            >
+              {cooldown > 0 ? `Send a new code in ${cooldown}s` : "Send a new code"}
+            </button>
+          </div>
+        )}
       </div>
 
       <button
@@ -160,7 +221,7 @@ export function LoginCard({
 
       <div className="mt-[22px] border-t border-sunken pt-5 text-[13.5px] leading-normal text-ink-muted">
         {copy.foot}
-        {view === "forgot" && (
+        {view !== "signin" && (
           <>
             {" "}
             <button
@@ -168,7 +229,7 @@ export function LoginCard({
               onClick={() => {
                 setView("signin");
                 setError("");
-                setSent(false);
+                setCode("");
               }}
               className="cursor-pointer text-accent underline hover:text-accent-press"
             >
