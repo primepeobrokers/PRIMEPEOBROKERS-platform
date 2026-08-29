@@ -5,6 +5,8 @@
 --      The real brand is Prime PEO Brokers.
 --   2. Discovery now opens with a category choice, and the home page offers a
 --      second entry point for renewal benchmarking. Both belong on the lead.
+--
+-- Written to be safely re-runnable.
 
 update public.tenants
    set slug = 'prime-peo-brokers',
@@ -19,13 +21,26 @@ alter table public.submissions
   -- benchmark-my-existing-deal path off the home page.
   add column if not exists intent text not null default 'shop';
 
-alter table public.submissions
-  add constraint submissions_intent_check
-  check (intent in ('shop', 'renewal'));
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'submissions_intent_check'
+  ) then
+    alter table public.submissions
+      add constraint submissions_intent_check
+      check (intent in ('shop', 'renewal'));
+  end if;
+end $$;
 
 -- The console segments by category first, so index it alongside the tenant.
 create index if not exists submissions_tenant_category_idx
   on public.submissions (tenant_id, category);
+
+-- Records that predate the category step keep whatever the answers jsonb says.
+update public.submissions
+   set category = answers ->> 'category'
+ where category is null
+   and answers ->> 'category' is not null;
 
 comment on column public.submissions.category is
   'Product category the visitor selected in step 1 of discovery.';

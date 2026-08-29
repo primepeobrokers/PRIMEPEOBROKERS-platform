@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { STEPS, formatAnswer, type Answers } from "@/lib/discovery/schema";
+import {
+  STEPS,
+  TOTAL_STEPS,
+  categoryName,
+  formatAnswer,
+  visibleFields,
+  type Answers,
+} from "@/lib/discovery/schema";
 import {
   daysUntil,
   formatWhen,
@@ -37,7 +44,7 @@ export default async function LeadDetailPage(
   const { data: lead } = await supabase
     .from("submissions")
     .select(
-      "id, ref, status, steps_completed, answers, company_name, contact_name, contact_email, fte_count, benefits_spend, current_setup, created_at, submitted_at",
+      "id, ref, status, steps_completed, answers, company_name, contact_name, contact_email, fte_count, benefits_spend, current_setup, category, intent, created_at, submitted_at",
     )
     .eq("id", id)
     .maybeSingle();
@@ -129,15 +136,15 @@ export default async function LeadDetailPage(
               key={step.title}
               className="overflow-hidden rounded-[4px]"
               style={{
-                background: step.sensitive ? "#FBFAF8" : "#FFF",
-                border: `1px solid ${step.sensitive ? "#1A1917" : "#DFDAD3"}`,
+                background: step.sensitive ? "var(--pv-surface-tint)" : "var(--pv-surface-raised)",
+                border: `1px solid ${step.sensitive ? "var(--pv-ink)" : "var(--pv-line)"}`,
               }}
             >
               <div
                 className="flex items-center justify-between gap-4 px-5 py-[13px]"
                 style={{
-                  background: step.sensitive ? "#EFEDE9" : "#EAE6E1",
-                  borderBottom: `1px solid ${step.sensitive ? "#1A1917" : "#DFDAD3"}`,
+                  background: step.sensitive ? "var(--pv-surface-tint)" : "var(--pv-surface-sunken)",
+                  borderBottom: `1px solid ${step.sensitive ? "var(--pv-ink)" : "var(--pv-line)"}`,
                 }}
               >
                 <div className="flex items-baseline gap-[11px]">
@@ -156,13 +163,13 @@ export default async function LeadDetailPage(
               </div>
               <div
                 className="grid grid-cols-2 gap-px max-sm:grid-cols-1"
-                style={{ background: step.sensitive ? "#1A1917" : "#DFDAD3" }}
+                style={{ background: step.sensitive ? "var(--pv-ink)" : "var(--pv-line)" }}
               >
-                {step.fields.map((f) => (
+                {visibleFields(i, answers).map((f) => (
                   <div
                     key={f.id}
                     className="px-5 py-[15px]"
-                    style={{ background: step.sensitive ? "#FBFAF8" : "#FFF" }}
+                    style={{ background: step.sensitive ? "var(--pv-surface-tint)" : "var(--pv-surface-raised)" }}
                   >
                     <div className="text-[13px] text-ink-muted">{f.label}</div>
                     <div className="mt-1.5 font-mono text-[15px] leading-snug">
@@ -181,7 +188,19 @@ export default async function LeadDetailPage(
               Record
             </div>
             <div className="mt-3 flex flex-col gap-2.5 text-sm">
-              <SideRow label="Steps answered" value={`${lead.steps_completed} / 6`} />
+              <SideRow
+                label="Category"
+                value={
+                  lead.category
+                    ? categoryName(lead.category) +
+                      (lead.intent === "renewal" ? " · renewal" : "")
+                    : "–"
+                }
+              />
+              <SideRow
+                label="Steps answered"
+                value={`${lead.steps_completed} / ${TOTAL_STEPS}`}
+              />
               <SideRow
                 label="Started"
                 value={formatWhen(lead.created_at)}

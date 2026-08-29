@@ -11,6 +11,8 @@ export interface SubmissionRow {
   fte_count: number | null;
   benefits_spend: number | null;
   current_setup: string | null;
+  category: string | null;
+  intent: string | null;
   created_at: string;
   submitted_at: string | null;
 }
@@ -20,16 +22,16 @@ export function stateTone(row: Pick<SubmissionRow, "status" | "steps_completed">
   if (row.status === "complete") {
     return {
       label: "Complete",
-      fg: "#3C5730",
-      bg: "rgba(74,107,58,.09)",
-      bd: "rgba(74,107,58,.28)",
+      fg: "var(--pv-positive-deep)",
+      bg: "color-mix(in oklab,var(--pv-positive) 9%,transparent)",
+      bd: "color-mix(in oklab,var(--pv-positive) 28%,transparent)",
     };
   }
   return {
     label: `Partial ${row.steps_completed}/${TOTAL_STEPS}`,
-    fg: "#8A5C0B",
-    bg: "rgba(168,113,14,.09)",
-    bd: "rgba(168,113,14,.3)",
+    fg: "var(--pv-warning-deep)",
+    bg: "color-mix(in oklab,var(--pv-warning) 9%,transparent)",
+    bd: "color-mix(in oklab,var(--pv-warning) 30%,transparent)",
   };
 }
 

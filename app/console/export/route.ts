@@ -17,7 +17,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("submissions")
-    .select("ref, status, steps_completed, created_at, submitted_at, answers")
+    .select("ref, status, steps_completed, intent, created_at, submitted_at, answers")
     .order("created_at", { ascending: false })
     .limit(10000);
   if (error) {
@@ -29,6 +29,7 @@ export async function GET() {
     "ref",
     "status",
     "steps_completed",
+    "intent",
     "created_at",
     "submitted_at",
     ...fieldCols.map((f) => f.id),
@@ -43,6 +44,7 @@ export async function GET() {
         String(row.ref),
         row.status,
         String(row.steps_completed),
+        row.intent ?? "shop",
         row.created_at ?? "",
         row.submitted_at ?? "",
         ...fieldCols.map((f) => {

@@ -9,6 +9,7 @@ import {
   type SubmissionRow,
 } from "@/lib/console";
 import { CopyDiscoveryLink } from "./copy-link";
+import { CATEGORIES, categoryName } from "@/lib/discovery/schema";
 
 export const metadata: Metadata = {
   title: "Leads",
@@ -33,12 +34,14 @@ function buildQueryString(params: {
   q: string;
   complete: string;
   range: string;
+  category: string;
   page?: number;
 }): string {
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
   if (params.complete !== "all") sp.set("complete", params.complete);
   if (params.range !== "30d") sp.set("range", params.range);
+  if (params.category !== "all") sp.set("category", params.category);
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   const s = sp.toString();
   return s ? `?${s}` : "";
@@ -55,6 +58,11 @@ export default async function LeadsPage(props: PageProps<"/console">) {
     searchParams.range === "7d" || searchParams.range === "all"
       ? searchParams.range
       : "30d";
+  const category =
+    typeof searchParams.category === "string" &&
+    CATEGORIES.some((c) => c.id === searchParams.category)
+      ? searchParams.category
+      : "all";
   const page = Math.max(1, Number(searchParams.page) || 1);
 
   const supabase = await createClient();
@@ -67,11 +75,12 @@ export default async function LeadsPage(props: PageProps<"/console">) {
   let query = supabase
     .from("submissions")
     .select(
-      "id, ref, status, steps_completed, company_name, contact_name, contact_email, fte_count, benefits_spend, current_setup, created_at, submitted_at",
+      "id, ref, status, steps_completed, company_name, contact_name, contact_email, fte_count, benefits_spend, current_setup, category, intent, created_at, submitted_at",
       { count: "exact" },
     );
 
   if (complete !== "all") query = query.eq("status", complete);
+  if (category !== "all") query = query.eq("category", category);
   if (range !== "all") {
     query = query.gte("created_at", isoDaysAgo(range === "7d" ? 7 : 30));
   }
@@ -106,11 +115,19 @@ export default async function LeadsPage(props: PageProps<"/console">) {
   const filterSummaryParts = [
     q ? `Search “${q}”` : null,
     complete !== "all" ? `${complete === "partial" ? "Partial" : "Complete"} only` : null,
+    category !== "all" ? `${categoryName(category)} only` : null,
     range === "7d" ? "Last 7 days" : range === "30d" ? "Last 30 days" : "All time",
   ].filter(Boolean);
 
-  const qs = (over: Partial<{ q: string; complete: string; range: string; page: number }>) =>
-    buildQueryString({ q, complete, range, ...over });
+  const qs = (
+    over: Partial<{
+      q: string;
+      complete: string;
+      range: string;
+      category: string;
+      page: number;
+    }>,
+  ) => buildQueryString({ q, complete, range, category, ...over });
 
   return (
     <main className="mx-auto max-w-[1400px] px-7 pb-20 pt-[34px] max-sm:px-[18px]">
@@ -142,6 +159,9 @@ export default async function LeadsPage(props: PageProps<"/console">) {
             <input type="hidden" name="complete" value={complete} />
           )}
           {range !== "30d" && <input type="hidden" name="range" value={range} />}
+          {category !== "all" && (
+            <input type="hidden" name="category" value={category} />
+          )}
           <input
             type="search"
             name="q"
@@ -184,14 +204,40 @@ export default async function LeadsPage(props: PageProps<"/console">) {
         ))}
       </div>
 
+      {/* Category is the primary segmentation now, so it gets its own row. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <span className="pv-label mr-1">Category</span>
+        {[["all", "All"] as const, ...CATEGORIES.map((c) => [c.id, c.name] as const)].map(
+          ([v, label]) => (
+            <Link
+              key={v}
+              href={`/console${qs({ category: v, page: 1 })}`}
+              aria-pressed={category === v}
+              className="rounded-[4px] px-[11px] py-[7px] text-[13px] transition-colors duration-150"
+              style={{
+                background:
+                  category === v
+                    ? "color-mix(in oklab,var(--pv-accent) 6%,transparent)"
+                    : "#FFF",
+                border: `1px solid ${category === v ? "var(--pv-accent)" : "var(--pv-line)"}`,
+                color: category === v ? "var(--pv-accent)" : "var(--pv-ink-soft)",
+                fontWeight: category === v ? 600 : 400,
+              }}
+            >
+              {label}
+            </Link>
+          ),
+        )}
+      </div>
+
       <div className="mt-[22px] overflow-hidden rounded-[4px] border border-line bg-raised">
         {(rows.length > 0 || isNoResults) && !hasError && rows.length > 0 && (
-          <div className="grid grid-cols-[64px_1.5fr_92px_1fr_1fr_132px_108px] gap-[18px] border-b border-line bg-sunken px-5 py-3 font-mono text-[10.5px] uppercase tracking-[.11em] text-ink-muted max-md:hidden">
+          <div className="grid grid-cols-[64px_1.5fr_92px_1fr_104px_132px_108px] gap-[18px] border-b border-line bg-sunken px-5 py-3 font-mono text-[10.5px] uppercase tracking-[.11em] text-ink-muted max-md:hidden">
             <div>Ref</div>
             <div>Company</div>
             <div className="text-right">Heads</div>
             <div className="text-right">Benefits spend</div>
-            <div>Current setup</div>
+            <div>Category</div>
             <div>Submitted</div>
             <div>State</div>
           </div>
@@ -204,7 +250,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
               <Link
                 key={r.id}
                 href={`/console/leads/${r.id}`}
-                className="grid grid-cols-[64px_1.5fr_92px_1fr_1fr_132px_108px] items-center gap-[18px] border-b border-sunken px-5 py-3.5 transition-colors duration-150 last:border-b-0 hover:bg-tint max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-2.5 max-md:px-[18px] max-md:py-4"
+                className="grid grid-cols-[64px_1.5fr_92px_1fr_104px_132px_108px] items-center gap-[18px] border-b border-sunken px-5 py-3.5 transition-colors duration-150 last:border-b-0 hover:bg-tint max-md:grid-cols-2 max-md:gap-x-4 max-md:gap-y-2.5 max-md:px-[18px] max-md:py-4"
               >
                 <Cell label="Ref">
                   <span className="font-mono text-[13px] text-ink-muted">{r.ref}</span>
@@ -225,10 +271,31 @@ export default async function LeadsPage(props: PageProps<"/console">) {
                     {formatMoney(r.benefits_spend)}
                   </span>
                 </Cell>
-                <Cell label="Current setup">
-                  <span className="text-sm text-ink-soft">
-                    {r.current_setup ?? "–"}
-                  </span>
+                <Cell label="Category">
+                  {r.category ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="whitespace-nowrap rounded-[2px] border border-line bg-tint px-[7px] py-1 font-mono text-[10.5px] uppercase tracking-[.07em] text-ink-soft">
+                        {categoryName(r.category)}
+                      </span>
+                      {r.intent === "renewal" && (
+                        <span
+                          title="Benchmarking an existing deal"
+                          className="whitespace-nowrap rounded-[2px] px-[6px] py-1 font-mono text-[10px] uppercase tracking-[.07em]"
+                          style={{
+                            color: "var(--pv-accent)",
+                            background:
+                              "color-mix(in oklab,var(--pv-accent) 8%,transparent)",
+                            border:
+                              "1px solid color-mix(in oklab,var(--pv-accent) 28%,transparent)",
+                          }}
+                        >
+                          Renewal
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-ink-faint">–</span>
+                  )}
                 </Cell>
                 <Cell label="Submitted">
                   <span className="font-mono text-[13px] text-ink-muted">
