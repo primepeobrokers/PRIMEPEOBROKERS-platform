@@ -2,10 +2,10 @@ import Link from "next/link";
 import { Logo } from "@/app/components/logo";
 
 /**
- * Shared frame for the privacy policy and terms. Both carry a visible draft
- * banner: these were written from what the code actually does, but a licensed
- * brokerage handling compensation data needs counsel to review them before
- * launch.
+ * Shared frame for the privacy policy and terms. Both now carry the
+ * client-supplied legal copy, so the draft banner that flagged them as
+ * unreviewed is gone. Outstanding placeholder values are tracked in a
+ * TODO(client) comment at the top of each page.
  */
 export function LegalPage({
   title,
@@ -33,16 +33,7 @@ export function LegalPage({
       </header>
 
       <main className="mx-auto max-w-[820px] px-10 pb-28 pt-14 max-sm:px-5">
-        <div className="rounded-md border border-warning/40 bg-warning/5 px-[18px] py-3.5">
-          <div className="pv-label text-warning-deep">Draft</div>
-          <p className="mt-1.5 text-[14px] leading-snug text-ink-soft">
-            This document is a working draft prepared from how the site
-            actually handles data. It has not yet been reviewed by counsel and
-            should not be treated as final.
-          </p>
-        </div>
-
-        <h1 className="mt-10 font-display text-[clamp(30px,5vw,44px)] font-semibold leading-[1.05] tracking-[-.03em]">
+        <h1 className="font-display text-[clamp(30px,5vw,44px)] font-semibold leading-[1.05] tracking-[-.03em]">
           {title}
         </h1>
         <div className="mt-3 font-mono text-[12px] uppercase tracking-[.1em] text-ink-muted">

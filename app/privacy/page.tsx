@@ -4,153 +4,405 @@ import { LegalPage, Section } from "@/app/components/legal-page";
 export const metadata: Metadata = {
   title: "Privacy policy",
   description:
-    "What Prime PEO Brokers collects when you run a discovery, where it is stored, who can see it, and how to have it deleted.",
+    "How Prime PEO Brokers collects, uses, discloses, and protects personal information in connection with the PEO, payroll, and employer services evaluation.",
   alternates: { canonical: "/privacy" },
 };
 
+/*
+ * Client-supplied legal copy, adapted from the white-label template. As in the
+ * terms, the template's partner/platform split collapses into a single party:
+ * A&G Advisors, LLC d/b/a Prime PEO Brokers. The Phase 1 / Phase 2 controller
+ * distinction is kept, since it describes Prime's own change in role once it
+ * is designated broker of record, not a second company.
+ *
+ * TODO(client): values the supplied text left as placeholders and we do not
+ * have yet. Confirm before this is treated as final:
+ *   - Effective date and last-updated date (currently the ship date below)
+ *   - Mailing address ({{PRIME_ADDRESS}})
+ *   - Business phone ({{PARTNER_PHONE}}), referenced in "Making a request"
+ *   - Retention periods: quote/placement records ({{QUOTE_RETENTION_PERIOD}}),
+ *     census files with SSNs ({{SSN_RETENTION_PERIOD}}), site usage logs
+ *     ({{LOG_RETENTION_PERIOD}}). These are stated as "TBC" below rather than
+ *     guessed, because they are commitments.
+ */
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" lastUpdated="2026-08-28">
-      <Section heading="The short version">
+    <LegalPage title="Privacy policy" lastUpdated="2026-08-29">
+      <Section heading="Before you begin">
         <p>
-          We collect what a broker needs to quote your business, we store it in
-          one encrypted database, we show it to your assigned broker and nobody
-          else, and we never sell it. No provider sees your record until you
-          approve the shortlist. Ask us to delete it and we will, within 30
-          days.
+          This privacy policy describes how A&amp;G Advisors, LLC d/b/a Prime
+          PEO Brokers (&ldquo;Prime,&rdquo; &ldquo;we,&rdquo;
+          &ldquo;us,&rdquo; or &ldquo;our&rdquo;) collects, uses, discloses,
+          and protects personal information in connection with
+          primepeobrokers.com (the &ldquo;Site&rdquo;) and the PEO, payroll,
+          and employer services evaluation offered through it (the
+          &ldquo;Services&rdquo;).
+        </p>
+        <p>
+          By using the Site or submitting information through it, you
+          acknowledge the practices described here.
         </p>
       </Section>
 
-      <Section heading="What we collect">
-        <p>When you run a discovery, you give us:</p>
+      <Section id="who" heading="1. Who handles your information">
+        <p>
+          Prime operates the Site and is the party you engage for the Services.
+          Prime is a licensed insurance producer and PEO/HCM advisory firm.
+          Prime hosts the Site, receives submissions, prepares PEO and payroll
+          comparisons, and solicits proposals from professional employer
+          organizations, payroll providers, and related vendors.
+        </p>
+        <p>
+          <strong>Phase 1, evaluation.</strong> While we are preparing an
+          evaluation, we process the information you submit for that purpose
+          and on your instructions: to analyze your current costs, solicit
+          proposals, and prepare comparisons for you.
+        </p>
+        <p>
+          <strong>Phase 2, placement and ongoing service.</strong> Our role
+          changes if you proceed with a PEO or payroll provider through us.
+          This occurs when Prime is designated as the referring, placing, or
+          servicing broker of record with a PEO or payroll provider, when Prime
+          receives commission or fees from that vendor in connection with your
+          account, or when you engage Prime directly for advisory,
+          implementation, or ongoing service work. From that point we also
+          handle your information for our own purposes: servicing your account,
+          meeting our licensing and recordkeeping obligations, and marketing
+          related services to you.
+        </p>
+        <p>
+          <strong>Benchmarking.</strong> In both phases, we create and retain
+          de-identified and aggregated market data: pricing, administrative fee
+          structures, class-code loadings, burden rates, and plan design
+          comparables, derived from submissions across all users of the
+          platform. This data does not identify you or your company. It is used
+          to improve evaluation accuracy and to publish market analyses, and we
+          retain it indefinitely, including after any engagement ends. We do
+          not re-identify it and we contractually prohibit recipients from
+          attempting to.
+        </p>
+        <p>
+          <strong>PEOs, payroll providers, and their carriers.</strong>{" "}
+          Organizations that receive your information to produce quotes are
+          independent controllers and handle it under their own privacy
+          policies, which we do not control.
+        </p>
+      </Section>
+
+      <Section id="collect" heading="2. Information we collect">
+        <p>
+          <strong>From you directly.</strong>
+        </p>
         <ul>
           <li>
-            <strong>About you:</strong> name, work email, and optionally phone,
-            job title, and your role in the decision.
+            <strong>Contact and business information.</strong> Name, title,
+            business email, business phone, company name, mailing address,
+            industry, entity structure, and FEIN.
           </li>
           <li>
-            <strong>About your company:</strong> company name, website,
-            industry, employee count, the states you employ people in, and
-            which product category you are shopping for.
+            <strong>Employee census and payroll data.</strong> Employee names,
+            dates of birth, gender, home ZIP code, job classification,
+            workers&rsquo; compensation class code, hire date, wage or salary,
+            hours, employment status, work state, dependent counts, benefit
+            elections and tier, and, where a PEO or vendor requires it for
+            underwriting or enrollment, Social Security numbers.
           </li>
           <li>
-            <strong>Workforce and payroll:</strong> how your people are
-            classified, headcount by type, who runs payroll today, what you pay
-            them, and how complex your payroll is.
+            <strong>Benefits, insurance, and risk information.</strong> Current
+            plan details, premium and contribution amounts, renewal dates, loss
+            runs, experience modification rates, claims history, and existing
+            PEO or payroll vendor information.
           </li>
           <li>
-            <strong>Benefits and HR:</strong> what you offer today, your
-            benefits platform and broker, your annual benefits spend, and the
-            HR support you are looking for.
+            <strong>Financial information.</strong> Payroll totals, gross wages
+            by entity and state, administrative fees and burden rates,
+            unemployment insurance rate notices, and related cost data.
           </li>
           <li>
-            <strong>Your search:</strong> what is driving it, what else you
-            want quoted, your current tech stack, timeline, and budget posture.
+            <strong>Documents you upload.</strong> Invoices, payroll registers,
+            SUTA rate notices, plan documents, census files, and other
+            submissions.
+          </li>
+          <li>
+            <strong>Communications.</strong> Emails, form submissions, call
+            notes, and other correspondence.
           </li>
         </ul>
         <p>
-          We deliberately do <strong>not</strong> ask for your federal tax ID,
-          nor for any individual employee&rsquo;s name, salary, or health
-          information. Compensation is collected as bands only.
+          <strong>Automatically.</strong> IP address, browser type and version,
+          operating system, device identifiers, referring URL, pages viewed,
+          time on page, form completion progress, and click behavior. See
+          section 8 for cookies.
+        </p>
+        <p>
+          <strong>From other sources.</strong> Your referring broker or
+          consultant, business data providers, public records, your current or
+          prospective PEO or payroll provider, and professional networking
+          platforms.
         </p>
       </Section>
 
-      <Section heading="Why we collect it">
+      <Section
+        id="non-visitors"
+        heading="3. Information about people who did not visit the Site"
+      >
         <p>
-          Every pricing model in this market is calculated from headcount,
-          worker classification, and benefits spend. Without them a quote is a
-          guess. We use your record to prepare a comparison, and to have a
-          broker contact you about it. We do not use it for anything else.
+          If you are an employee, dependent, or beneficiary of a company that
+          requested an evaluation, your information came from your employer or
+          its broker, not from you.
+        </p>
+        <p>
+          That information is used to prepare quotes, comparisons, and
+          enrollment materials for your employer, and is transmitted to the
+          PEOs and payroll providers your employer asked to be evaluated.
+        </p>
+        <p>
+          Every business customer and partner is contractually required to
+          represent that it has the authority and any necessary consents and
+          notices in place before providing employee information. We do not
+          independently verify that authority. If you believe your information
+          was submitted without proper authority, contact us using the details
+          in section 11 and we will investigate and, where appropriate, delete
+          it.
         </p>
       </Section>
 
-      <Section heading="Where it is stored">
-        <p>
-          Your record is stored in a Postgres database hosted by Supabase,
-          encrypted in transit and at rest. There is no public or anonymous
-          read path to it: the database rejects unauthenticated reads at the
-          data layer, not just in the interface.
-        </p>
-        <p>
-          We use Resend to send email: your resume link, your submission
-          confirmation, and an internal notification to the brokerage team.
-        </p>
-        <p>
-          If you leave the flow partway through, your answers are saved as a
-          draft so you can come back. We keep a copy in your own browser
-          (under the key <code>pv-discovery-draft</code>) and, if you asked us
-          to email you a link, on our server against a one-time resume token.
-          Clearing your browser data removes the local copy.
-        </p>
-      </Section>
-
-      <Section heading="Who can see it">
-        <p>
-          Your assigned broker and their team. Access is authenticated and
-          scoped at the data layer, so staff outside your account cannot query
-          your record.
-        </p>
-        <p>
-          <strong>No provider sees your submission until you approve it.</strong>{" "}
-          Your broker reviews the record first, tells you which providers they
-          intend to quote, and you confirm the list.
-        </p>
-      </Section>
-
-      <Section id="resale" heading="We do not sell your data">
-        <p>
-          Your submission is not sold, syndicated, rented, or shared with a
-          data broker. We are paid a commission by the provider you choose, at
-          the same rate whether you come through us or not. If you pick nobody,
-          we are paid nothing. There is no version of our business that
-          involves selling your record.
-        </p>
-        <p>
-          Because we do not sell personal information, there is nothing to opt
-          out of. If you would still like your record removed, see below.
-        </p>
-      </Section>
-
-      <Section heading="Deleting your record">
-        <p>
-          Email us and we will delete your record and any partial drafts within
-          30 days, except anything we are required to retain for insurance
-          licensing and recordkeeping obligations. We will tell you if anything
-          falls into that category.
+      <Section id="use" heading="4. How information is used">
+        <p>Information is used to:</p>
+        <ul>
+          <li>
+            Prepare PEO, payroll, and employer services evaluations, quotes,
+            cost comparisons, and proposals
+          </li>
+          <li>
+            Submit requests for proposal to PEOs, payroll providers, and
+            related vendors
+          </li>
+          <li>
+            Verify eligibility, assess risk, and confirm class codes and
+            experience ratings
+          </li>
+          <li>
+            Communicate about your request by email, phone, and text message
+          </li>
+          <li>
+            Provide placement, advisory, implementation, and ongoing service
+            work if you engage us
+          </li>
+          <li>
+            Process enrollment, onboarding, and implementation if you select a
+            vendor
+          </li>
+          <li>Operate, secure, troubleshoot, and improve the Site and platform</li>
+          <li>
+            Create de-identified and aggregated benchmarking and market
+            analysis data, as described in section 1
+          </li>
+          <li>
+            Market related products and services, subject to section 7
+          </li>
+          <li>
+            Comply with legal, regulatory, licensing, and recordkeeping
+            obligations
+          </li>
+          <li>Establish, exercise, or defend legal claims</li>
+        </ul>
+        <p id="resale" className="scroll-mt-24">
+          <strong>Sale and sharing.</strong> We do not sell personal
+          information for money. Advertising cookies, where enabled, may
+          constitute &ldquo;sharing&rdquo; for cross-context behavioral
+          advertising under some state laws. See section 8.
         </p>
       </Section>
 
-      <Section heading="Your rights">
+      <Section id="disclosure" heading="5. How information is disclosed">
+        <ul>
+          <li>
+            <strong>To PEOs, payroll providers, and related vendors.</strong>{" "}
+            To obtain quotes and complete enrollment, limited to organizations
+            relevant to your request.
+          </li>
+          <li>
+            <strong>To service providers.</strong> Hosting, form processing,
+            email delivery, CRM, e-signature, document storage, analytics, and
+            telephony vendors, under contractual confidentiality obligations.
+          </li>
+          <li>
+            <strong>To professional advisors.</strong> Attorneys, accountants,
+            auditors, and insurers.
+          </li>
+          <li>
+            <strong>In a business transaction.</strong> If Prime is involved in
+            a merger, acquisition, financing, or asset sale, information may
+            transfer as part of it.
+          </li>
+          <li>
+            <strong>For legal reasons.</strong> Where required by law,
+            subpoena, court order, or regulatory examination, or to protect
+            rights, safety, or property, or investigate fraud.
+          </li>
+        </ul>
+      </Section>
+
+      <Section id="retention" heading="6. Retention">
+        <ul>
+          <li>
+            Evaluation, quote, and placement records: retained consistent with
+            producer recordkeeping requirements (period to be confirmed)
+          </li>
+          <li>
+            Census files containing Social Security numbers: deleted or
+            de-identified after the evaluation concludes (period to be
+            confirmed), unless placement proceeds and the receiving vendor
+            requires retention
+          </li>
+          <li>
+            Marketing contact data: until you opt out or request deletion
+          </li>
+          <li>Site usage logs: period to be confirmed</li>
+          <li>De-identified benchmarking data: retained indefinitely</li>
+        </ul>
         <p>
-          Depending on where you live, you may have the right to see what we
-          hold about you, correct it, have it deleted, or object to how we use
-          it. Residents of California and the EU/UK have specific rights under
-          the CCPA/CPRA and the GDPR respectively. Write to us and we will
-          action the request.
+          Where we hold records under our own licensing or legal obligations,
+          those obligations govern regardless of a deletion request.
         </p>
       </Section>
 
-      <Section heading="Cookies and analytics">
+      <Section id="marketing" heading="7. Marketing, calls, and text messages">
         <p>
-          We do not run advertising trackers or third-party analytics on this
-          site. The only thing stored in your browser is the discovery draft
-          described above, and a session cookie if you sign in to the broker
-          console.
+          <strong>Email.</strong> Opt out of marketing email via the
+          unsubscribe link or by contacting us. Transactional messages about an
+          active evaluation or engagement will continue.
+        </p>
+        <p>
+          <strong>Calls and texts.</strong> By providing a phone number and
+          affirmatively consenting at submission, you agree that Prime PEO
+          Brokers may contact you at that number by phone call and text
+          message, including via automated dialing systems and prerecorded or
+          artificial voice messages, regarding PEO, payroll, and employer
+          services. Consent is not a condition of purchase. Message and data
+          rates may apply. Reply STOP to opt out, HELP for help. Message
+          frequency varies. This consent permits contact notwithstanding any Do
+          Not Call registration, until revoked.
         </p>
       </Section>
 
-      <Section heading="Children">
+      <Section id="cookies" heading="8. Cookies and tracking">
+        <ul>
+          <li>
+            Strictly necessary cookies for security, sessions, and form
+            function, which cannot be disabled
+          </li>
+          <li>Analytics cookies to measure Site usage and performance</li>
+          <li>
+            Advertising cookies, where enabled, for campaign measurement and
+            targeted advertising
+          </li>
+        </ul>
         <p>
-          This is a service for employers. It is not directed at anyone under
-          18 and we do not knowingly collect their information.
+          Control cookies through your browser and, where presented, our cookie
+          banner. We honor Global Privacy Control (GPC) signals as an opt-out
+          of sale and sharing where required.
         </p>
       </Section>
 
-      <Section heading="Changes">
+      <Section id="rights" heading="9. Your privacy rights">
         <p>
-          If we change how we handle your data we will update this page and
-          move the date at the top. Material changes affecting records we
-          already hold will be emailed to the address on the record.
+          <strong>State rights.</strong> Depending on your state, including
+          Texas, California, Colorado, Connecticut, Virginia, Utah, Oregon,
+          Montana, and others, you may have the right to access, correct,
+          delete, and obtain a portable copy of your personal information; to
+          opt out of sale, targeted advertising, and certain profiling; to
+          appeal a denial; and to be free from discrimination for exercising
+          these rights.
+        </p>
+        <p>
+          California residents may additionally request the categories of
+          information collected, sources, business purposes, and categories of
+          recipients for the preceding 12 months.
+        </p>
+        <p>
+          <strong>Sensitive personal information.</strong> Social Security
+          numbers and certain health plan information are sensitive personal
+          information. They are used only for the purposes in this policy and
+          not to infer characteristics about you. California residents may
+          direct us to limit their use.
+        </p>
+        <p>
+          <strong>Making a request.</strong> Submit requests to{" "}
+          <a href="mailto:hello@primepeobrokers.com">
+            hello@primepeobrokers.com
+          </a>
+          . We verify identity before acting, typically against information
+          already in our records. Authorized agents may submit requests with
+          written permission. We respond within 45 days, extendable by 45 more
+          where reasonably necessary, with notice.
+        </p>
+        <p>
+          <strong>Limits.</strong> Certain information is exempt from deletion,
+          including records subject to producer recordkeeping requirements,
+          employment-related data, and information governed by the
+          Gramm-Leach-Bliley Act. De-identified and aggregated benchmarking
+          data is not personal information and is not subject to access or
+          deletion requests. We will tell you if an exemption applies.
+        </p>
+      </Section>
+
+      <Section id="security" heading="10. Security">
+        <p>
+          Administrative, technical, and physical safeguards protect personal
+          information, including encryption in transit and at rest, access
+          controls, and vendor due diligence. No system is perfectly secure. If
+          a breach affecting your information occurs, notification will be
+          provided as required by law by the party responsible for the affected
+          systems.
+        </p>
+        <p>
+          Do not email Social Security numbers or full census files
+          unencrypted. Use the Site&rsquo;s secure upload.
+        </p>
+      </Section>
+
+      <Section id="notices" heading="11. Additional notices">
+        <p>
+          <strong>Children.</strong> The Site is for business use by adults. We
+          do not knowingly collect information from anyone under 16 through the
+          Site. Dependent information for benefits enrollment comes from an
+          employer and is handled under section 3.
+        </p>
+        <p>
+          <strong>Health information.</strong> Where protected health
+          information is handled on behalf of a group health plan, HIPAA and
+          any applicable business associate agreement govern and control over
+          this policy to the extent of conflict.
+        </p>
+        <p>
+          <strong>Financial information.</strong> Certain information is
+          governed by the Gramm-Leach-Bliley Act and its privacy and safeguards
+          rules.
+        </p>
+        <p>
+          <strong>Location.</strong> Information is processed in the United
+          States. Accessing the Site from outside the US constitutes consent to
+          that transfer.
+        </p>
+        <p>
+          <strong>Third-party links.</strong> The Site links to PEO, payroll,
+          and vendor sites. We are not responsible for their practices.
+        </p>
+      </Section>
+
+      <Section id="contact" heading="12. Changes and contact">
+        <p>
+          Material changes will be posted here with a revised date and, where
+          required, communicated directly.
+        </p>
+        <p>
+          A&amp;G Advisors, LLC d/b/a Prime PEO Brokers
+          <br />
+          <a href="mailto:hello@primepeobrokers.com">
+            hello@primepeobrokers.com
+          </a>
         </p>
       </Section>
     </LegalPage>

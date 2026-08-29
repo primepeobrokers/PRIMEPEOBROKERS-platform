@@ -248,7 +248,7 @@ const FOOTER_COLS = [
     head: "Legal",
     links: [
       { label: "Privacy policy", href: "/privacy" },
-      { label: "Terms of service", href: "/terms" },
+      { label: "Terms and conditions", href: "/terms" },
       { label: "Data handling", href: "/#trust" },
       { label: "Do not sell my data", href: "/privacy#resale" },
     ],
