@@ -16,12 +16,10 @@ export const metadata: Metadata = {
  * introduces partner tenants, these documents need the split restored and the
  * partner details resolved per tenant alongside lib/tenant.ts.
  *
- * TODO(client): values the supplied text left as placeholders and we do not
- * have yet. Confirm before this is treated as final:
- *   - Effective date and last-updated date (currently the ship date below)
- *   - Mailing address ({{PRIME_ADDRESS}})
- *   - Business phone ({{PARTNER_PHONE}})
- * Retention periods appear in the privacy policy and carry their own TODO.
+ * TODO(client): the supplied text left an effective date placeholder we still
+ * do not have. `lastUpdated` below is the ship date, which is not necessarily
+ * the date the client intends these to take effect. Retention periods appear in
+ * the privacy policy and carry their own TODO.
  */
 export default function TermsPage() {
   return (
@@ -129,8 +127,8 @@ export default function TermsPage() {
         </p>
         <p>
           Additional compensation detail is available on request at{" "}
-          <a href="mailto:hello@primepeobrokers.com">
-            hello@primepeobrokers.com
+          <a href="mailto:admin@primepeobrokers.com">
+            admin@primepeobrokers.com
           </a>
           .
         </p>
@@ -363,8 +361,8 @@ export default function TermsPage() {
         <p>
           <strong>Informal resolution first.</strong> Before initiating
           arbitration, you agree to notify us in writing at{" "}
-          <a href="mailto:hello@primepeobrokers.com">
-            hello@primepeobrokers.com
+          <a href="mailto:garrett@primepeobrokers.com">
+            garrett@primepeobrokers.com
           </a>{" "}
           describing the dispute and the relief sought, and to negotiate in
           good faith for sixty (60) days.
@@ -439,9 +437,14 @@ export default function TermsPage() {
         <p>
           A&amp;G Advisors, LLC d/b/a Prime PEO Brokers
           <br />
-          <a href="mailto:hello@primepeobrokers.com">
-            hello@primepeobrokers.com
-          </a>
+          227 N Loop 1604 E, Ste 150
+          <br />
+          San Antonio, TX 78232
+          <br />
+          <a href="mailto:admin@primepeobrokers.com">
+            admin@primepeobrokers.com
+          </a>{" "}
+          &middot; <a href="tel:+12102012976">210-201-2976</a>
         </p>
       </Section>
     </LegalPage>

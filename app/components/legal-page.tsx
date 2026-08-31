@@ -45,10 +45,10 @@ export function LegalPage({
         <div className="mt-14 border-t border-line pt-7 text-[14.5px] text-ink-muted">
           Questions about this policy?{" "}
           <a
-            href="mailto:hello@primepeobrokers.com"
+            href="mailto:admin@primepeobrokers.com"
             className="border-b border-accent/35 text-accent hover:border-accent-press hover:text-accent-press"
           >
-            hello@primepeobrokers.com
+            admin@primepeobrokers.com
           </a>
         </div>
       </main>

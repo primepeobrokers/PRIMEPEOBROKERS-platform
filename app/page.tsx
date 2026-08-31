@@ -10,7 +10,7 @@ import { STEPS } from "@/lib/discovery/schema";
 export const metadata: Metadata = {
   title: "Prime PEO Brokers: the easiest way to shop for PEO, Payroll & HR tech",
   description:
-    "Research, evaluate, and choose the right PEO, payroll, and HR software for free. Answer a structured set of questions once; a Prime PEO Brokers expert does the legwork and delivers your tailored proposal. No pushy vendor reps. You never pay us.",
+    "Research, evaluate, and choose the right PEO, payroll, and HR software for free. Answer a structured set of questions once; an expert on our team does the legwork and delivers your tailored proposal. No pushy vendor reps. You never pay us.",
   alternates: { canonical: "/" },
 };
 
@@ -239,7 +239,7 @@ const FOOTER_COLS = [
     head: "Company",
     links: [
       { label: "About", href: "/#how" },
-      { label: "Contact", href: "mailto:hello@primepeobrokers.com" },
+      { label: "Contact", href: "mailto:admin@primepeobrokers.com" },
       { label: "Renewals", href: "/#renewals" },
       { label: "Sign in", href: "/login" },
     ],
@@ -353,9 +353,9 @@ export default function LandingPage() {
             style={{ animation: "pv-in 500ms var(--pv-ease) 100ms both" }}
           >
             Research, evaluate, and choose the right PEO, payroll, and HR
-            software for free. Answer a structured set of questions once; a
-            Prime PEO Brokers expert does the legwork and delivers your
-            tailored proposal. No pushy vendor reps. You never pay us.
+            software for free. Answer a structured set of questions once; an
+            expert on our team does the legwork and delivers your tailored
+            proposal. No pushy vendor reps. You never pay us.
           </p>
           <div
             className="mt-[34px] flex flex-wrap gap-3.5"
@@ -806,13 +806,14 @@ export default function LandingPage() {
       </section>
       )}
 
-      {/* FOR BROKERS · partner referral. Copy is a placeholder: the original
-          site had a nav link with little behind it, so this needs client copy. */}
+      {/* PARTNER REFERRAL. The "For brokers" eyebrow was dropped at the client's
+          request: partners running this white-labelled are mostly brokers
+          themselves, so naming them as a separate audience reads wrong. The
+          section and its nav link stay. Copy is still a placeholder. */}
       <section id="brokers" className="border-b border-line bg-dark py-[76px] max-sm:py-14">
         <div className="mx-auto grid max-w-[1240px] grid-cols-[1.1fr_1fr] [&>*]:min-w-0 items-center gap-14 px-10 max-lg:grid-cols-1 max-lg:gap-8 max-sm:px-5">
           <div>
-            <div className="pv-label text-dark-ink-muted">For brokers</div>
-            <h2 className="mt-3.5 max-w-[22ch] font-display text-[clamp(26px,3.2vw,36px)] font-semibold leading-[1.1] tracking-[-.025em] text-dark-ink-bright">
+            <h2 className="max-w-[22ch] font-display text-[clamp(26px,3.2vw,36px)] font-semibold leading-[1.1] tracking-[-.025em] text-dark-ink-bright">
               Refer a client, keep the relationship.
             </h2>
             <p className="mt-4 max-w-[52ch] text-[16px] leading-relaxed text-dark-ink-soft">
@@ -827,7 +828,7 @@ export default function LandingPage() {
               Partner enquiries go straight to the brokerage team.
             </div>
             <a
-              href="mailto:hello@primepeobrokers.com?subject=Partner%20enquiry"
+              href="mailto:admin@primepeobrokers.com?subject=Partner%20enquiry"
               className="mt-5 inline-flex rounded-md bg-accent px-[22px] py-3 text-[15px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
             >
               Talk to us about partnering
@@ -874,10 +875,10 @@ export default function LandingPage() {
             <p className="mt-[18px] text-[14.5px] leading-relaxed text-ink-soft">
               Anything else, email{" "}
               <a
-                href="mailto:hello@primepeobrokers.com"
+                href="mailto:admin@primepeobrokers.com"
                 className="border-b border-[color-mix(in oklab,var(--pv-accent) 30%,transparent)] text-accent hover:border-accent-press hover:text-accent-press"
               >
-                hello@primepeobrokers.com
+                admin@primepeobrokers.com
               </a>
               .
             </p>
@@ -906,7 +907,7 @@ export default function LandingPage() {
                 Start shopping
               </Link>
               <a
-                href="mailto:hello@primepeobrokers.com?subject=Talk%20to%20a%20broker"
+                href="mailto:admin@primepeobrokers.com?subject=Talk%20to%20a%20broker"
                 className="rounded-md border border-ink-soft px-6 py-[15px] text-base font-semibold text-dark-ink transition-colors duration-150 hover:border-dark-ink-muted"
               >
                 Talk to a broker first

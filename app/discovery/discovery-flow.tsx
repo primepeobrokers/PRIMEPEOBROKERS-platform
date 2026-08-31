@@ -602,7 +602,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                   when: "Days 1–2",
                   what: "You approve the shortlist",
                   detail:
-                    "They name the providers they intend to quote. Nothing leaves Prime PEO Brokers until you confirm that list.",
+                    "They name the providers they intend to quote. Nothing leaves our team until you confirm that list.",
                 },
                 {
                   when: "Days 3–5",

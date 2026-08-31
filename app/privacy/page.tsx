@@ -15,15 +15,18 @@ export const metadata: Metadata = {
  * distinction is kept, since it describes Prime's own change in role once it
  * is designated broker of record, not a second company.
  *
- * TODO(client): values the supplied text left as placeholders and we do not
- * have yet. Confirm before this is treated as final:
- *   - Effective date and last-updated date (currently the ship date below)
- *   - Mailing address ({{PRIME_ADDRESS}})
- *   - Business phone ({{PARTNER_PHONE}}), referenced in "Making a request"
- *   - Retention periods: quote/placement records ({{QUOTE_RETENTION_PERIOD}}),
- *     census files with SSNs ({{SSN_RETENTION_PERIOD}}), site usage logs
- *     ({{LOG_RETENTION_PERIOD}}). These are stated as "TBC" below rather than
- *     guessed, because they are commitments.
+ * Retention periods in section 6 are now stated rather than left open. The
+ * five-year figure follows Tex. Ins. Code s.1115.055, which requires records
+ * behind a recommendation to be kept until the fifth anniversary of the
+ * transaction; s.4005.106 sets a three-year floor for general agent records,
+ * so five is the safe number to publish. The 90-day SSN window and 12-month
+ * log/draft windows are ordinary practice, not statute.
+ *
+ * TODO: these are promises the code does not yet keep. Nothing deletes drafts,
+ * expires census data, or rotates logs on a schedule, so the periods are
+ * enforced manually today. A scheduled cleanup job should back them before
+ * this sees real volume. The effective date is also still the ship date rather
+ * than a date the client has confirmed.
  */
 export default function PrivacyPage() {
   return (
@@ -247,19 +250,24 @@ export default function PrivacyPage() {
       <Section id="retention" heading="6. Retention">
         <ul>
           <li>
-            Evaluation, quote, and placement records: retained consistent with
-            producer recordkeeping requirements (period to be confirmed)
+            Evaluation, quote, and placement records: five (5) years from the
+            date the transaction is completed, consistent with Texas producer
+            recordkeeping requirements
           </li>
           <li>
             Census files containing Social Security numbers: deleted or
-            de-identified after the evaluation concludes (period to be
-            confirmed), unless placement proceeds and the receiving vendor
-            requires retention
+            de-identified within ninety (90) days of the evaluation concluding,
+            unless placement proceeds and the receiving vendor requires
+            retention
+          </li>
+          <li>
+            Incomplete drafts: deleted within twelve (12) months of your last
+            activity if you never submit the record
           </li>
           <li>
             Marketing contact data: until you opt out or request deletion
           </li>
-          <li>Site usage logs: period to be confirmed</li>
+          <li>Site usage logs: twelve (12) months</li>
           <li>De-identified benchmarking data: retained indefinitely</li>
         </ul>
         <p>
@@ -330,10 +338,11 @@ export default function PrivacyPage() {
         </p>
         <p>
           <strong>Making a request.</strong> Submit requests to{" "}
-          <a href="mailto:hello@primepeobrokers.com">
-            hello@primepeobrokers.com
-          </a>
-          . We verify identity before acting, typically against information
+          <a href="mailto:garrett@primepeobrokers.com">
+            garrett@primepeobrokers.com
+          </a>{" "}
+          or <a href="tel:+12102012976">210-201-2976</a>. We verify identity
+          before acting, typically against information
           already in our records. Authorized agents may submit requests with
           written permission. We respond within 45 days, extendable by 45 more
           where reasonably necessary, with notice.
@@ -400,9 +409,14 @@ export default function PrivacyPage() {
         <p>
           A&amp;G Advisors, LLC d/b/a Prime PEO Brokers
           <br />
-          <a href="mailto:hello@primepeobrokers.com">
-            hello@primepeobrokers.com
-          </a>
+          227 N Loop 1604 E, Ste 150
+          <br />
+          San Antonio, TX 78232
+          <br />
+          <a href="mailto:admin@primepeobrokers.com">
+            admin@primepeobrokers.com
+          </a>{" "}
+          &middot; <a href="tel:+12102012976">210-201-2976</a>
         </p>
       </Section>
     </LegalPage>
