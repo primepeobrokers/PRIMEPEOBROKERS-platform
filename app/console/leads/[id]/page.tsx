@@ -11,6 +11,7 @@ import {
   type Answers,
 } from "@/lib/discovery/schema";
 import {
+  SUBMISSION_DETAIL_SELECT,
   daysUntil,
   formatWhen,
   stateTone,
@@ -47,9 +48,7 @@ export default async function LeadDetailPage(
   const supabase = await createClient();
   const { data: lead } = await supabase
     .from("submissions")
-    .select(
-      "id, ref, status, steps_completed, answers, company_name, contact_name, contact_email, fte_count, benefits_spend, current_setup, category, intent, created_at, submitted_at",
-    )
+    .select(SUBMISSION_DETAIL_SELECT)
     .eq("id", id)
     .maybeSingle();
   if (!lead) notFound();

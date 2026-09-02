@@ -3,7 +3,11 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { FilterXIcon, InboxIcon, PlugZapIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { isoDaysAgo, type SubmissionRow } from "@/lib/console";
+import {
+  SUBMISSION_LIST_SELECT,
+  isoDaysAgo,
+  type SubmissionRow,
+} from "@/lib/console";
 import { CATEGORIES, categoryName } from "@/lib/discovery/schema";
 import { CopyDiscoveryLink } from "./copy-link";
 import { ExportCsvButton } from "./export-button";
@@ -147,10 +151,7 @@ async function LeadsTable({ filters }: { filters: Filters }) {
 
   let query = supabase
     .from("submissions")
-    .select(
-      "id, ref, status, steps_completed, company_name, contact_name, contact_email, fte_count, benefits_spend, current_setup, category, intent, created_at, submitted_at",
-      { count: "exact" },
-    );
+    .select(SUBMISSION_LIST_SELECT, { count: "exact" });
 
   if (complete !== "all") query = query.eq("status", complete);
   if (category !== "all") query = query.eq("category", category);

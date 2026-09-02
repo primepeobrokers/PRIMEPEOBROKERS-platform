@@ -45,17 +45,28 @@ for (const [k, v] of Object.entries(SUBMISSION_ROW_KEYS)) {
   ok(k === v, `SUBMISSION_ROW_KEYS maps "${k}" to "${v}"; it must map to itself`);
 }
 
-// Select strings are what actually reach PostgREST.
+/*
+  The select strings are deliberately literal (supabase-js infers the row
+  shape from the string at the type level, and loses it for a computed one),
+  so they are a second copy of the tuple. This is the assertion that keeps the
+  two honest: without it, adding a column to the tuple and forgetting the
+  string means the field is typed but never fetched, which shows up as a
+  silent undefined in the UI rather than an error.
+*/
+const listParts = SUBMISSION_LIST_SELECT.split(", ");
+ok(listParts.length === cols.length,
+   `SUBMISSION_LIST_SELECT has ${listParts.length} columns, the tuple has ${cols.length}`);
+ok(listParts.join("|") === cols.join("|"),
+   "SUBMISSION_LIST_SELECT and SUBMISSION_LIST_COLUMNS disagree:\n" +
+   `    select: ${listParts.join(", ")}\n    tuple:  ${cols.join(", ")}`);
+
+const detailParts = SUBMISSION_DETAIL_SELECT.split(", ");
+ok(detailParts.join("|") === [...cols, "answers"].join("|"),
+   "SUBMISSION_DETAIL_SELECT must be the list columns plus answers, in order");
+
 ok(!SUBMISSION_LIST_SELECT.includes(",,"), "list select has an empty column");
 ok(!/,\s*$/.test(SUBMISSION_LIST_SELECT), "list select has a trailing comma");
-ok(SUBMISSION_DETAIL_SELECT.endsWith(", answers"),
-   "detail select must add answers to the list columns");
-ok(SUBMISSION_DETAIL_SELECT.startsWith(SUBMISSION_LIST_SELECT),
-   "detail select must be a superset of the list select");
-for (const c of cols) {
-  ok(SUBMISSION_LIST_SELECT.split(", ").includes(c),
-     `column "${c}" is not comma-space separated in the select string`);
-}
+ok(!/\s{2,}/.test(SUBMISSION_LIST_SELECT), "list select has doubled whitespace");
 
 // The two Phase 2 columns specifically: these are the reason this exists.
 ok(cols.includes("lead_stage"), "lead_stage must be projected for the stage badge");

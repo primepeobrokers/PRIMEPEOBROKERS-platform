@@ -31,10 +31,24 @@ export const SUBMISSION_LIST_COLUMNS = [
   "submitted_at",
 ] as const;
 
-export const SUBMISSION_LIST_SELECT = SUBMISSION_LIST_COLUMNS.join(", ");
+/*
+  Written as literal strings, not as SUBMISSION_LIST_COLUMNS.join(", ").
+
+  supabase-js parses the select string at the type level to infer the row
+  shape. A `string` it cannot see the contents of degrades to
+  GenericStringError and every field access on the result becomes an error, so
+  a computed value here would cost us the inference on every call site.
+
+  That makes these a second copy of the tuple, which is exactly what this file
+  exists to prevent, so scripts/check-columns.mts asserts the two agree. The
+  tuple stays the source of truth for the row type; these are the wire format.
+*/
+export const SUBMISSION_LIST_SELECT =
+  "id, ref, status, steps_completed, company_name, contact_name, contact_email, fte_count, benefits_spend, current_setup, category, intent, lead_stage, assigned_to, created_at, submitted_at";
 
 /** The detail view needs the full answers blob on top of the list columns. */
-export const SUBMISSION_DETAIL_SELECT = `${SUBMISSION_LIST_SELECT}, answers`;
+export const SUBMISSION_DETAIL_SELECT =
+  "id, ref, status, steps_completed, company_name, contact_name, contact_email, fte_count, benefits_spend, current_setup, category, intent, lead_stage, assigned_to, created_at, submitted_at, answers";
 
 export interface SubmissionRow {
   id: string;

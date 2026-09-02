@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireUser } from "@/lib/auth/session";
 import { Logo } from "@/app/components/logo";
 import { signOut } from "@/app/login/actions";
 import { Toaster } from "@/app/components/ui/sonner";
+import { ConsoleNavLink } from "./nav-link";
 import { SignOutButton } from "./sign-out-button";
 import { ArrivalToast } from "@/app/components/arrival-toast";
 
@@ -16,20 +15,15 @@ export const metadata: Metadata = {
 export default async function ConsoleLayout({
   children,
 }: LayoutProps<"/console">) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login?next=/console");
+  /*
+    requireUser also rejects a deactivated teammate, whose profile row still
+    exists so their name keeps resolving in old notes and events. Removal
+    therefore takes effect on the next request rather than at token expiry.
+  */
+  const ctx = await requireUser("/console");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const name = profile?.full_name || user.email || "";
-  const firstName = (profile?.full_name || "").trim().split(/\s+/)[0] || "";
+  const name = ctx.fullName || ctx.email || "";
+  const firstName = (ctx.fullName || "").trim().split(/\s+/)[0] || "";
   const initials =
     name
       .split(/[\s@.]+/)
@@ -50,17 +44,20 @@ export default async function ConsoleLayout({
               </span>
             </div>
             <nav aria-label="Sections" className="flex gap-5 text-[13.5px] max-sm:hidden">
-              <Link
-                href="/console"
-                className="border-b border-dark-ink pb-0.5 text-dark-ink"
+              <ConsoleNavLink href="/console">Leads</ConsoleNavLink>
+              {/*
+                Team is omitted for members rather than shown disabled: a
+                greyed-out admin link advertises a feature they cannot have
+                and turns into a support question.
+              */}
+              {ctx.role === "admin" && (
+                <ConsoleNavLink href="/console/team">Team</ConsoleNavLink>
+              )}
+              <span
+                className="cursor-default text-ink-faint"
+                title="Arrives in a later phase"
               >
-                Leads
-              </Link>
-              <span className="cursor-default text-ink-faint" title="Arrives in Phase 2">
                 Providers
-              </span>
-              <span className="cursor-default text-ink-faint" title="Arrives in Phase 2">
-                Team
               </span>
             </nav>
           </div>

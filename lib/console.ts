@@ -1,21 +1,22 @@
 import { TOTAL_STEPS } from "@/lib/discovery/schema";
 
-export interface SubmissionRow {
-  id: string;
-  ref: number;
-  status: "partial" | "complete";
-  steps_completed: number;
-  company_name: string | null;
-  contact_name: string | null;
-  contact_email: string | null;
-  fte_count: number | null;
-  benefits_spend: number | null;
-  current_setup: string | null;
-  category: string | null;
-  intent: string | null;
-  created_at: string;
-  submitted_at: string | null;
-}
+/*
+  SubmissionRow moved to lib/console/columns.ts, where it sits next to the
+  select-list constant it has to agree with. Re-exported here so the existing
+  import sites keep working: the row shape and the formatters below are
+  genuinely different concerns, but churning four files to prove it is not
+  worth a separate diff.
+*/
+export {
+  type SubmissionRow,
+  type Member,
+  SUBMISSION_LIST_SELECT,
+  SUBMISSION_DETAIL_SELECT,
+  MEMBER_SELECT,
+  memberName,
+} from "@/lib/console/columns";
+
+import type { SubmissionRow } from "@/lib/console/columns";
 
 /**
  * Badge colourway per submission state. Returns a Badge variant name rather
