@@ -15,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/app/components/ui/dropdown-menu";
 import { formatMoney, formatWhen, stateTone, type SubmissionRow } from "@/lib/console";
+import type { Stage } from "@/lib/console/stages";
+import { StageBadge } from "./stage-badge";
 import { categoryName } from "@/lib/discovery/schema";
 
 /**
@@ -26,7 +28,13 @@ import { categoryName } from "@/lib/discovery/schema";
  * a text selection, is ignored: dragging to copy a reference number should not
  * throw you into the record.
  */
-export function LeadRow({ row }: { row: SubmissionRow }) {
+export function LeadRow({
+  row,
+  stages,
+}: {
+  row: SubmissionRow;
+  stages: Stage[];
+}) {
   const router = useRouter();
   const tone = stateTone(row);
   const href = `/console/leads/${row.id}`;
@@ -86,11 +94,21 @@ export function LeadRow({ row }: { row: SubmissionRow }) {
         {formatWhen(row.submitted_at ?? row.created_at)}
       </TableCell>
 
+      {/*
+        Stage and capture state share one cell. They are two different axes
+        (where the team has taken the lead, and how much of the form the
+        visitor finished) but both read as "status", and the table is
+        table-fixed with no room for a ninth column. Stage leads because it is
+        the one staff act on; the capture state sits under it in the quieter
+        voice, and only when it is still partial.
+      */}
       <TableCell>
-        <Badge variant={tone.variant} tone="mono" className="gap-1.5">
-          <span className="h-[5px] w-[5px] rounded-full bg-current" />
-          {tone.label}
-        </Badge>
+        <StageBadge slug={row.lead_stage} stages={stages} />
+        {row.status !== "complete" && (
+          <div className="mt-[3px] font-mono text-[11.5px] text-ink-muted">
+            {tone.label}
+          </div>
+        )}
       </TableCell>
 
       <TableCell className="w-px" data-row-actions>

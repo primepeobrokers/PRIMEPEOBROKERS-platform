@@ -17,6 +17,8 @@ import {
   stateTone,
   type SubmissionRow,
 } from "@/lib/console";
+import { fetchStages } from "@/lib/console/stages.server";
+import { StageBadge } from "@/app/console/stage-badge";
 import { ArrowLeftIcon } from "lucide-react";
 import { LogOpen } from "./log-open";
 import { Badge } from "@/app/components/ui/badge";
@@ -53,12 +55,16 @@ export default async function LeadDetailPage(
     .maybeSingle();
   if (!lead) notFound();
 
-  const { data: events } = await supabase
-    .from("submission_events")
-    .select("id, actor, action, detail, created_at")
-    .eq("submission_id", id)
-    .order("created_at", { ascending: false })
-    .limit(12);
+  // Independent of each other, so they overlap rather than queue.
+  const [stages, { data: events }] = await Promise.all([
+    fetchStages(),
+    supabase
+      .from("submission_events")
+      .select("id, actor, action, detail, created_at")
+      .eq("submission_id", id)
+      .order("created_at", { ascending: false })
+      .limit(12),
+  ]);
 
   const answers = (lead.answers ?? {}) as Answers;
   const tone = stateTone(lead as SubmissionRow);
@@ -93,10 +99,13 @@ export default async function LeadDetailPage(
             <span className="font-mono text-[13px] text-ink-muted">
               REF {lead.ref}
             </span>
-            <Badge variant={tone.variant} tone="mono" className="gap-1.5">
-              <span className="h-[5px] w-[5px] rounded-full bg-current" />
-              {tone.label}
-            </Badge>
+            <StageBadge slug={lead.lead_stage} stages={stages} />
+            {lead.status !== "complete" && (
+              <Badge variant={tone.variant} tone="mono" className="gap-1.5">
+                <span className="h-[5px] w-[5px] rounded-full bg-current" />
+                {tone.label}
+              </Badge>
+            )}
           </div>
           <h1 className="mt-3 font-display text-[clamp(26px,3.4vw,33px)] font-semibold tracking-[-.024em]">
             {lead.company_name || "Unnamed company"}

@@ -43,7 +43,7 @@ export function LeadsTableSkeleton({ rows = 8 }: { rows?: number }) {
             <TableHead className="w-[126px] text-right">Benefits spend</TableHead>
             <TableHead className="w-[186px]">Category</TableHead>
             <TableHead className="w-[136px]">Submitted</TableHead>
-            <TableHead className="w-[128px]">State</TableHead>
+            <TableHead className="w-[128px]">Status</TableHead>
             <TableHead className="w-[52px]" />
           </TableRow>
         </TableHeader>

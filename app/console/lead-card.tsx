@@ -9,6 +9,8 @@ import {
   stateTone,
   type SubmissionRow,
 } from "@/lib/console";
+import type { Stage } from "@/lib/console/stages";
+import { StageBadge } from "./stage-badge";
 import { categoryName } from "@/lib/discovery/schema";
 
 /**
@@ -17,7 +19,13 @@ import { categoryName } from "@/lib/discovery/schema";
  * becomes a card: the whole card is one link, which is unambiguous on touch
  * and needs no separate actions menu.
  */
-export function LeadCard({ row }: { row: SubmissionRow }) {
+export function LeadCard({
+  row,
+  stages,
+}: {
+  row: SubmissionRow;
+  stages: Stage[];
+}) {
   const tone = stateTone(row);
 
   return (
@@ -38,10 +46,15 @@ export function LeadCard({ row }: { row: SubmissionRow }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
-        <Badge variant={tone.variant} tone="mono" className="gap-1.5">
-          <span className="h-[5px] w-[5px] rounded-full bg-current" />
-          {tone.label}
-        </Badge>
+        {/* Stage first: it is the axis staff act on. The capture state only
+            earns a badge while the record is still partial. */}
+        <StageBadge slug={row.lead_stage} stages={stages} />
+        {row.status !== "complete" && (
+          <Badge variant={tone.variant} tone="mono" className="gap-1.5">
+            <span className="h-[5px] w-[5px] rounded-full bg-current" />
+            {tone.label}
+          </Badge>
+        )}
         {row.category && (
           <Badge variant="neutral" tone="mono">
             {categoryName(row.category)}

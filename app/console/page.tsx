@@ -8,6 +8,16 @@ import {
   isoDaysAgo,
   type SubmissionRow,
 } from "@/lib/console";
+import {
+  leadFiltersKey,
+  leadFiltersToQuery,
+  parseLeadFilters,
+  ASSIGNEE_ME,
+  ASSIGNEE_UNASSIGNED,
+  type LeadFilters as Filters,
+} from "@/lib/console/query";
+import { stageLabel, stageSlugs, type Stage } from "@/lib/console/stages";
+import { fetchStages } from "@/lib/console/stages.server";
 import { CATEGORIES, categoryName } from "@/lib/discovery/schema";
 import { CopyDiscoveryLink } from "./copy-link";
 import { ExportCsvButton } from "./export-button";
@@ -40,43 +50,19 @@ export const metadata: Metadata = {
 
 const PAGE_SIZE = 25;
 
-interface Filters {
-  q: string;
-  complete: string;
-  range: string;
-  category: string;
-  page: number;
-}
-
-function buildQueryString(f: Partial<Filters>): string {
-  const sp = new URLSearchParams();
-  if (f.q) sp.set("q", f.q);
-  if (f.complete && f.complete !== "all") sp.set("complete", f.complete);
-  if (f.range && f.range !== "30d") sp.set("range", f.range);
-  if (f.category && f.category !== "all") sp.set("category", f.category);
-  if (f.page && f.page > 1) sp.set("page", String(f.page));
-  const s = sp.toString();
-  return s ? `?${s}` : "";
-}
-
 export default async function LeadsPage(props: PageProps<"/console">) {
   const searchParams = await props.searchParams;
-  const q = typeof searchParams.q === "string" ? searchParams.q.trim() : "";
-  const complete =
-    searchParams.complete === "complete" || searchParams.complete === "partial"
-      ? searchParams.complete
-      : "all";
-  const range =
-    searchParams.range === "7d" || searchParams.range === "all"
-      ? searchParams.range
-      : "30d";
-  const category =
-    typeof searchParams.category === "string" &&
-    CATEGORIES.some((c) => c.id === searchParams.category)
-      ? searchParams.category
-      : "all";
-  const page = Math.max(1, Number(searchParams.page) || 1);
-  const filters: Filters = { q, complete, range, category, page };
+
+  /*
+    Stages are read before the filters are parsed, because parsing validates
+    ?stage= against what actually exists: an unknown or deleted slug has to
+    collapse to "all" rather than filtering the list to nothing and showing an
+    empty state that reads as data loss.
+  */
+  const stages = await fetchStages();
+  const filters = parseLeadFilters(searchParams, {
+    stageSlugs: stageSlugs(stages),
+  });
 
   return (
     <main className="mx-auto max-w-[1400px] px-gutter pb-20 pt-8 max-sm:px-gutter-sm">
@@ -102,7 +88,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
       </div>
 
       <div className="mt-[26px] border-b border-line pb-4">
-        <LeadFilters initial={{ q, complete, range, category }} />
+        <LeadFilters initial={filters} stages={stages} />
       </div>
 
       <div className="mt-[22px]">
@@ -111,11 +97,8 @@ export default async function LeadsPage(props: PageProps<"/console">) {
           tabs shows the skeleton again instead of leaving stale rows on screen
           while the new query runs.
         */}
-        <Suspense
-          key={`${q}|${complete}|${range}|${category}|${page}`}
-          fallback={<LeadsTableSkeleton />}
-        >
-          <LeadsTable filters={filters} />
+        <Suspense key={leadFiltersKey(filters)} fallback={<LeadsTableSkeleton />}>
+          <LeadsTable filters={filters} stages={stages} />
         </Suspense>
       </div>
     </main>
@@ -141,8 +124,14 @@ async function LeadsSummary() {
   );
 }
 
-async function LeadsTable({ filters }: { filters: Filters }) {
-  const { q, complete, range, category, page } = filters;
+async function LeadsTable({
+  filters,
+  stages,
+}: {
+  filters: Filters;
+  stages: Stage[];
+}) {
+  const { q, complete, range, category, stage, assignee, page } = filters;
   const supabase = await createClient();
 
   const { count: totalCount, error: totalError } = await supabase
@@ -155,6 +144,12 @@ async function LeadsTable({ filters }: { filters: Filters }) {
 
   if (complete !== "all") query = query.eq("status", complete);
   if (category !== "all") query = query.eq("category", category);
+  if (stage !== "all") query = query.eq("lead_stage", stage);
+  if (assignee === ASSIGNEE_UNASSIGNED) {
+    query = query.is("assigned_to", null);
+  } else if (assignee !== "all" && assignee !== ASSIGNEE_ME) {
+    query = query.eq("assigned_to", assignee);
+  }
   if (range !== "all") {
     query = query.gte("created_at", isoDaysAgo(range === "7d" ? 7 : 30));
   }
@@ -186,6 +181,7 @@ async function LeadsTable({ filters }: { filters: Filters }) {
       ? `${complete === "partial" ? "Partial" : "Complete"} only`
       : null,
     category !== "all" ? `${categoryName(category)} only` : null,
+    stage !== "all" ? `${stageLabel(stage, stages)} stage` : null,
     range === "7d" ? "Last 7 days" : range === "30d" ? "Last 30 days" : "All time",
   ]
     .filter(Boolean)
@@ -209,7 +205,7 @@ async function LeadsTable({ filters }: { filters: Filters }) {
           </EmptyHeader>
           <EmptyContent>
             <Button asChild>
-              <Link href={`/console${buildQueryString(filters)}`}>Retry</Link>
+              <Link href={`/console${leadFiltersToQuery(filters)}`}>Retry</Link>
             </Button>
           </EmptyContent>
         </Empty>
@@ -273,7 +269,7 @@ async function LeadsTable({ filters }: { filters: Filters }) {
             reflow into anything readable at phone widths. */}
         <div className="hidden max-md:block">
           {rows.map((r) => (
-            <LeadCard key={r.id} row={r} />
+            <LeadCard key={r.id} row={r} stages={stages} />
           ))}
         </div>
         <div className="max-md:hidden">
@@ -288,7 +284,7 @@ async function LeadsTable({ filters }: { filters: Filters }) {
               </TableHead>
               <TableHead className="w-[186px]">Category</TableHead>
               <TableHead className="w-[136px]">Submitted</TableHead>
-              <TableHead className="w-[128px]">State</TableHead>
+              <TableHead className="w-[128px]">Status</TableHead>
               <TableHead className="w-[52px]">
                 <span className="sr-only">Actions</span>
               </TableHead>
@@ -296,7 +292,7 @@ async function LeadsTable({ filters }: { filters: Filters }) {
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <LeadRow key={r.id} row={r} />
+              <LeadRow key={r.id} row={r} stages={stages} />
             ))}
           </TableBody>
         </Table>
@@ -316,7 +312,7 @@ async function LeadsTable({ filters }: { filters: Filters }) {
             className="font-mono text-[11.5px]"
           >
             {page > 1 ? (
-              <Link href={`/console${buildQueryString({ ...filters, page: page - 1 })}`}>
+              <Link href={`/console${leadFiltersToQuery({ ...filters, page: page - 1 })}`}>
                 PREV
               </Link>
             ) : (
@@ -331,7 +327,7 @@ async function LeadsTable({ filters }: { filters: Filters }) {
             className="font-mono text-[11.5px]"
           >
             {from + rows.length < filteredCount ? (
-              <Link href={`/console${buildQueryString({ ...filters, page: page + 1 })}`}>
+              <Link href={`/console${leadFiltersToQuery({ ...filters, page: page + 1 })}`}>
                 NEXT
               </Link>
             ) : (

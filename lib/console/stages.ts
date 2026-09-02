@@ -1,13 +1,15 @@
-import { createClient } from "@/lib/supabase/server";
-
 /**
  * Lead stages: the Phase 2 pipeline.
  *
  * Unlike the discovery questions in lib/discovery/schema.ts, stages are
  * runtime data, not a config module: the SOW requires the client to add,
- * rename, reorder and retire them without a developer. So this file holds the
- * types, the reader and the pure helpers, and the list itself lives in the
- * lead_stages table (supabase/migrations/0005_team_and_leads.sql).
+ * rename, reorder and retire them without a developer. The list itself lives
+ * in the lead_stages table (supabase/migrations/0005_team_and_leads.sql).
+ *
+ * This file is deliberately free of server-only imports: the badge that
+ * renders a stage is used inside client components, so anything reachable
+ * from it must be safe to bundle. The database read lives next door in
+ * stages.server.ts.
  *
  * The important invariant, enforced by a trigger in that migration: `slug` is
  * immutable and `label` is what renames. submissions.lead_stage stores the
@@ -70,10 +72,10 @@ export const SEED_STAGE_SLUGS = [
  */
 export const PROTECTED_STAGE_SLUG = "new";
 
-const STAGE_SELECT =
+export const STAGE_SELECT =
   "id, slug, label, sort_order, is_default, is_terminal, tone, retired_at";
 
-interface StageRow {
+export interface StageRow {
   id: string;
   slug: string;
   label: string;
@@ -84,7 +86,7 @@ interface StageRow {
   retired_at: string | null;
 }
 
-function toStage(r: StageRow): Stage {
+export function toStage(r: StageRow): Stage {
   return {
     id: r.id,
     slug: r.slug,
@@ -95,29 +97,6 @@ function toStage(r: StageRow): Stage {
     tone: isStageTone(r.tone) ? r.tone : "neutral",
     retired: r.retired_at !== null,
   };
-}
-
-/**
- * The caller's tenant stages, ordered as the pipeline reads.
- *
- * Includes retired stages: a lead may still be sitting on one, and its label
- * has to keep rendering. Callers that offer a choice filter on `retired`
- * themselves; callers that display a value should not.
- *
- * Returns [] rather than throwing on error. A stage list that fails to load
- * should degrade the console to unlabelled badges, not blank the leads page,
- * and every read is already tenant-scoped by RLS.
- */
-export async function fetchStages(): Promise<Stage[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("lead_stages")
-    .select(STAGE_SELECT)
-    .order("sort_order", { ascending: true })
-    .order("slug", { ascending: true });
-
-  if (error || !data) return [];
-  return (data as StageRow[]).map(toStage);
 }
 
 /** The stages an admin may assign a lead to right now. */

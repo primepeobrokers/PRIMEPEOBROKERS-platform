@@ -14,13 +14,12 @@ import {
   SelectValue,
 } from "@/app/components/ui/select";
 import { CATEGORIES } from "@/lib/discovery/schema";
-
-export interface FilterState {
-  q: string;
-  complete: string;
-  range: string;
-  category: string;
-}
+import {
+  isFiltered,
+  leadFiltersToQuery,
+  type LeadFilters,
+} from "@/lib/console/query";
+import type { Stage } from "@/lib/console/stages";
 
 const RANGES = [
   ["7d", "Last 7 days"],
@@ -28,14 +27,18 @@ const RANGES = [
   ["all", "All time"],
 ] as const;
 
-function toQuery({ q, complete, range, category }: FilterState): string {
-  const sp = new URLSearchParams();
-  if (q) sp.set("q", q);
-  if (complete !== "all") sp.set("complete", complete);
-  if (range !== "30d") sp.set("range", range);
-  if (category !== "all") sp.set("category", category);
-  const s = sp.toString();
-  return s ? `?${s}` : "";
+/*
+  Radix Select and Tabs both report the chosen value as a plain string. These
+  narrow it back to the filter union at the one boundary where it enters, so
+  LeadFilters stays a closed set of values and parseLeadFilters remains the
+  only other place that has to validate anything.
+*/
+function asComplete(v: string): LeadFilters["complete"] {
+  return v === "complete" || v === "partial" ? v : "all";
+}
+
+function asRange(v: string): LeadFilters["range"] {
+  return v === "7d" || v === "all" ? v : "30d";
 }
 
 /**
@@ -47,7 +50,13 @@ function toQuery({ q, complete, range, category }: FilterState): string {
  * should feel immediate, and every change is a normal navigation so the URL
  * stays shareable and the back button works.
  */
-export function LeadFilters({ initial }: { initial: FilterState }) {
+export function LeadFilters({
+  initial,
+  stages,
+}: {
+  initial: LeadFilters;
+  stages: Stage[];
+}) {
   const router = useRouter();
   const [q, setQ] = useState(initial.q);
   const typed = useRef(false);
@@ -60,25 +69,24 @@ export function LeadFilters({ initial }: { initial: FilterState }) {
   useEffect(() => {
     if (!typed.current || q === initial.q) return;
     const t = setTimeout(() => {
-      router.push(`/console${toQuery({ ...initial, q })}`);
+      router.push(`/console${leadFiltersToQuery({ ...initial, q, page: 1 })}`);
     }, 300);
     return () => clearTimeout(t);
   }, [q, initial, router]);
 
-  const go = (over: Partial<FilterState>) => {
+  const go = (over: Partial<LeadFilters>) => {
     typed.current = false;
-    router.push(`/console${toQuery({ ...initial, q, ...over })}`);
+    // Reset to page 1: narrowing the set while on page 4 lands on nothing.
+    router.push(
+      `/console${leadFiltersToQuery({ ...initial, q, page: 1, ...over })}`,
+    );
   };
 
-  const isFiltered =
-    !!q ||
-    initial.complete !== "all" ||
-    initial.range !== "30d" ||
-    initial.category !== "all";
+  const filtered = isFiltered({ ...initial, q });
 
   return (
     <div className="flex flex-wrap items-center gap-2.5 max-sm:gap-2">
-      <Tabs value={initial.complete} onValueChange={(v) => go({ complete: v })} className="max-sm:w-full">
+      <Tabs value={initial.complete} onValueChange={(v) => go({ complete: asComplete(v) })} className="max-sm:w-full">
         <TabsList className="max-sm:grid max-sm:w-full max-sm:grid-cols-3">
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="complete">Complete</TabsTrigger>
@@ -101,7 +109,7 @@ export function LeadFilters({ initial }: { initial: FilterState }) {
         />
       </div>
 
-      <Select value={initial.range} onValueChange={(v) => go({ range: v })}>
+      <Select value={initial.range} onValueChange={(v) => go({ range: asRange(v) })}>
         <SelectTrigger className="w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1" aria-label="Date range">
           <SelectValue />
         </SelectTrigger>
@@ -128,7 +136,32 @@ export function LeadFilters({ initial }: { initial: FilterState }) {
         </SelectContent>
       </Select>
 
-      {isFiltered && (
+      {/*
+         Stages are runtime data, so this list is whatever the admin has
+         configured. Retired stages are offered only while one is the active
+         filter, so an existing link keeps working without inviting new use.
+      */}
+      <Select value={initial.stage} onValueChange={(v) => go({ stage: v })}>
+        <SelectTrigger
+          className="w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1"
+          aria-label="Stage"
+        >
+          <SelectValue placeholder="All stages" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">All stages</SelectItem>
+          {stages
+            .filter((st) => !st.retired || st.slug === initial.stage)
+            .map((st) => (
+              <SelectItem key={st.slug} value={st.slug}>
+                {st.label}
+                {st.retired ? " (retired)" : ""}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+
+      {filtered && (
         <Button
           variant="ghost"
           size="sm"
