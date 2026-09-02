@@ -50,6 +50,34 @@ for (const tone of STAGE_TONES) {
 }
 console.log(`ok ${STAGE_TONES.length} tones map to real Badge variants`);
 
+/*
+  Ordering inside the migration.
+
+  Postgres parses and validates a `language sql` function body at CREATE time,
+  so current_user_role() cannot be defined before profiles.deactivated_at
+  exists. Getting this wrong fails the migration halfway through with
+  'column "deactivated_at" does not exist', which is only discovered by
+  running it: nothing in the TypeScript build or a SQL parse catches it,
+  because each statement is individually valid.
+*/
+const addsDeactivated = migration.indexOf("add column if not exists deactivated_at");
+const readsDeactivated = migration.indexOf("create or replace function public.current_user_role");
+ok(addsDeactivated > -1, "0005 no longer adds profiles.deactivated_at");
+ok(readsDeactivated > -1, "0005 no longer defines current_user_role()");
+ok(addsDeactivated < readsDeactivated,
+   "profiles.deactivated_at must be added BEFORE current_user_role() is defined, " +
+   "or the migration fails at CREATE with 'column does not exist'");
+
+// Same shape of hazard: the stage FK cannot be added before the stage rows it
+// points at are seeded, or every existing submission violates it.
+const seedsStages = migration.indexOf("insert into public.lead_stages");
+const addsStageFk = migration.indexOf("submissions_lead_stage_fkey");
+ok(seedsStages > -1 && addsStageFk > -1, "0005 no longer seeds stages or adds the FK");
+ok(seedsStages < addsStageFk,
+   "lead_stages must be seeded BEFORE the submissions FK is added, or existing " +
+   "rows have no stage to reference");
+console.log("ok migration 0005 orders columns and seeds before their dependents");
+
 ok(!isStageTone("brand"), "isStageTone must reject an unknown tone");
 ok(!isStageTone(undefined), "isStageTone must reject undefined");
 ok(isStageTone("neutral"), "isStageTone must accept neutral");

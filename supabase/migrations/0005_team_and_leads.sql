@@ -56,55 +56,13 @@ revoke execute on function public.current_tenant_id() from public, anon;
 
 
 -- ===========================================================================
--- 1. Caller identity helpers
+-- 1. Profiles: deactivation, an honest role default, and the escalation guard
 --
--- Both are SECURITY DEFINER for the reason given in 0001: a function that
--- reads public.profiles, called from a policy ON public.profiles, recurses
--- through that policy and errors with "infinite recursion detected in policy
--- for relation profiles".
---
--- Both are granted to authenticated explicitly rather than relying on the
--- platform default, per section 0.
--- ===========================================================================
-
--- 'admin' or 'member' for the caller, null when unauthenticated OR removed.
---
--- Returning null for a deactivated teammate is the load-bearing part: it is
--- checked here, once, rather than in each policy, so one forgotten policy
--- cannot leave a removed person with working access until their JWT expires.
-create or replace function public.current_user_role()
-returns text
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select role
-    from public.profiles
-   where id = auth.uid()
-     and deactivated_at is null
-$$;
-
--- Convenience predicate, so policies read as English and the admin test lives
--- in exactly one place.
-create or replace function public.is_admin()
-returns boolean
-language sql
-stable
-security definer
-set search_path = public
-as $$
-  select coalesce(public.current_user_role() = 'admin', false)
-$$;
-
-grant  execute on function public.current_user_role() to authenticated;
-grant  execute on function public.is_admin()          to authenticated;
-revoke execute on function public.current_user_role() from public, anon;
-revoke execute on function public.is_admin()          from public, anon;
-
-
--- ===========================================================================
--- 2. Profiles: deactivation, an honest role default, and the escalation guard
+-- This comes before the identity helpers in section 2 on purpose. Postgres
+-- parses and validates a function body at CREATE time, so
+-- current_user_role(), which reads profiles.deactivated_at, cannot be defined
+-- until that column exists. Defining the helpers first fails with
+-- 'column "deactivated_at" does not exist'.
 -- ===========================================================================
 
 alter table public.profiles
@@ -168,6 +126,54 @@ comment on column public.profiles.deactivated_at is
   'Set by remove_teammate(). Non-null means no access: current_user_role() returns null.';
 comment on column public.profiles.email is
   'Snapshot of the invited address, so the team screen can list invitees without reading auth.users.';
+
+
+-- ===========================================================================
+-- 2. Caller identity helpers
+--
+-- Both are SECURITY DEFINER for the reason given in 0001: a function that
+-- reads public.profiles, called from a policy ON public.profiles, recurses
+-- through that policy and errors with "infinite recursion detected in policy
+-- for relation profiles".
+--
+-- Both are granted to authenticated explicitly rather than relying on the
+-- platform default, per section 0. They read the columns added in section 1.
+-- ===========================================================================
+
+-- 'admin' or 'member' for the caller, null when unauthenticated OR removed.
+--
+-- Returning null for a deactivated teammate is the load-bearing part: it is
+-- checked here, once, rather than in each policy, so one forgotten policy
+-- cannot leave a removed person with working access until their JWT expires.
+create or replace function public.current_user_role()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select role
+    from public.profiles
+   where id = auth.uid()
+     and deactivated_at is null
+$$;
+
+-- Convenience predicate, so policies read as English and the admin test lives
+-- in exactly one place.
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.current_user_role() = 'admin', false)
+$$;
+
+grant  execute on function public.current_user_role() to authenticated;
+grant  execute on function public.is_admin()          to authenticated;
+revoke execute on function public.current_user_role() from public, anon;
+revoke execute on function public.is_admin()          from public, anon;
 
 
 -- ===========================================================================
@@ -835,7 +841,7 @@ begin
 end;
 $$;
 
--- Deactivate a teammate. Soft, for the reasons in section 2: their name has
+-- Deactivate a teammate. Soft, for the reasons in section 1: their name has
 -- to keep resolving in every note and event they ever wrote.
 --
 -- Leads assigned to them are released here, inside the same statement, so a
