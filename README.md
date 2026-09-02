@@ -3,7 +3,6 @@
 Marketing site, six-step discovery flow, and internal leads console for the
 Prime PEO Brokers PEO/payroll/HR brokerage. Next.js 16 (App Router) + Supabase
 (Postgres, Auth, RLS) + Resend for transactional email.
-
 Every discovery flow, complete or partial, is captured, stored, and
 surfaced to the team. Multi-tenancy is designed into the data model from
 day one (see `docs/data-model.md`).
