@@ -106,20 +106,39 @@ console.log("ok dynamic-segment revalidation uses the literal bracket form");
 
 // RPC argument names must match the migration's declarations exactly, or
 // PostgREST answers 404 "function not found" at runtime.
-const sql = readFileSync("supabase/migrations/0006_authorize_lead_writes.sql", "utf8");
-const teamActions = readFileSync("app/console/team/actions.ts", "utf8");
+const sql =
+  readFileSync("supabase/migrations/0006_authorize_lead_writes.sql", "utf8") +
+  readFileSync("supabase/migrations/0007_gate_tenant_membership.sql", "utf8");
+const teamActions =
+  readFileSync("app/console/team/actions.ts", "utf8") +
+  readFileSync("app/console/team/stage-actions.ts", "utf8");
 for (const [fn, args] of [
   ["set_teammate_role", ["p_profile_id", "p_role"]],
   ["remove_teammate", ["p_profile_id", "p_reassign_to"]],
+  ["retire_stage", ["p_stage_id", "p_move_to"]],
 ] as const) {
-  ok(sql.includes(`function public.${fn}(`), `0006 no longer defines ${fn}`);
+  ok(sql.includes(`function public.${fn}(`), `no migration defines ${fn}`);
   ok(teamActions.includes(`"${fn}"`), `team actions no longer call ${fn}`);
   for (const arg of args) {
-    ok(sql.includes(arg), `${fn} in 0006 no longer declares ${arg}`);
+    ok(sql.includes(arg), `${fn} no longer declares ${arg}`);
     ok(teamActions.includes(`${arg}:`),
        `team actions do not pass ${arg} to ${fn}; PostgREST will 404 the call`);
   }
 }
+
+/*
+  The deactivation filter in current_tenant_id() is what actually revokes a
+  removed teammate: every RLS policy routes through it, and without the filter
+  a removed person's unexpired access token still reads every lead. It was
+  missing until 0007. Assert it stays.
+*/
+const gate = readFileSync("supabase/migrations/0007_gate_tenant_membership.sql", "utf8");
+const tenantFn = gate.slice(gate.indexOf("function public.current_tenant_id()"));
+ok(/deactivated_at is null/.test(tenantFn.slice(0, 400)),
+   "current_tenant_id() must filter deactivated_at, or a removed teammate " +
+   "keeps read access to every lead until their token expires");
+ok(/if new\.invited_at is null then\s+return new;/.test(gate),
+   "handle_new_user must create no profile for an uninvited signup");
 console.log("ok RPC argument names match the migration");
 
 if (fails) { console.log(`\n${fails} check(s) failed`); process.exit(1); }

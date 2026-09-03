@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/app/components/ui/badge";
@@ -70,15 +70,21 @@ export function StagesCard({
   const run = (
     fn: () => Promise<{ error: string } | { ok: true; message?: string }>,
     onDone?: () => void,
+    onSettled?: () => void,
   ) =>
     startTransition(async () => {
       const result = await fn();
+      // onSettled runs on both paths; onDone only on success. The distinction
+      // matters: onDone closes the edit form, and closing it on an error would
+      // discard the label the user just typed.
       if ("error" in result) {
         toast.error(result.error);
+        onSettled?.();
         return;
       }
       toast.success(result.message ?? "Saved.");
       onDone?.();
+      onSettled?.();
     });
 
   const startEdit = (s: Stage) => {
@@ -113,12 +119,29 @@ export function StagesCard({
     );
   };
 
+  /*
+    Guarded against the double-click race. `pending` is still false on the
+    synchronous click that starts a transition, so two fast clicks both
+    computed `next` from the same stale `live` array and the second write
+    clobbered the first: the row appeared to move one position instead of two,
+    or snapped back. A ref flips synchronously, before React re-renders.
+  */
+  const inFlight = useRef(false);
+
   const move = (index: number, delta: number) => {
+    if (inFlight.current) return;
     const next = [...live];
     const target = index + delta;
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
-    run(() => reorderStages({ orderedIds: next.map((s) => s.id) }));
+    inFlight.current = true;
+    run(
+      () => reorderStages({ orderedIds: next.map((s) => s.id) }),
+      undefined,
+      () => {
+        inFlight.current = false;
+      },
+    );
   };
 
   const toneField = (

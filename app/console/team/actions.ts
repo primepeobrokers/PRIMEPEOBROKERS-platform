@@ -274,18 +274,26 @@ async function logTeamEvent(
   action: string,
   detail: string,
 ): Promise<void> {
+  /*
+    supabase-js resolves with { error } rather than throwing, so a try/catch
+    alone silently discards a failed audit write: the catch never runs and
+    nothing is logged. The error has to be destructured and checked. The
+    try/catch stays for the genuinely thrown cases (a missing service-role
+    key, a transport failure).
+  */
   try {
     const admin = createAdminClient();
-    await admin.from("tenant_events").insert({
+    const { error } = await admin.from("tenant_events").insert({
       tenant_id: tenantId,
       actor_id: ctx.userId,
       actor: ctx.fullName || ctx.email || "staff",
       action,
       detail,
     });
+    if (error) console.error("[team] audit write rejected", action, error);
   } catch (e) {
     // An audit line is worth having, but not worth failing the action over.
-    console.error("[team] audit write failed", e);
+    console.error("[team] audit write failed", action, e);
   }
 }
 

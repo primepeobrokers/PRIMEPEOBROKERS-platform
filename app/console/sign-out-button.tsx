@@ -33,9 +33,13 @@ export function SignOutButton({ action }: { action: () => Promise<void> }) {
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>
+        {/*
+          Padded to a real hit area. This was a bare text button roughly 15px
+          tall: the smallest target in the console, and it signs you out.
+        */}
         <button
           type="button"
-          className="cursor-pointer text-[12.5px] text-ink-faint transition-colors duration-150 hover:text-dark-ink"
+          className="-mx-2 cursor-pointer rounded-sm px-2 py-2.5 text-[12.5px] text-ink-faint transition-colors duration-150 hover:text-dark-ink"
         >
           Sign out
         </button>

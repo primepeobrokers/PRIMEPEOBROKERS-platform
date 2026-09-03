@@ -36,14 +36,20 @@ export default async function ConsoleLayout({
     <div className="min-h-screen bg-surface">
       <header className="bg-dark text-dark-ink">
         <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-6 px-7 max-sm:px-[18px]">
-          <div className="flex items-center gap-[26px]">
-            <div className="flex items-center gap-[11px]">
+          <div className="flex min-w-0 items-center gap-[26px] max-sm:gap-4">
+            <div className="flex shrink-0 items-center gap-[11px]">
               <Logo size={26} variant="inverted" />
-              <span className="border-l border-dark-line pl-[11px] font-mono text-[10.5px] uppercase tracking-[.12em] text-dark-ink-muted">
+              <span className="border-l border-dark-line pl-[11px] font-mono text-[10.5px] uppercase tracking-[.12em] text-dark-ink-muted max-sm:hidden">
                 Console
               </span>
             </div>
-            <nav aria-label="Sections" className="flex gap-5 text-[13.5px] max-sm:hidden">
+            {/*
+              Visible at every width. This nav used to be max-sm:hidden with
+              nothing replacing it, which left /console/team unreachable on a
+              phone: it is linked from here and nowhere else. The "Console"
+              wordmark drops instead, since the logo already says that.
+            */}
+            <nav aria-label="Sections" className="flex min-w-0 gap-5 text-[13.5px] max-sm:gap-4 max-sm:text-[13px]">
               <ConsoleNavLink href="/console">Leads</ConsoleNavLink>
               {/*
                 Omitted for members rather than disabled: a greyed-out admin
@@ -54,11 +60,23 @@ export default async function ConsoleLayout({
               {ctx.role === "admin" && (
                 <ConsoleNavLink href="/console/team">Team</ConsoleNavLink>
               )}
-              <span
-                className="cursor-default text-ink-faint"
-                title="Arrives in a later phase"
+              {/*
+                A disabled button rather than a <span title>: title text never
+                reaches a keyboard or touch user, so the item read as
+                mysteriously dead. aria-disabled keeps it focusable so the
+                explanation is actually reachable.
+              */}
+              <button
+                type="button"
+                disabled
+                aria-disabled="true"
+                aria-describedby="providers-note"
+                className="cursor-default border-b border-transparent pb-0.5 text-dark-ink-muted/60 max-sm:hidden"
               >
                 Providers
+              </button>
+              <span id="providers-note" className="sr-only">
+                Providers arrives in a later phase.
               </span>
             </nav>
           </div>

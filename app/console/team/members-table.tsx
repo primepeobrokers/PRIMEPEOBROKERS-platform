@@ -88,6 +88,17 @@ export function MembersTable({
               // Disabled when they are the only admin left: the server refuses
               // it too, and a control that always errors is worse than none.
               const lastAdmin = m.role === "admin" && admins.length <= 1;
+              /*
+                Say why, on the row itself. The note below the table only
+                appears when the team is a single person, so on a four-person
+                team with one admin that admin saw both of their own controls
+                greyed out with no explanation anywhere.
+              */
+              const lockedReason = lastAdmin
+                ? "This is the only admin on the team. Promote someone else first."
+                : isViewer
+                  ? "You cannot change your own role or remove yourself."
+                  : undefined;
               return (
                 <TableRow key={m.id}>
                   <TableCell>
@@ -102,6 +113,11 @@ export function MembersTable({
                     <div className="mt-[3px] truncate text-[13px] text-ink-muted">
                       {m.email ?? "No address on file"}
                     </div>
+                    {lockedReason && (
+                      <div className="mt-1.5 text-[12px] leading-snug text-ink-faint">
+                        {lockedReason}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Select
@@ -119,6 +135,7 @@ export function MembersTable({
                       <SelectTrigger
                         className="w-full"
                         aria-label={`Role for ${memberName(m)}`}
+                        title={lockedReason}
                       >
                         <SelectValue />
                       </SelectTrigger>
@@ -135,6 +152,7 @@ export function MembersTable({
                     <Button
                       variant="ghost"
                       size="sm"
+                      title={lockedReason}
                       disabled={pending || isViewer || lastAdmin}
                       onClick={() => {
                         setReassignTo(UNASSIGNED);

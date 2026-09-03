@@ -198,37 +198,28 @@ export async function retireStage(input: {
   const supabase = await createClient();
 
   /*
-    Move the leads first. If the retire then fails, the leads have simply
-    moved, which is recoverable and visible. Retiring first would leave leads
-    stranded on a stage no longer offered anywhere.
-
-    Each move fires the 0005 trigger, so every lead gets its own activity
-    entry rather than the change happening invisibly.
+    One RPC, not two statements. Moving the leads and retiring the stage have
+    to be a single transaction: done separately, a failure at the retire step
+    left every lead already moved while the error claimed nothing happened,
+    and two admins retiring concurrently could land leads on a stage that was
+    retired a moment later. The function takes the same advisory lock the team
+    mutations use, and lead_stages_guard still refuses the default and the
+    last live stage from inside it, rolling the moves back with it.
   */
-  const { data: moved, error: moveError } = await supabase
-    .from("submissions")
-    .update({ lead_stage: destination.slug })
-    .eq("lead_stage", target.slug)
-    .select("id");
-  if (moveError) {
-    console.error("[stages] moving leads failed", moveError);
-    return { error: "Could not move the leads off that stage." };
-  }
-
-  const { error } = await supabase
-    .from("lead_stages")
-    .update({ retired_at: new Date().toISOString() })
-    .eq("id", stageId);
+  const { data: movedCount, error } = await supabase.rpc("retire_stage", {
+    p_stage_id: stageId,
+    p_move_to: moveTo,
+  });
   if (error) {
-    // The trigger raises a readable message for the two cases that matter
-    // (the default stage, the last remaining stage), so surface it.
     const raw = error.message ?? "";
-    if (raw.includes("Cannot retire")) return { error: raw };
+    if (raw.includes("Cannot retire") || raw.includes("pipeline")) {
+      return { error: raw };
+    }
     console.error("[stages] retire failed", error);
     return { error: "Could not retire that stage." };
   }
 
-  const count = moved?.length ?? 0;
+  const count = typeof movedCount === "number" ? movedCount : 0;
   await logStageEvent(
     ctx,
     "stage_retired",
@@ -276,16 +267,23 @@ async function logStageEvent(
   action: string,
   detail: string,
 ): Promise<void> {
+  /*
+    The error has to be destructured: supabase-js resolves with { error }
+    instead of throwing, so a bare try/catch drops a rejected audit insert
+    without a trace. That matters most here, where this write goes through the
+    session client and is therefore subject to the admin-only insert policy.
+  */
   try {
     const supabase = await createClient();
-    await supabase.from("tenant_events").insert({
+    const { error } = await supabase.from("tenant_events").insert({
       tenant_id: ctx.tenantId,
       actor_id: ctx.userId,
       actor: ctx.fullName || ctx.email || "staff",
       action,
       detail,
     });
+    if (error) console.error("[stages] audit write rejected", action, error);
   } catch (e) {
-    console.error("[stages] audit write failed", e);
+    console.error("[stages] audit write failed", action, e);
   }
 }

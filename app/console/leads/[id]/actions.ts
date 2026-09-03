@@ -231,6 +231,11 @@ export async function logRecordOpen(submissionId: string): Promise<void> {
   if (!guard.ok) return;
   const { ctx } = guard;
 
+  // Validated like every other action here. A malformed id would otherwise
+  // reach PostgREST and come back as a 400 that maybeSingle() flattens to
+  // null, so the failure was invisible rather than merely harmless.
+  if (!UUID_RE.test(submissionId)) return;
+
   const supabase = await createClient();
 
   /*
