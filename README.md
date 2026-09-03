@@ -30,9 +30,20 @@ Key code:
 - `app/components/ui/`: shadcn/ui components, wired to the `--pv-*` tokens.
 - `lib/content/proof.ts`: home-page testimonials, currently placeholder and
   flagged off. Do not launch with them.
-- `scripts/check-*.mts`: run with `npx tsx`. They assert that the flow UI,
-  client validation, and server revalidation agree about which fields each
-  category sees.
+- `app/console/team/`: admin-only team and pipeline settings (Phase 2).
+- `lib/auth/session.ts`: the guard every page and action starts with.
+  `requireUser` / `requireAdminPage` for pages (they redirect or 404),
+  `guardAction` for actions (it returns a result, because a redirect thrown
+  inside a transition would discard what the person was typing).
+- `lib/console/`: the console's shared modules. `columns.ts` is the single
+  source of truth for the submissions row shape, `query.ts` owns the leads
+  filter URL, `stages.ts` the pipeline helpers (client-safe) and
+  `stages.server.ts` the reads.
+- `scripts/check-*.mts`: run with `npm run check`, which also runs `tsc` and
+  eslint. They assert the things TypeScript cannot see: that the select list
+  and the row type agree, that filters round-trip through the URL, that stage
+  tones map to real Badge variants, and that every server action guards
+  before it writes.
 - `proxy.ts`: session refresh and the console gate (Next 16's middleware).
 
 ## Design system
@@ -91,8 +102,41 @@ Deploy to Netlify (client's account) or Vercel; set the env vars from
 previews work out of the box, and the SOW asks for preview links throughout
 Phase 1.
 
+## Cache and revalidation
+
+Every console page is dynamic, so the thing that goes stale is the client
+router cache: change a stage, navigate back to the list, and it can serve a
+cached payload showing the old value.
+
+The rule: **every mutating server action revalidates the paths that render
+what it changed, before it returns.** For the lead detail route that means
+the literal `revalidatePath("/console/leads/[id]", "page")`. The `"page"`
+argument is required for a dynamic segment and omitting it is a silent no-op,
+and the bracket form is deliberate: interpolating a real id would invalidate
+only the lead being edited. `logRecordOpen` is the one exception and must not
+revalidate, since it fires from a mount effect and would loop.
+
+`scripts/check-actions.mts` enforces all of this.
+
 ## Phase boundaries
 
-Phase 1 deliberately excludes: multiple roles/permissions, assignment, status
-tracking, notes, partner portals. The schema already anticipates them
-(`lead_stage`, `profiles.role`, `tenants`). See `docs/data-model.md`.
+Phase 1 captured leads. Phase 2 added the team layer: staff accounts by
+invite, admin and member roles, assignment, a lead pipeline the client can
+edit at runtime, append-only internal notes, and an activity log. See
+`docs/data-model.md` for the schema decisions and `supabase/migrations/0005`
+and `0006` for the data layer.
+
+Phase 3 is partner-facing and not started: per-partner subdomains, wildcard
+DNS, branding from `tenants.branding`, and partner logins. The "Providers"
+nav item is stubbed for it. Multi-tenancy is already in every table and
+policy, so partner isolation comes from the existing RLS rather than new
+code.
+
+Two things deliberately left as they are, both worth raising with the client
+rather than quietly changing:
+
+- The CSV export sends every lead, ignoring the filters active on the list
+  the button sits above. Changing that changes what the button means.
+- The privacy page promises 30-day deletion and nothing implements it: no
+  TTL, no cron, no delete policy on any table. A Phase 1 gap, not a Phase 2
+  one.
