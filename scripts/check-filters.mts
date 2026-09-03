@@ -14,6 +14,7 @@
  *      the list's Suspense boundary key: if it misses a field, switching that
  *      filter leaves stale rows on screen with no loading state.
  */
+import { readFileSync } from "node:fs";
 import {
   LEAD_FILTER_DEFAULTS,
   isFiltered,
@@ -120,6 +121,60 @@ for (const v of variants) {
 ok(leadFiltersKey(base) === leadFiltersKey({ ...base }),
    "leadFiltersKey must be stable for equal states");
 console.log(`ok the Suspense key reflects all ${variants.length} filter fields`);
+
+
+// ---------------------------------------------------------------------------
+// 5. Page bounds.
+//
+// Number("1e999") is Infinity and Number("999999999999") is merely absurd;
+// either reaches .range(from, from + PAGE_SIZE) as a nonsense offset and the
+// list renders "Showing NaN to NaN of 0". A hand-typed or crawled URL is
+// enough to hit it.
+// ---------------------------------------------------------------------------
+for (const [input, want] of [
+  ["1e999", "finite"], ["999999999999", "finite"], ["-1", "1"],
+  ["0", "1"], ["abc", "1"], ["", "1"], ["2.9", "2"], ["1e3", "1000"],
+] as const) {
+  const got = parseQS(`?page=${encodeURIComponent(input)}`).page;
+  ok(Number.isSafeInteger(got) && got >= 1,
+     `page="${input}" gave ${got}, which is not a usable page number`);
+  if (want !== "finite") {
+    ok(String(got) === want, `page="${input}" gave ${got}, want ${want}`);
+  }
+  // Whatever the input, the derived offset must stay arithmetically sane.
+  const from = (got - 1) * 25;
+  ok(Number.isSafeInteger(from), `page="${input}" produced offset ${from}`);
+}
+console.log("ok page numbers stay finite and produce usable offsets");
+
+// ---------------------------------------------------------------------------
+// 6. The validation arguments must actually be supplied by the caller.
+//
+// This is the check that would have caught the assignee filter shipping dead:
+// parseLeadFilters validates ?assignee= against a memberIds allowlist, and
+// the page did not pass one, so every real profile id collapsed to "all" and
+// the filter silently matched everything. The suite passed because the test
+// supplied memberIds that production never did.
+//
+// Reading the call site is crude but it is the only way to assert that the
+// production caller and this test agree about the contract.
+// ---------------------------------------------------------------------------
+const listPage = readFileSync("app/console/page.tsx", "utf8");
+const call = listPage.slice(listPage.indexOf("parseLeadFilters("));
+const callArgs = call.slice(0, call.indexOf("});") + 1);
+for (const arg of ["stageSlugs", "memberIds"] as const) {
+  ok(callArgs.includes(arg),
+     `app/console/page.tsx does not pass ${arg} to parseLeadFilters, so that ` +
+     `filter validates against an empty list and silently collapses to "all"`);
+}
+// And every non-"all" assignee branch must apply a predicate.
+for (const token of ["ASSIGNEE_UNASSIGNED", "ASSIGNEE_ME"] as const) {
+  ok(listPage.includes(token), `page.tsx no longer references ${token}`);
+}
+ok(/assignee === ASSIGNEE_ME[\s\S]{0,120}?\.eq\("assigned_to"/.test(listPage),
+   "the ASSIGNEE_ME branch must apply an assigned_to predicate, or 'My leads' " +
+   "shows every lead in the tenant while the UI claims a filter is active");
+console.log("ok the list page supplies every allowlist parseLeadFilters needs");
 
 if (fails) { console.log(`\n${fails} check(s) failed`); process.exit(1); }
 console.log("check-filters: pass");

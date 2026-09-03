@@ -15,10 +15,13 @@ import {
 } from "@/app/components/ui/select";
 import { CATEGORIES } from "@/lib/discovery/schema";
 import {
+  ASSIGNEE_ME,
+  ASSIGNEE_UNASSIGNED,
   isFiltered,
   leadFiltersToQuery,
   type LeadFilters,
 } from "@/lib/console/query";
+import { memberName, type Member } from "@/lib/console/columns";
 import type { Stage } from "@/lib/console/stages";
 
 const RANGES = [
@@ -53,9 +56,11 @@ function asRange(v: string): LeadFilters["range"] {
 export function LeadFilters({
   initial,
   stages,
+  members,
 }: {
   initial: LeadFilters;
   stages: Stage[];
+  members: Member[];
 }) {
   const router = useRouter();
   const [q, setQ] = useState(initial.q);
@@ -156,6 +161,34 @@ export function LeadFilters({
               <SelectItem key={st.slug} value={st.slug}>
                 {st.label}
                 {st.retired ? " (retired)" : ""}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+
+      {/*
+         "My leads" is stored as the sentinel "me" rather than the caller's
+         id, so the link stays meaningful when shared or bookmarked. A removed
+         teammate still appears while they hold leads, so their queue can be
+         found and cleared.
+      */}
+      <Select value={initial.assignee} onValueChange={(v) => go({ assignee: v })}>
+        <SelectTrigger
+          className="w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1"
+          aria-label="Owner"
+        >
+          <SelectValue placeholder="Any owner" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Any owner</SelectItem>
+          <SelectItem value={ASSIGNEE_ME}>My leads</SelectItem>
+          <SelectItem value={ASSIGNEE_UNASSIGNED}>Unassigned</SelectItem>
+          {members
+            .filter((m) => !m.deactivated_at || m.id === initial.assignee)
+            .map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {memberName(m)}
+                {m.deactivated_at ? " (removed)" : ""}
               </SelectItem>
             ))}
         </SelectContent>

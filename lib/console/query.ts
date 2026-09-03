@@ -41,6 +41,28 @@ function one(v: string | string[] | undefined): string {
 }
 
 /**
+ * Page number from a query string, clamped into a range the query can use.
+ *
+ * The ceiling is the part that matters. `Number("1e999")` is Infinity and
+ * `Number("999999999999")` is merely absurd; either one reaches
+ * `.range(from, from + PAGE_SIZE)` as a nonsense offset, and the list renders
+ * "Showing NaN to NaN of 0" instead of an empty page. A hand-typed or crawled
+ * URL is enough to hit it.
+ *
+ * MAX_PAGE is deliberately generous rather than derived from the row count:
+ * this function is pure and has no count to consult, so it only has to keep
+ * the value finite and integral. A page past the end returns no rows, which
+ * the empty state already handles.
+ */
+const MAX_PAGE = 100_000;
+
+function parsePage(raw: string): number {
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(n, MAX_PAGE);
+}
+
+/**
  * Parse raw searchParams into validated filters.
  *
  * Stage slugs and member ids are runtime data now, so unlike the category
@@ -73,7 +95,7 @@ export function parseLeadFilters(
     category: CATEGORIES.some((c) => c.id === category) ? category : "all",
     stage: stageOk ? stage : "all",
     assignee: assigneeOk ? assignee : "all",
-    page: Math.max(1, Number(one(raw.page)) || 1),
+    page: parsePage(one(raw.page)),
   };
 }
 

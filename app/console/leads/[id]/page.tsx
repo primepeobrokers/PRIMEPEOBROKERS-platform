@@ -17,7 +17,8 @@ import {
   stateTone,
   type SubmissionRow,
 } from "@/lib/console";
-import { fetchStages } from "@/lib/console/stages.server";
+import { fetchMembers, fetchStages } from "@/lib/console/stages.server";
+import { memberName } from "@/lib/console/columns";
 import { StageBadge } from "@/app/console/stage-badge";
 import { ArrowLeftIcon } from "lucide-react";
 import { LogOpen } from "./log-open";
@@ -56,8 +57,9 @@ export default async function LeadDetailPage(
   if (!lead) notFound();
 
   // Independent of each other, so they overlap rather than queue.
-  const [stages, { data: events }] = await Promise.all([
+  const [stages, members, { data: events }] = await Promise.all([
     fetchStages(),
+    fetchMembers(),
     supabase
       .from("submission_events")
       .select("id, actor, action, detail, created_at")
@@ -66,6 +68,7 @@ export default async function LeadDetailPage(
       .limit(12),
   ]);
 
+  const owner = members.find((m) => m.id === lead.assigned_to);
   const answers = (lead.answers ?? {}) as Answers;
   const tone = stateTone(lead as SubmissionRow);
   const when = formatWhen(lead.submitted_at ?? lead.created_at);
@@ -243,9 +246,22 @@ export default async function LeadDetailPage(
               <div className="font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
                 Assigned
               </div>
-              <div className="mt-3 text-[14.5px] font-semibold">Unassigned</div>
+              {/*
+                Reads the real value. This card previously hardcoded
+                "Unassigned" next to copy saying assignment was still to come,
+                which meant a lead assigned directly in the database showed as
+                unowned and two people could work it in parallel.
+
+                The controls to change it are still to come; until then the
+                copy says what is true rather than what is planned.
+              */}
+              <div className="mt-3 text-[14.5px] font-semibold">
+                {lead.assigned_to ? memberName(owner) : "Unassigned"}
+              </div>
               <div className="mt-3 text-[13px] leading-normal text-ink-muted">
-                Assignment and the status pipeline arrive in Phase 2.
+                {lead.assigned_to
+                  ? "Reassigning from the console arrives with the pipeline controls."
+                  : "Nobody owns this lead yet."}
               </div>
             </CardContent>
           </Card>

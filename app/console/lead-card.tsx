@@ -10,6 +10,7 @@ import {
   type SubmissionRow,
 } from "@/lib/console";
 import type { Stage } from "@/lib/console/stages";
+import { memberName, type Member } from "@/lib/console/columns";
 import { StageBadge } from "./stage-badge";
 import { categoryName } from "@/lib/discovery/schema";
 
@@ -22,9 +23,11 @@ import { categoryName } from "@/lib/discovery/schema";
 export function LeadCard({
   row,
   stages,
+  owner,
 }: {
   row: SubmissionRow;
   stages: Stage[];
+  owner?: Member;
 }) {
   const tone = stateTone(row);
 
@@ -73,6 +76,7 @@ export function LeadCard({
         <Field label="Spend" value={formatMoney(row.benefits_spend)} />
       </dl>
       <div className="mt-2.5 font-mono text-[11.5px] text-ink-faint">
+        {row.assigned_to ? memberName(owner) : "Unassigned"} ·{" "}
         {formatWhen(row.submitted_at ?? row.created_at)} UTC
       </div>
     </Link>

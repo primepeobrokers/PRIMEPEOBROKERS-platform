@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   SUBMISSION_LIST_SELECT,
   isoDaysAgo,
+  type Member,
   type SubmissionRow,
 } from "@/lib/console";
 import {
@@ -17,8 +18,9 @@ import {
   type LeadFilters as Filters,
 } from "@/lib/console/query";
 import { stageLabel, stageSlugs, type Stage } from "@/lib/console/stages";
-import { fetchStages } from "@/lib/console/stages.server";
-import { CATEGORIES, categoryName } from "@/lib/discovery/schema";
+import { fetchMembers, fetchStages } from "@/lib/console/stages.server";
+import { requireUser } from "@/lib/auth/session";
+import { categoryName } from "@/lib/discovery/schema";
 import { CopyDiscoveryLink } from "./copy-link";
 import { ExportCsvButton } from "./export-button";
 import { LeadFilters } from "./lead-filters";
@@ -37,7 +39,6 @@ import {
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -54,14 +55,21 @@ export default async function LeadsPage(props: PageProps<"/console">) {
   const searchParams = await props.searchParams;
 
   /*
-    Stages are read before the filters are parsed, because parsing validates
-    ?stage= against what actually exists: an unknown or deleted slug has to
-    collapse to "all" rather than filtering the list to nothing and showing an
-    empty state that reads as data loss.
+    Stages and the roster are read before the filters are parsed, because
+    parsing validates ?stage= and ?assignee= against what actually exists. An
+    unknown or deleted value has to collapse to "all" rather than filtering
+    the list to nothing behind an empty state that reads as data loss.
+
+    All three are independent, so they overlap instead of queueing.
   */
-  const stages = await fetchStages();
+  const [ctx, stages, members] = await Promise.all([
+    requireUser("/console"),
+    fetchStages(),
+    fetchMembers(),
+  ]);
   const filters = parseLeadFilters(searchParams, {
     stageSlugs: stageSlugs(stages),
+    memberIds: members.map((m) => m.id),
   });
 
   return (
@@ -88,7 +96,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
       </div>
 
       <div className="mt-[26px] border-b border-line pb-4">
-        <LeadFilters initial={filters} stages={stages} />
+        <LeadFilters initial={filters} stages={stages} members={members} />
       </div>
 
       <div className="mt-[22px]">
@@ -98,7 +106,12 @@ export default async function LeadsPage(props: PageProps<"/console">) {
           while the new query runs.
         */}
         <Suspense key={leadFiltersKey(filters)} fallback={<LeadsTableSkeleton />}>
-          <LeadsTable filters={filters} stages={stages} />
+          <LeadsTable
+            filters={filters}
+            stages={stages}
+            members={members}
+            viewerId={ctx.userId}
+          />
         </Suspense>
       </div>
     </main>
@@ -127,9 +140,13 @@ async function LeadsSummary() {
 async function LeadsTable({
   filters,
   stages,
+  members,
+  viewerId,
 }: {
   filters: Filters;
   stages: Stage[];
+  members: Member[];
+  viewerId: string;
 }) {
   const { q, complete, range, category, stage, assignee, page } = filters;
   const supabase = await createClient();
@@ -145,16 +162,41 @@ async function LeadsTable({
   if (complete !== "all") query = query.eq("status", complete);
   if (category !== "all") query = query.eq("category", category);
   if (stage !== "all") query = query.eq("lead_stage", stage);
+  /*
+    Assignee. ASSIGNEE_ME resolves to the caller here rather than in the URL,
+    so a shared "my leads" link means "the reader's leads" and a bookmarked
+    one keeps working after a handover.
+
+    parseLeadFilters only admits a profile id it was given in memberIds, so by
+    the time a raw id reaches this point it is known to be a teammate in the
+    caller's tenant. RLS would scope the result either way; this keeps an
+    unknown id from silently returning an empty list.
+  */
   if (assignee === ASSIGNEE_UNASSIGNED) {
     query = query.is("assigned_to", null);
-  } else if (assignee !== "all" && assignee !== ASSIGNEE_ME) {
+  } else if (assignee === ASSIGNEE_ME) {
+    query = query.eq("assigned_to", viewerId);
+  } else if (assignee !== "all") {
     query = query.eq("assigned_to", assignee);
   }
   if (range !== "all") {
     query = query.gte("created_at", isoDaysAgo(range === "7d" ? 7 : 30));
   }
   if (q) {
-    const esc = q.replaceAll("%", "\\%").replaceAll(",", " ");
+    /*
+      Escape both LIKE wildcards, not just %. An underscore matches any single
+      character, so searching "A_B Holdings" was quietly also matching
+      "AxB Holdings": a search that appears to work but returns the wrong
+      rows is worse than one that returns none.
+
+      Commas are replaced rather than escaped because they separate the terms
+      of the .or() expression below, and PostgREST offers no escape for them.
+    */
+    const esc = q
+      .replaceAll("\\", "\\\\")
+      .replaceAll("%", "\\%")
+      .replaceAll("_", "\\_")
+      .replaceAll(",", " ");
     const ors = [
       `company_name.ilike.%${esc}%`,
       `contact_name.ilike.%${esc}%`,
@@ -170,6 +212,9 @@ async function LeadsTable({
     .range(from, from + PAGE_SIZE - 1);
 
   const rows = (data ?? []) as SubmissionRow[];
+  // One Map for the whole page: resolving an owner per row would otherwise be
+  // a linear scan of the roster for each of the 25 rows.
+  const byId = new Map(members.map((m) => [m.id, m]));
   const filteredCount = count ?? 0;
   const hasError = !!error || !!totalError;
   const isEmpty = !hasError && (totalCount ?? 0) === 0;
@@ -269,7 +314,12 @@ async function LeadsTable({
             reflow into anything readable at phone widths. */}
         <div className="hidden max-md:block">
           {rows.map((r) => (
-            <LeadCard key={r.id} row={r} stages={stages} />
+            <LeadCard
+              key={r.id}
+              row={r}
+              stages={stages}
+              owner={r.assigned_to ? byId.get(r.assigned_to) : undefined}
+            />
           ))}
         </div>
         <div className="max-md:hidden">
@@ -292,7 +342,12 @@ async function LeadsTable({
           </TableHeader>
           <TableBody>
             {rows.map((r) => (
-              <LeadRow key={r.id} row={r} stages={stages} />
+              <LeadRow
+                key={r.id}
+                row={r}
+                stages={stages}
+                owner={r.assigned_to ? byId.get(r.assigned_to) : undefined}
+              />
             ))}
           </TableBody>
         </Table>

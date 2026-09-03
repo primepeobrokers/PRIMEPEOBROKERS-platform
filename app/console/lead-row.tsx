@@ -16,6 +16,7 @@ import {
 } from "@/app/components/ui/dropdown-menu";
 import { formatMoney, formatWhen, stateTone, type SubmissionRow } from "@/lib/console";
 import type { Stage } from "@/lib/console/stages";
+import { memberName, type Member } from "@/lib/console/columns";
 import { StageBadge } from "./stage-badge";
 import { categoryName } from "@/lib/discovery/schema";
 
@@ -31,9 +32,12 @@ import { categoryName } from "@/lib/discovery/schema";
 export function LeadRow({
   row,
   stages,
+  owner,
 }: {
   row: SubmissionRow;
   stages: Stage[];
+  /** Resolved from the roster by the page; undefined means unassigned. */
+  owner?: Member;
 }) {
   const router = useRouter();
   const tone = stateTone(row);
@@ -104,11 +108,13 @@ export function LeadRow({
       */}
       <TableCell>
         <StageBadge slug={row.lead_stage} stages={stages} />
-        {row.status !== "complete" && (
-          <div className="mt-[3px] font-mono text-[11.5px] text-ink-muted">
-            {tone.label}
-          </div>
-        )}
+        <div className="mt-[3px] font-mono text-[11.5px] text-ink-muted">
+          {/* Owner is the question staff ask after stage, so it earns the
+              second line. The partial count only shows when it still
+              applies, and never competes with the owner for the same row. */}
+          {row.assigned_to ? memberName(owner) : "Unassigned"}
+          {row.status !== "complete" && ` · ${tone.label}`}
+        </div>
       </TableCell>
 
       <TableCell className="w-px" data-row-actions>

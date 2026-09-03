@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { MEMBER_SELECT, type Member } from "./columns";
 import { STAGE_SELECT, toStage, type Stage, type StageRow } from "./stages";
 
 /**
@@ -35,4 +36,31 @@ export async function fetchStages(): Promise<Stage[]> {
 
   if (error || !data) return [];
   return (data as unknown as StageRow[]).map(toStage);
+}
+
+/**
+ * The tenant roster, for the assignee picker and filter.
+ *
+ * Deactivated teammates are included: a lead may still be assigned to someone
+ * who has since been removed, and the UI has to be able to name them rather
+ * than showing a blank owner. Callers offering a choice filter them out.
+ *
+ * One flat query rather than a relational select on submissions. Embedding
+ * profiles in the leads query would nest the row shape, force a nullable
+ * nested type into SubmissionRow, and depend on FK introspection working
+ * through RLS on profiles. The roster is a handful of rows; fetching it once
+ * per page and resolving names from a Map is both simpler and cheaper.
+ *
+ * Returns [] on error, for the same reason fetchStages does: a missing roster
+ * should degrade the owner column, not blank the leads page.
+ */
+export async function fetchMembers(): Promise<Member[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select(MEMBER_SELECT)
+    .order("full_name", { ascending: true, nullsFirst: false });
+
+  if (error || !data) return [];
+  return data as unknown as Member[];
 }
