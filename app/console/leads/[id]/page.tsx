@@ -23,11 +23,11 @@ import { memberName } from "@/lib/console/columns";
 import { StageBadge } from "@/app/console/stage-badge";
 import { ArrowLeftIcon } from "lucide-react";
 import { LogOpen } from "./log-open";
+import { EmailClientButton } from "./email-client-button";
 import { NotesCard } from "./notes-card";
 import { PipelineCard } from "./pipeline-card";
 import type { NoteView } from "@/lib/console/notes";
 import { Badge } from "@/app/components/ui/badge";
-import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
 import {
   Tabs,
@@ -143,15 +143,10 @@ export default async function LeadDetailPage(
         </div>
         {lead.contact_email && (
           <div className="flex gap-2.5">
-            <Button asChild size="lg">
-              <a
-                href={`mailto:${lead.contact_email}?subject=${encodeURIComponent(
-                  `Your Prime PEO Brokers record (REF ${lead.ref})`,
-                )}`}
-              >
-                Email the client
-              </a>
-            </Button>
+            <EmailClientButton
+              email={lead.contact_email}
+              subject={`Your Prime PEO Brokers record (REF ${lead.ref})`}
+            />
           </div>
         )}
       </div>
