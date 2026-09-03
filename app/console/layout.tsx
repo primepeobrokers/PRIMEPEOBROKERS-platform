@@ -46,22 +46,13 @@ export default async function ConsoleLayout({
             <nav aria-label="Sections" className="flex gap-5 text-[13.5px] max-sm:hidden">
               <ConsoleNavLink href="/console">Leads</ConsoleNavLink>
               {/*
-                Team and Providers are both unbuilt, so they stay non-links
-                like Providers always was. An earlier revision made Team a real
-                Link for admins, which 404'd: the route does not exist yet.
-                Restore the Link only in the commit that adds /console/team.
-
-                When it does land it should be admin-only and simply absent for
-                members, not disabled: a greyed-out admin link advertises a
-                feature they cannot have and turns into a support question.
+                Omitted for members rather than disabled: a greyed-out admin
+                link advertises a feature they cannot have and turns into a
+                support question. The route itself returns 404 for a member,
+                so guessing the URL reveals nothing either.
               */}
               {ctx.role === "admin" && (
-                <span
-                  className="cursor-default text-ink-faint"
-                  title="Arrives later in Phase 2"
-                >
-                  Team
-                </span>
+                <ConsoleNavLink href="/console/team">Team</ConsoleNavLink>
               )}
               <span
                 className="cursor-default text-ink-faint"
