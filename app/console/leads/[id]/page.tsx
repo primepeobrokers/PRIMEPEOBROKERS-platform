@@ -17,14 +17,24 @@ import {
   stateTone,
   type SubmissionRow,
 } from "@/lib/console";
+import { requireUser } from "@/lib/auth/session";
 import { fetchMembers, fetchStages } from "@/lib/console/stages.server";
 import { memberName } from "@/lib/console/columns";
 import { StageBadge } from "@/app/console/stage-badge";
 import { ArrowLeftIcon } from "lucide-react";
 import { LogOpen } from "./log-open";
+import { NotesCard } from "./notes-card";
+import { PipelineCard } from "./pipeline-card";
+import type { NoteView } from "@/lib/console/notes";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
 import { Card, CardContent } from "@/app/components/ui/card";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/app/components/ui/tabs";
 
 export const metadata: Metadata = {
   title: "Lead",
@@ -37,6 +47,7 @@ const UUID_RE =
 interface EventRow {
   id: number;
   actor: string;
+  actor_id: string | null;
   action: string;
   detail: string | null;
   created_at: string;
@@ -57,18 +68,28 @@ export default async function LeadDetailPage(
   if (!lead) notFound();
 
   // Independent of each other, so they overlap rather than queue.
-  const [stages, members, { data: events }] = await Promise.all([
-    fetchStages(),
-    fetchMembers(),
-    supabase
-      .from("submission_events")
-      .select("id, actor, action, detail, created_at")
-      .eq("submission_id", id)
-      .order("created_at", { ascending: false })
-      .limit(12),
-  ]);
+  const [ctx, stages, members, { data: events }, { data: noteRows }] =
+    await Promise.all([
+      requireUser(`/console/leads/${id}`),
+      fetchStages(),
+      fetchMembers(),
+      supabase
+        .from("submission_events")
+        .select("id, actor, actor_id, action, detail, created_at")
+        .eq("submission_id", id)
+        .order("created_at", { ascending: false })
+        .limit(25),
+      supabase
+        .from("submission_notes")
+        .select("id, body, author_name, created_at")
+        .eq("submission_id", id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ]);
 
-  const owner = members.find((m) => m.id === lead.assigned_to);
+  const notes = (noteRows ?? []) as NoteView[];
+  // Resolved once: the activity list would otherwise scan the roster per row.
+  const byId = new Map(members.map((m) => [m.id, m]));
   const answers = (lead.answers ?? {}) as Answers;
   const tone = stateTone(lead as SubmissionRow);
   const when = formatWhen(lead.submitted_at ?? lead.created_at);
@@ -184,6 +205,53 @@ export default async function LeadDetailPage(
               </div>
             </section>
           ))}
+
+          {/*
+            Notes and Activity live in the main column, not the 320px rail.
+            Four stacked cards there made the rail the longest thing on the
+            page, and a note field needs room to write in. Tabs because Notes
+            is what people use daily and Activity is what they check
+            occasionally, so only one needs to be visible at a time.
+          */}
+          <Tabs defaultValue="notes" className="gap-0">
+            <TabsList>
+              <TabsTrigger value="notes">
+                Notes{notes.length > 0 ? ` (${notes.length})` : ""}
+              </TabsTrigger>
+              <TabsTrigger value="activity">Activity</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="notes" className="mt-4">
+              <NotesCard submissionId={lead.id} initial={notes} />
+            </TabsContent>
+
+            <TabsContent value="activity" className="mt-4">
+              {(events ?? []).length === 0 ? (
+                <div className="rounded-md border border-dashed border-line px-4 py-6 text-center text-sm text-ink-muted">
+                  Nothing recorded yet.
+                </div>
+              ) : (
+                <div className="flex flex-col">
+                  {(events ?? []).map((h: EventRow) => (
+                    <div
+                      key={h.id}
+                      className="border-b border-sunken py-3.5 last:border-b-0"
+                    >
+                      <div className="text-[14.5px]">{h.detail || h.action}</div>
+                      <div className="mt-1.5 font-mono text-[11.5px] text-ink-muted">
+                        {/* actor_id is the reliable attribution; actor is the
+                            readable fallback for the visitor and for
+                            service-role writes, which have no person. */}
+                        {h.actor_id ? memberName(byId.get(h.actor_id)) : h.actor}
+                        {" · "}
+                        {formatWhen(h.created_at)} UTC
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
 
         <aside className="flex flex-col gap-5 max-lg:order-1">
@@ -219,52 +287,14 @@ export default async function LeadDetailPage(
             </CardContent>
           </Card>
 
-          <Card className="gap-0 overflow-hidden rounded-md py-0">
-            <div className="border-b border-line bg-sunken px-gutter-sm py-3 font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
-              Record history
-            </div>
-            {(events ?? []).length === 0 && (
-              <div className="px-gutter-sm py-[13px] text-sm text-ink-muted">
-                Nothing yet.
-              </div>
-            )}
-            {(events ?? []).map((h: EventRow) => (
-              <div
-                key={h.id}
-                className="border-b border-sunken px-gutter-sm py-[13px] last:border-b-0"
-              >
-                <div className="text-sm">{h.detail || h.action}</div>
-                <div className="mt-1 font-mono text-[11.5px] text-ink-muted">
-                  {h.actor} · {formatWhen(h.created_at)}
-                </div>
-              </div>
-            ))}
-          </Card>
-
-          <Card className="gap-0 rounded-md py-row-x">
-            <CardContent className="px-row-x">
-              <div className="font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
-                Assigned
-              </div>
-              {/*
-                Reads the real value. This card previously hardcoded
-                "Unassigned" next to copy saying assignment was still to come,
-                which meant a lead assigned directly in the database showed as
-                unowned and two people could work it in parallel.
-
-                The controls to change it are still to come; until then the
-                copy says what is true rather than what is planned.
-              */}
-              <div className="mt-3 text-[14.5px] font-semibold">
-                {lead.assigned_to ? memberName(owner) : "Unassigned"}
-              </div>
-              <div className="mt-3 text-[13px] leading-normal text-ink-muted">
-                {lead.assigned_to
-                  ? "Reassigning from the console arrives with the pipeline controls."
-                  : "Nobody owns this lead yet."}
-              </div>
-            </CardContent>
-          </Card>
+          <PipelineCard
+            submissionId={lead.id}
+            stage={lead.lead_stage}
+            assigneeId={lead.assigned_to}
+            stages={stages}
+            members={members}
+            viewerId={ctx.userId}
+          />
         </aside>
       </div>
     </main>
