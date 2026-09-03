@@ -66,7 +66,7 @@ export default async function TeamPage() {
   const removed = members.filter((m) => m.deactivated_at);
 
   return (
-    <main className="mx-auto max-w-[1400px] px-gutter pb-20 pt-8 max-sm:px-gutter-sm">
+    <main className="pv-page mx-auto max-w-[1400px] px-gutter pb-20 pt-8 max-sm:px-gutter-sm">
       <div>
         <h1 className="font-display text-[30px] font-semibold tracking-[-.022em]">
           Team
@@ -117,7 +117,7 @@ export default async function TeamPage() {
             <h2 className="font-display text-[19px] font-semibold tracking-[-.015em]">
               Team activity
             </h2>
-            <div className="mt-3.5 rounded-md border border-line bg-raised">
+            <div className="mt-3.5 rounded-md border border-line bg-raised" data-rows>
               {events.length === 0 ? (
                 <div className="px-gutter-sm py-[13px] text-sm text-ink-muted">
                   Nothing yet.

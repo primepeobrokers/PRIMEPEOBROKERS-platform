@@ -99,7 +99,7 @@ export function NotesCard({
         </Button>
       </div>
 
-      <div className="mt-5 flex flex-col">
+      <div className="mt-5 flex flex-col" data-rows>
         {notes.length === 0 && (
           <div className="rounded-md border border-dashed border-line px-4 py-6 text-center text-sm text-ink-muted">
             No notes yet. Anything you record here stays with the lead.

@@ -103,10 +103,7 @@ export default async function LeadDetailPage(
   }
 
   return (
-    <main
-      className="mx-auto max-w-[1400px] px-gutter pb-[90px] pt-7 max-sm:px-gutter-sm"
-      style={{ animation: "pv-in 250ms var(--pv-ease) both" }}
-    >
+    <main className="pv-page mx-auto max-w-[1400px] px-gutter pb-[90px] pt-7 max-sm:px-gutter-sm">
       <LogOpen submissionId={lead.id} />
 
       <Link
@@ -231,7 +228,7 @@ export default async function LeadDetailPage(
                   Nothing recorded yet.
                 </div>
               ) : (
-                <div className="flex flex-col">
+                <div className="flex flex-col" data-rows>
                   {(events ?? []).map((h: EventRow) => (
                     <div
                       key={h.id}

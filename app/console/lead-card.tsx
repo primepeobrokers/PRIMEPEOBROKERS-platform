@@ -34,7 +34,7 @@ export function LeadCard({
   return (
     <Link
       href={`/console/leads/${row.id}`}
-      className="block border-b border-sunken px-gutter-sm py-4 transition-colors duration-150 last:border-b-0 active:bg-tint"
+      className="block border-b border-sunken px-gutter-sm py-4 transition-colors duration-150 last:border-b-0 hover:bg-sunken active:bg-sunken"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">

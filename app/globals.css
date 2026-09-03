@@ -496,6 +496,47 @@ body {
   transform: none;
 }
 
+/*
+  Console motion.
+
+  The landing page earns drama; the console earns the opposite. Three moves
+  only, all under 320ms, all on the same deceleration curve, so the console
+  feels like one continuous surface rather than a slideshow:
+
+    .pv-page          a route arriving: short rise, then still
+    [data-rows]       table rows and list items landing in reading order
+    tabs-content      switching tabs fades in instead of snapping
+
+  Row stagger is CSS-only and capped at the twelfth child. Past that the eye
+  has stopped following individual rows, and an uncapped stagger makes page 2
+  of a long table feel slower than page 1 for no reason.
+
+  The prefers-reduced-motion block below zeroes all of this out.
+*/
+.pv-page {
+  animation: pv-in 300ms var(--pv-ease-out) both;
+}
+
+[data-rows] > * {
+  animation: pv-row 260ms var(--pv-ease-out) backwards;
+}
+[data-rows] > :nth-child(1)  { animation-delay: 0ms; }
+[data-rows] > :nth-child(2)  { animation-delay: 22ms; }
+[data-rows] > :nth-child(3)  { animation-delay: 44ms; }
+[data-rows] > :nth-child(4)  { animation-delay: 66ms; }
+[data-rows] > :nth-child(5)  { animation-delay: 88ms; }
+[data-rows] > :nth-child(6)  { animation-delay: 110ms; }
+[data-rows] > :nth-child(7)  { animation-delay: 132ms; }
+[data-rows] > :nth-child(8)  { animation-delay: 154ms; }
+[data-rows] > :nth-child(9)  { animation-delay: 176ms; }
+[data-rows] > :nth-child(10) { animation-delay: 198ms; }
+[data-rows] > :nth-child(11) { animation-delay: 220ms; }
+[data-rows] > :nth-child(n + 12) { animation-delay: 240ms; }
+
+[data-slot="tabs-content"] {
+  animation: pv-in 220ms var(--pv-ease-out) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

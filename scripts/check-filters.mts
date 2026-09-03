@@ -176,5 +176,28 @@ ok(/assignee === ASSIGNEE_ME[\s\S]{0,120}?\.eq\("assigned_to"/.test(listPage),
    "shows every lead in the tenant while the UI claims a filter is active");
 console.log("ok the list page supplies every allowlist parseLeadFilters needs");
 
+
+/*
+  The pagination window. First and last page always present, the current page
+  never swallowed by an ellipsis, and a "gap" of exactly one page rendered as
+  the page itself (an ellipsis standing in for a single number is silly).
+*/
+import { pageWindow } from "../app/console/leads-pagination";
+
+const windows: [number, number, (number | "gap")[]][] = [
+  [1, 1, [1]],
+  [3, 5, [1, 2, 3, 4, 5]],
+  [1, 5, [1, 2, "gap", 5]],
+  [10, 20, [1, "gap", 9, 10, 11, "gap", 20]],
+  [4, 7, [1, 2, 3, 4, 5, 6, 7]],
+  [20, 20, [1, "gap", 19, 20]],
+];
+for (const [page, total, want] of windows) {
+  const got = pageWindow(page, total);
+  ok(JSON.stringify(got) === JSON.stringify(want),
+     `pageWindow(${page}, ${total}) = ${JSON.stringify(got)}, want ${JSON.stringify(want)}`);
+}
+console.log(`ok ${windows.length} pagination windows shape correctly`);
+
 if (fails) { console.log(`\n${fails} check(s) failed`); process.exit(1); }
 console.log("check-filters: pass");

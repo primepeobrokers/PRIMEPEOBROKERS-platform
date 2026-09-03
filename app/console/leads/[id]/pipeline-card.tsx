@@ -1,5 +1,7 @@
 "use client";
 
+import { Loader2Icon } from "lucide-react";
+
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/app/components/ui/card";
@@ -116,8 +118,21 @@ export function PipelineCard({
   return (
     <Card className="gap-0 rounded-md py-row-x">
       <CardContent className="px-row-x">
-        <div className="font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
+        <div className="flex items-center justify-between font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
           Pipeline
+          {/*
+            role="status" so the save is announced, not only shown: the toast
+            lives at the bottom corner and the Select the user just operated
+            goes disabled underneath them, which otherwise reads as stuck.
+          */}
+          <span role="status" className="normal-case tracking-normal">
+            {pending && (
+              <span className="inline-flex items-center gap-1.5 text-[11px]">
+                <Loader2Icon className="size-3 animate-spin" />
+                Saving
+              </span>
+            )}
+          </span>
         </div>
 
         <div className="mt-3.5 flex flex-col gap-3.5">

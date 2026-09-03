@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon, Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -56,6 +56,10 @@ export function StagesCard({
   counts: Record<string, number>;
 }) {
   const [pending, startTransition] = useTransition();
+  // The stage the in-flight mutation belongs to, so its row can show a
+  // spinner while every control is disabled. See members-table for the
+  // reasoning; it is the same trade.
+  const [actingId, setActingId] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [label, setLabel] = useState("");
   const [tone, setTone] = useState<StageTone>("neutral");
@@ -106,6 +110,7 @@ export function StagesCard({
   const saveEdit = (s: Stage) => {
     const problem = validateStageLabel(label, stages, { ignoreId: s.id });
     if (problem) return setError(problem);
+    setActingId(s.id);
     run(() => renameStage({ stageId: s.id, label: label.trim(), tone }), () =>
       setEditing(null),
     );
@@ -134,6 +139,7 @@ export function StagesCard({
     const target = index + delta;
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
+    setActingId(live[index].id);
     inFlight.current = true;
     run(
       () => reorderStages({ orderedIds: next.map((s) => s.id) }),
@@ -164,7 +170,7 @@ export function StagesCard({
 
   return (
     <>
-      <div className="overflow-hidden rounded-md border border-line bg-raised">
+      <div className="overflow-hidden rounded-md border border-line bg-raised" data-rows>
         {live.map((s, i) => (
           <div
             key={s.id}
@@ -262,7 +268,13 @@ export function StagesCard({
                   </div>
                 </div>
 
-                <div className="flex shrink-0 gap-1.5">
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {pending && actingId === s.id && (
+                    <Loader2Icon
+                      aria-label="Saving"
+                      className="size-3.5 animate-spin text-ink-muted"
+                    />
+                  )}
                   <Button
                     variant="ghost"
                     size="sm"
@@ -375,8 +387,14 @@ export function StagesCard({
                   variant="outline"
                   size="sm"
                   disabled={pending}
-                  onClick={() => run(() => restoreStage({ stageId: s.id }))}
+                  onClick={() => {
+                    setActingId(s.id);
+                    run(() => restoreStage({ stageId: s.id }));
+                  }}
                 >
+                  {pending && actingId === s.id && (
+                    <Loader2Icon className="size-3.5 animate-spin" />
+                  )}
                   Restore
                 </Button>
               </div>
@@ -428,6 +446,7 @@ export function StagesCard({
                 const target = retiring;
                 if (!target) return;
                 setRetiring(null);
+                setActingId(target.id);
                 run(() => retireStage({ stageId: target.id, moveTo }));
               }}
             >

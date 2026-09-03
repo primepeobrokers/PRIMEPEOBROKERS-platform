@@ -27,6 +27,7 @@ import { LeadFilters } from "./lead-filters";
 import { LeadCard } from "./lead-card";
 import { LeadRow } from "./lead-row";
 import { LeadsTableSkeleton } from "./leads-skeleton";
+import { LeadsPagination } from "./leads-pagination";
 import { Button } from "@/app/components/ui/button";
 import {
   Empty,
@@ -73,7 +74,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
   });
 
   return (
-    <main className="mx-auto max-w-[1400px] px-gutter pb-20 pt-8 max-sm:px-gutter-sm">
+    <main className="pv-page mx-auto max-w-[1400px] px-gutter pb-20 pt-8 max-sm:px-gutter-sm">
       <div className="flex flex-wrap items-end justify-between gap-7">
         <div>
           <h1 className="font-display text-[30px] font-semibold tracking-[-.022em]">
@@ -312,7 +313,7 @@ async function LeadsTable({
       <div className="overflow-hidden rounded-md border border-line bg-raised">
         {/* Cards below the table breakpoint: a fixed-layout table cannot
             reflow into anything readable at phone widths. */}
-        <div className="hidden max-md:block">
+        <div className="hidden max-md:block" data-rows>
           {rows.map((r) => (
             <LeadCard
               key={r.id}
@@ -340,7 +341,7 @@ async function LeadsTable({
               </TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody data-rows>
             {rows.map((r) => (
               <LeadRow
                 key={r.id}
@@ -354,43 +355,14 @@ async function LeadsTable({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-5 font-mono text-xs text-ink-muted">
-        <div>
-          Showing {from + 1}–{from + rows.length} of {filteredCount}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            asChild={page > 1}
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            className="font-mono text-[11.5px]"
-          >
-            {page > 1 ? (
-              <Link href={`/console${leadFiltersToQuery({ ...filters, page: page - 1 })}`}>
-                PREV
-              </Link>
-            ) : (
-              <span>PREV</span>
-            )}
-          </Button>
-          <Button
-            asChild={from + rows.length < filteredCount}
-            variant="outline"
-            size="sm"
-            disabled={from + rows.length >= filteredCount}
-            className="font-mono text-[11.5px]"
-          >
-            {from + rows.length < filteredCount ? (
-              <Link href={`/console${leadFiltersToQuery({ ...filters, page: page + 1 })}`}>
-                NEXT
-              </Link>
-            ) : (
-              <span>NEXT</span>
-            )}
-          </Button>
-        </div>
-      </div>
+      <LeadsPagination
+        filters={filters}
+        page={page}
+        totalPages={Math.max(1, Math.ceil(filteredCount / PAGE_SIZE))}
+        from={from}
+        shown={rows.length}
+        total={filteredCount}
+      />
     </>
   );
 }

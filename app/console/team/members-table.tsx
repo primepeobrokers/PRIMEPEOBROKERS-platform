@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/app/components/ui/badge";
 import { Button } from "@/app/components/ui/button";
@@ -53,6 +54,13 @@ export function MembersTable({
   leadCounts: Record<string, number>;
 }) {
   const [pending, startTransition] = useTransition();
+  /*
+    Which row the in-flight mutation belongs to. Every control still disables
+    while anything is pending (two concurrent team mutations racing each other
+    is exactly what the server locks exist to prevent), but the acting row
+    shows a spinner so the freeze reads as "saving" rather than "broken".
+  */
+  const [actingId, setActingId] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Member | null>(null);
   const [reassignTo, setReassignTo] = useState<string>(UNASSIGNED);
 
@@ -82,7 +90,7 @@ export function MembersTable({
               <TableHead className="w-[110px]" />
             </TableRow>
           </TableHeader>
-          <TableBody>
+          <TableBody data-rows>
             {active.map((m) => {
               const isViewer = m.id === viewerId;
               // Disabled when they are the only admin left: the server refuses
@@ -123,14 +131,15 @@ export function MembersTable({
                     <Select
                       value={m.role}
                       disabled={pending || isViewer || lastAdmin}
-                      onValueChange={(v) =>
+                      onValueChange={(v) => {
+                        setActingId(m.id);
                         run(() =>
                           changeRole({
                             profileId: m.id,
                             role: v === "admin" ? "admin" : "member",
                           }),
-                        )
-                      }
+                        );
+                      }}
                     >
                       <SelectTrigger
                         className="w-full"
@@ -149,6 +158,12 @@ export function MembersTable({
                     {leadCounts[m.id] ?? 0}
                   </TableCell>
                   <TableCell>
+                    {pending && actingId === m.id && (
+                      <Loader2Icon
+                        aria-label="Saving"
+                        className="mr-1 inline size-3.5 animate-spin text-ink-muted"
+                      />
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"
@@ -203,8 +218,14 @@ export function MembersTable({
                     variant="outline"
                     size="sm"
                     disabled={pending}
-                    onClick={() => run(() => restoreTeammate({ profileId: m.id }))}
+                    onClick={() => {
+                      setActingId(m.id);
+                      run(() => restoreTeammate({ profileId: m.id }));
+                    }}
                   >
+                    {pending && actingId === m.id && (
+                      <Loader2Icon className="size-3.5 animate-spin" />
+                    )}
                     Restore
                   </Button>
                 </div>
@@ -268,6 +289,7 @@ export function MembersTable({
                 const target = removing;
                 if (!target) return;
                 setRemoving(null);
+                setActingId(target.id);
                 run(() =>
                   removeTeammate({
                     profileId: target.id,
