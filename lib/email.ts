@@ -389,6 +389,77 @@ export async function sendSubmissionConfirmation(input: {
   if (error) console.error("[email] send failed:", error.message);
 }
 
+/**
+ * Invites a teammate to the console.
+ *
+ * Sent through Resend rather than Supabase's mailer, for the same reasons as
+ * the reset code: the brand's own sender and template instead of
+ * "Supabase Auth <noreply@mail.app.supabase.io>", and no per-hour cap. The
+ * accept link comes from auth.admin.generateLink, so the token and the
+ * acceptance flow are exactly what the stock mailer would have sent.
+ *
+ * Delivery is reported like the reset code: the caller creates an auth user
+ * before sending, and has to know whether to keep it.
+ */
+export function composeTeamInvite(input: {
+  acceptUrl: string;
+  invitedBy: string;
+  role: "admin" | "member";
+}): ComposedEmail {
+  const inviter = escapeHtml(input.invitedBy);
+  const roleLine =
+    input.role === "admin"
+      ? "You are joining as an admin, so you can also manage the team and the pipeline."
+      : "You are joining as a team member.";
+
+  return {
+    subject: `${input.invitedBy} invited you to Prime PEO Brokers`,
+    text: [
+      `${input.invitedBy} invited you to the Prime PEO Brokers console, where the team works incoming leads. ${roleLine}`,
+      ``,
+      `Accept the invitation and set your password: ${input.acceptUrl}`,
+      ``,
+      `The link works once. If it has expired by the time you use it, ask to be invited again.`,
+      `Not expecting this? Ignore this email and nothing happens.`,
+    ].join("\n"),
+    html: renderEmail({
+      preheader: "Accept to set your password.",
+      heading: "You're invited",
+      bodyHtml:
+        para(
+          `${inviter} invited you to the Prime PEO Brokers console, where the team works incoming leads. ${roleLine}`,
+        ) +
+        button(input.acceptUrl, "Accept invitation") +
+        `<p style="margin:14px 0 0;font-family:${FONT};font-size:13px;line-height:1.6;color:#808693;">Or paste this into your browser:<br/><a href="${input.acceptUrl}" style="color:#63697A;word-break:break-all;">${input.acceptUrl}</a></p>`,
+      footerLines: [
+        "The link works once and takes you straight to setting a password. If it has expired by the time you use it, ask to be invited again.",
+        "Not expecting this? Ignore this email and nothing happens.",
+      ],
+    }),
+  };
+}
+
+export async function sendTeamInvite(input: {
+  to: string;
+  acceptUrl: string;
+  invitedBy: string;
+  role: "admin" | "member";
+}): Promise<{ ok: boolean }> {
+  const resend = getResend();
+  if (!resend) return { ok: false };
+
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: input.to,
+    ...composeTeamInvite(input),
+  });
+  if (error) {
+    console.error("[email] invite delivery failed:", error.message);
+    return { ok: false };
+  }
+  return { ok: true };
+}
+
 function escapeHtml(s: string): string {
   return s
     .replaceAll("&", "&amp;")

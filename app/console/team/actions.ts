@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { guardAction } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { sendTeamInvite } from "@/lib/email";
 
 /**
  * Team management. Every action is admin-only, enforced three times over:
@@ -84,38 +85,56 @@ export async function inviteTeammate(input: {
     };
   }
 
+  /*
+    The invite goes out through Resend on the brand's sender, not Supabase's
+    mailer: generateLink creates the auth user and the accept token without
+    sending anything, and the branded template in lib/email.ts carries the
+    link. The token and the acceptance flow are exactly what the stock mailer
+    would have sent; only the envelope changed. This also removes the
+    per-hour cap on Supabase's mailer that the old path was subject to.
+
+    Order matters here. Resend availability is checked first (via the send
+    result), and a failed delivery deletes the just-created auth user:
+    generateLink is not idempotent, so leaving the user behind would make
+    every retry fail with "already registered" for someone who never got a
+    mail. The delete cascades the profile row, restoring a clean slate.
+  */
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-    data: { full_name: fullName || null, role, tenant_id: ctx.tenantId },
-    redirectTo: `${siteUrl()}/auth/confirm?type=invite`,
+  const { data: linkData, error } = await admin.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: {
+      data: { full_name: fullName || null, role, tenant_id: ctx.tenantId },
+      redirectTo: `${siteUrl()}/auth/confirm?type=invite`,
+    },
   });
 
-  if (error) {
-    /*
-      Map the GoTrue failures that actually happen, because the raw messages
-      are not something to show a client's office manager.
-
-      Note invites go out through Supabase's mailer, not Resend, and it is
-      rate limited per hour. lib/auth/reset-otp.ts exists precisely because of
-      that cap. Invite volume is low so this is acceptable, but a bulk
-      onboarding session will hit it, and the fix is the generateLink + Resend
-      pattern from that file.
-    */
-    const raw = error.message.toLowerCase();
-    if (raw.includes("rate") || raw.includes("limit")) {
-      return {
-        error:
-          "Too many invites sent in the last hour. Wait a little and try the rest.",
-      };
-    }
+  if (error || !linkData?.properties?.action_link) {
+    const raw = (error?.message ?? "").toLowerCase();
     if (raw.includes("already been registered") || raw.includes("already registered")) {
       return {
         error:
           "That address already has an account elsewhere. Ask them to sign in, or use a different address.",
       };
     }
-    console.error("[team] invite failed", error);
-    return { error: "Could not send the invite. Try again shortly." };
+    console.error("[team] invite link generation failed", error);
+    return { error: "Could not create the invite. Try again shortly." };
+  }
+
+  const delivery = await sendTeamInvite({
+    to: email,
+    acceptUrl: linkData.properties.action_link,
+    invitedBy: ctx.fullName || ctx.email || "A teammate",
+    role,
+  });
+
+  if (!delivery.ok) {
+    try {
+      await admin.auth.admin.deleteUser(linkData.user.id);
+    } catch (e) {
+      console.error("[team] cleanup after failed invite delivery", e);
+    }
+    return { error: "Could not send the invite email. Try again shortly." };
   }
 
   await logTeamEvent(ctx.tenantId, ctx, "invited", `${email} invited as ${role}`);
