@@ -50,7 +50,7 @@ export function LeadRow({
         if (window.getSelection()?.toString()) return;
         router.push(href);
       }}
-      className="cursor-pointer"
+      className="cursor-pointer focus-within:bg-sunken"
     >
       <TableCell className="font-mono text-[13px] text-ink-muted">
         {row.ref}
@@ -59,7 +59,7 @@ export function LeadRow({
       <TableCell>
         <Link
           href={href}
-          className="block truncate text-[15px] font-semibold text-ink hover:text-accent-press focus-visible:text-accent-press"
+          className="block truncate rounded-sm text-[15px] font-semibold text-ink outline-none hover:text-accent-press focus-visible:text-accent-press focus-visible:ring-[3px] focus-visible:ring-ring/50"
           onClick={(e) => e.stopPropagation()}
         >
           {row.company_name || "Unnamed company"}

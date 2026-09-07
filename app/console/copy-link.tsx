@@ -4,6 +4,8 @@ import { useState } from "react";
 import { CheckIcon, LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { cn } from "@/lib/utils";
+
 /**
  * Copies the public discovery-flow URL to the clipboard.
  *
@@ -23,7 +25,10 @@ export function CopyDiscoveryLink({ className }: { className?: string }) {
   return (
     <button
       type="button"
-      className={className}
+      className={cn(
+        "outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        className,
+      )}
       disabled={busy}
       onClick={async () => {
         if (busy) return; // double-click should not fire two writes

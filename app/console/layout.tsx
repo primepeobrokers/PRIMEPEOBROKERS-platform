@@ -82,11 +82,18 @@ export default async function ConsoleLayout({
           </div>
           <div className="flex items-center gap-3.5">
             <SignOutButton action={signOut} />
+            {/*
+              title= alone never reaches a screen reader or a touch user, so
+              the signed-in identity was visible only as two ambiguous letters.
+              The full name is exposed as text; the initials are the decorative
+              rendering of it.
+            */}
             <div
               title={name}
               className="flex h-[26px] w-[26px] items-center justify-center rounded-sm bg-dark-line font-mono text-[11px] text-dark-ink-soft"
             >
-              {initials}
+              <span className="sr-only">Signed in as {name}</span>
+              <span aria-hidden="true">{initials}</span>
             </div>
           </div>
         </div>
