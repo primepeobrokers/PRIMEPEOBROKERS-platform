@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check": "tsc --noEmit && eslint && npx tsx scripts/check-branching.mts && npx tsx scripts/check-submit.mts && npx tsx scripts/check-columns.mts && npx tsx scripts/check-filters.mts && npx tsx scripts/check-stages.mts && npx tsx scripts/check-actions.mts && npx tsx scripts/check-tenant.mts && npx tsx scripts/check-proxy.mts"
+    "check": "tsc --noEmit && eslint && npx tsx scripts/check-branching.mts && npx tsx scripts/check-submit.mts && npx tsx scripts/check-columns.mts && npx tsx scripts/check-filters.mts && npx tsx scripts/check-stages.mts && npx tsx scripts/check-actions.mts && npx tsx scripts/check-tenant.mts && npx tsx scripts/check-proxy.mts && npx tsx scripts/test-unit.mts",
+    "test:unit": "npx tsx scripts/test-unit.mts",
+    "test:integration": "npx tsx scripts/test-integration.mts",
+    "test:cleanup": "npx tsx scripts/test-integration.mts --cleanup",
+    "test": "npx tsx scripts/test-unit.mts && npx tsx scripts/test-integration.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",
