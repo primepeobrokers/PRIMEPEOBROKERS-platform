@@ -26,6 +26,7 @@ import { LogOpen } from "./log-open";
 import { EmailClientButton } from "./email-client-button";
 import { NotesCard } from "./notes-card";
 import { PipelineCard } from "./pipeline-card";
+import { RouteCard, type RouteTarget } from "./route-card";
 import type { NoteView } from "@/lib/console/notes";
 import { Badge } from "@/app/components/ui/badge";
 import { Card, CardContent } from "@/app/components/ui/card";
@@ -68,7 +69,7 @@ export default async function LeadDetailPage(
   if (!lead) notFound();
 
   // Independent of each other, so they overlap rather than queue.
-  const [ctx, stages, members, { data: events }, { data: noteRows }] =
+  const [ctx, stages, members, { data: events }, { data: noteRows }, { data: tenantRows }, { data: owner }] =
     await Promise.all([
       requireUser(`/console/leads/${id}`),
       fetchStages(),
@@ -85,9 +86,47 @@ export default async function LeadDetailPage(
         .eq("submission_id", id)
         .order("created_at", { ascending: false })
         .limit(50),
+      /*
+        Routing targets. RLS returns every tenant for platform staff and one
+        for anyone else, so this is safe regardless of who is asking; the card
+        below is still gated on isPlatformStaff, because a partner admin
+        seeing a one-option "route to" control would be confusing rather than
+        dangerous.
+      */
+      supabase
+        .from("tenants")
+        .select("id, name, branding, is_house, suspended_at")
+        .is("suspended_at", null)
+        .order("name", { ascending: true }),
+      /*
+        tenant_id, read separately on purpose. SUBMISSION_DETAIL_SELECT must
+        stay "the list columns plus answers, in order" (check-columns.mts
+        asserts it) and must stay a string literal, because supabase-js infers
+        the row type by parsing it at the type level.
+      */
+      supabase.from("submissions").select("tenant_id").eq("id", id).maybeSingle(),
     ]);
 
   const notes = (noteRows ?? []) as NoteView[];
+
+  /*
+    A partner's display name, not its registered name: the person routing a
+    lead recognises "Acme Brokers" from the portal, not the legal entity.
+  */
+  const routeTargets: RouteTarget[] = (tenantRows ?? []).map((t) => {
+    const row = t as {
+      id: string;
+      name: string;
+      branding: unknown;
+      is_house: boolean | null;
+    };
+    const b = row.branding as { companyName?: string } | null;
+    return {
+      id: row.id,
+      name: b?.companyName || row.name,
+      isHouse: row.is_house === true,
+    };
+  });
   // Resolved once: the activity list would otherwise scan the roster per row.
   const byId = new Map(members.map((m) => [m.id, m]));
   const answers = (lead.answers ?? {}) as Answers;
@@ -287,6 +326,14 @@ export default async function LeadDetailPage(
             members={members}
             viewerId={ctx.userId}
           />
+
+          {ctx.isPlatformStaff && (
+            <RouteCard
+              submissionId={lead.id}
+              currentTenantId={owner?.tenant_id ?? ""}
+              targets={routeTargets}
+            />
+          )}
         </aside>
       </div>
     </main>

@@ -613,6 +613,226 @@ try {
     equal(cp.data?.tenant_id, a.tenantId, "and it lands on the inviting partner's tenant");
   }
 
+
+  // =========================================================================
+  describe("partner administration RPCs (0011)");
+  // =========================================================================
+  /*
+    Every function here is cross-tenant by nature, so none of them is guarded
+    by RLS: each re-derives the caller and checks is_platform_staff itself.
+    That makes "a partner cannot call them" the property worth testing, not an
+    implementation detail.
+  */
+  const probe = await admin.rpc("route_submission", {
+    p_submission_id: a.leadId,
+    p_to_tenant: a.tenantId,
+  });
+  const has0011 = !(probe.error?.code === "PGRST202");
+
+  if (!has0011) {
+    skip("partner administration", "migration 0011 is not applied");
+  } else {
+    // --- a partner must not be able to administer anything ---------------
+    for (const [fn, args] of [
+      ["create_partner", { p_slug: "zz-test-evil", p_name: "Evil" }],
+      ["set_partner_branding", { p_tenant_id: b.tenantId, p_branding: { companyName: "Hijacked" } }],
+      ["set_partner_suspended", { p_tenant_id: b.tenantId, p_suspended: true }],
+      ["route_submission", { p_submission_id: b.leadId, p_to_tenant: a.tenantId }],
+    ] as const) {
+      const r = await a.session.rpc(fn, args as Record<string, unknown>);
+      ok(!!r.error, `a partner admin cannot call ${fn}()`,
+         r.error ? undefined : "it succeeded");
+    }
+
+    // Nothing above may have taken effect.
+    const bAfter = await admin
+      .from("tenants")
+      .select("branding, suspended_at")
+      .eq("id", b.tenantId)
+      .single();
+    equal(bAfter.data?.suspended_at, null, "partner B was not suspended by partner A");
+    equal(JSON.stringify(bAfter.data?.branding), "{}",
+          "partner B's branding was not rewritten by partner A");
+
+    // --- create_partner seeds a usable pipeline --------------------------
+    const created3 = await admin.rpc("create_partner", {
+      p_slug: `${PREFIX}-partner-3`,
+      p_name: "ZZ Test Partner 3",
+    });
+    if (created3.error) {
+      // Service-role has no profile, so require_platform_staff() denies it.
+      // Run it as real staff instead, which is the actual call path.
+      skip("create_partner via service-role", "no profile, so the staff guard denies it");
+    }
+
+    if (staffRow.data?.email) {
+      const staff2 = await sessionFor(staffRow.data.email);
+      if (staff2) {
+        const made = await staff2.rpc("create_partner", {
+          p_slug: `${PREFIX}-partner-3`,
+          p_name: "ZZ Test Partner 3",
+        });
+        if (made.error) {
+          ok(false, "staff can create a partner", made.error.message);
+        } else {
+          const newId = made.data as string;
+          created.tenants.push(newId);
+          ok(!!newId, "staff can create a partner");
+
+          const seeded = await admin
+            .from("lead_stages")
+            .select("slug", { count: "exact", head: true })
+            .eq("tenant_id", newId);
+          equal(seeded.count, 4,
+                "create_partner seeds four stages, so the subdomain can accept a lead");
+
+          // The whole point of seeding: an insert must succeed immediately.
+          const firstLead = await admin
+            .from("submissions")
+            .insert({
+              tenant_id: newId,
+              answers: { company: "ZZ First" },
+              steps_completed: 1,
+              intent: "shop",
+            })
+            .select("id, lead_stage")
+            .single();
+          equal(firstLead.data?.lead_stage, "new",
+                "a brand-new partner accepts a submission with no further setup");
+          if (firstLead.data?.id) {
+            await admin.from("submission_events").delete().eq("submission_id", firstLead.data.id);
+            await admin.from("submissions").delete().eq("id", firstLead.data.id);
+          }
+
+          // --- reserved and duplicate slugs -----------------------------
+          for (const bad of ["www", "api", "console", "portal"]) {
+            const r = await staff2.rpc("create_partner", { p_slug: bad, p_name: "X" });
+            ok(!!r.error, `create_partner refuses the reserved slug "${bad}"`);
+          }
+          const dupe2 = await staff2.rpc("create_partner", {
+            p_slug: `${PREFIX}-partner-3`,
+            p_name: "Duplicate",
+          });
+          ok(!!dupe2.error, "create_partner refuses a slug already in use");
+          const badSlug = await staff2.rpc("create_partner", {
+            p_slug: "Not_Valid",
+            p_name: "X",
+          });
+          ok(!!badSlug.error, "create_partner refuses a slug the DB could not hold");
+
+          // --- branding -------------------------------------------------
+          const brand = await staff2.rpc("set_partner_branding", {
+            p_tenant_id: newId,
+            p_branding: { companyName: "ZZ Renamed", colors: { accent: "#0055ff" } },
+          });
+          ok(!brand.error, "staff can set partner branding", brand.error?.message);
+          const brandRead = await admin
+            .from("tenants")
+            .select("branding")
+            .eq("id", newId)
+            .single();
+          equal((brandRead.data?.branding as { companyName?: string })?.companyName,
+                "ZZ Renamed", "the branding persisted");
+
+          const badKey = await staff2.rpc("set_partner_branding", {
+            p_tenant_id: newId,
+            p_branding: { notAKey: "x" },
+          });
+          ok(!!badKey.error, "an unknown branding key is refused rather than silently stored");
+
+          // --- suspension ------------------------------------------------
+          const houseId = (await admin.from("tenants").select("id").eq("is_house", true).single()).data?.id;
+          const suspendHouse = await staff2.rpc("set_partner_suspended", {
+            p_tenant_id: houseId,
+            p_suspended: true,
+          });
+          ok(!!suspendHouse.error,
+             "the house tenant cannot be suspended (it would 404 the client's own site)");
+
+          const susp = await staff2.rpc("set_partner_suspended", {
+            p_tenant_id: newId,
+            p_suspended: true,
+          });
+          ok(!susp.error, "staff can suspend a partner", susp.error?.message);
+          const suspRead = await admin
+            .from("tenants")
+            .select("suspended_at")
+            .eq("id", newId)
+            .single();
+          ok(!!suspRead.data?.suspended_at, "suspended_at was set");
+          await staff2.rpc("set_partner_suspended", { p_tenant_id: newId, p_suspended: false });
+
+          // --- routing ---------------------------------------------------
+          /*
+            The lead, its stage, its notes and its events must all move, or the
+            row becomes unreadable to the destination and still visible to the
+            origin. Set up a note and a distinctive stage first so the move has
+            something to get wrong.
+          */
+          await admin.from("submissions").update({ lead_stage: "contacted" }).eq("id", a.leadId);
+          await admin.from("submission_notes").insert({
+            tenant_id: a.tenantId,
+            submission_id: a.leadId,
+            author_id: a.userId,
+            author_name: "ZZ Partner A",
+            body: "history that must travel",
+          });
+
+          const routed = await staff2.rpc("route_submission", {
+            p_submission_id: a.leadId,
+            p_to_tenant: b.tenantId,
+          });
+          ok(!routed.error, "staff can route a lead to another partner", routed.error?.message);
+
+          const movedLead = await admin
+            .from("submissions")
+            .select("tenant_id, lead_stage, assigned_to")
+            .eq("id", a.leadId)
+            .single();
+          equal(movedLead.data?.tenant_id, b.tenantId, "the lead now belongs to partner B");
+          equal(movedLead.data?.lead_stage, "contacted",
+                "its stage survived, because B's pipeline has that slug too");
+
+          const movedNotes = await admin
+            .from("submission_notes")
+            .select("tenant_id")
+            .eq("submission_id", a.leadId);
+          ok((movedNotes.data ?? []).every((n) => (n as { tenant_id: string }).tenant_id === b.tenantId),
+             "its notes moved with it, so the history is not stranded");
+
+          const movedEvents = await admin
+            .from("submission_events")
+            .select("tenant_id")
+            .eq("submission_id", a.leadId);
+          ok((movedEvents.data ?? []).every((e2) => (e2 as { tenant_id: string }).tenant_id === b.tenantId),
+             "its events moved with it");
+
+          // The isolation consequence, which is the whole point.
+          const aSees = await a.session.from("submissions").select("id").eq("id", a.leadId);
+          equal(aSees.data?.length ?? 0, 0, "partner A can no longer see the routed lead");
+          const bSees = await b.session.from("submissions").select("id").eq("id", a.leadId);
+          equal(bSees.data?.length ?? 0, 1, "partner B can now see it");
+
+          const trail = await b.session
+            .from("submission_events")
+            .select("action, detail")
+            .eq("submission_id", a.leadId)
+            .eq("action", "routed")
+            .maybeSingle();
+          ok(!!trail.data, "the move is on the lead's own timeline for the receiving partner");
+
+          const sameTenant = await staff2.rpc("route_submission", {
+            p_submission_id: a.leadId,
+            p_to_tenant: b.tenantId,
+          });
+          ok(!!sameTenant.error, "routing a lead to the tenant it already belongs to is refused");
+
+          await staff2.auth.signOut();
+        }
+      }
+    }
+  }
+
   // =========================================================================
   describe("tenant provisioning invariants");
   // =========================================================================

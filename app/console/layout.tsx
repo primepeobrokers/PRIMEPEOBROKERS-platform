@@ -66,23 +66,14 @@ export default async function ConsoleLayout({
                 <ConsoleNavLink href="/console/team">Team</ConsoleNavLink>
               )}
               {/*
-                A disabled button rather than a <span title>: title text never
-                reaches a keyboard or touch user, so the item read as
-                mysteriously dead. aria-disabled keeps it focusable so the
-                explanation is actually reachable.
+                Platform staff only, not merely an admin: a partner tenant has
+                its own admins, and partner administration is a platform-level
+                act. The route itself calls requireStaff and 404s, so guessing
+                the URL reveals nothing either.
               */}
-              <button
-                type="button"
-                disabled
-                aria-disabled="true"
-                aria-describedby="providers-note"
-                className="cursor-default border-b border-transparent pb-0.5 text-dark-ink-muted/60 max-sm:hidden"
-              >
-                Providers
-              </button>
-              <span id="providers-note" className="sr-only">
-                Providers arrives in a later phase.
-              </span>
+              {ctx.isPlatformStaff && (
+                <ConsoleNavLink href="/console/partners">Partners</ConsoleNavLink>
+              )}
             </nav>
           </div>
           <div className="flex items-center gap-3.5">
