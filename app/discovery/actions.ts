@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { claimRequest, clientIp } from "@/lib/auth/throttle";
-import { DEFAULT_TENANT_ID } from "@/lib/tenant";
+import { currentTenantIdForWrite } from "@/lib/tenant/resolve";
 import {
   TOTAL_STEPS,
   sanitizeAnswers,
@@ -75,11 +75,20 @@ async function loadGuardedDraft(
     return { error: "That draft could not be found." };
   }
   const supabase = createAdminClient();
+  /*
+    The tenant predicate is Phase 3's addition. The (id, resume_token) pair
+    was sufficient while one tenant existed: the token is a DB-generated uuid,
+    so it is not enumerable. It is still not enumerable, but this client is
+    service-role and therefore bypasses RLS, so without the tenant filter a
+    resume link from one partner's subdomain would resolve and update that
+    partner's draft when opened on a different partner's host.
+  */
   const { data, error } = await supabase
     .from("submissions")
     .select("id, resume_token, status, answers, steps_completed")
     .eq("id", handle.draftId)
     .eq("resume_token", handle.token)
+    .eq("tenant_id", await currentTenantIdForWrite())
     .maybeSingle();
   if (error || !data) return { error: "That draft could not be found." };
   return { row: data as DraftRow };
@@ -121,7 +130,10 @@ export async function saveDraft(input: {
     const { data, error } = await supabase
       .from("submissions")
       .insert({
-        tenant_id: DEFAULT_TENANT_ID,
+        // The partner whose subdomain captured this lead. Phase 1 and 2 used
+        // a constant; the resolver falls back to the house tenant on an
+        // unrecognised host, so a lead is never dropped.
+        tenant_id: await currentTenantIdForWrite(),
         answers,
         steps_completed: stepsCompleted,
         intent: input.intent === "renewal" ? "renewal" : "shop",
@@ -153,7 +165,8 @@ export async function saveDraft(input: {
       ...denormalize(answers),
     })
     .eq("id", input.handle.draftId)
-    .eq("resume_token", input.handle.token);
+    .eq("resume_token", input.handle.token)
+    .eq("tenant_id", await currentTenantIdForWrite());
   if (error) {
     console.error("[discovery] draft update failed", error);
     return { ok: false, error: "Saving failed. Your answers are still in this tab. Try again." };
@@ -202,6 +215,7 @@ export async function submitRecord(input: {
     })
     .eq("id", saved.handle.draftId)
     .eq("resume_token", saved.handle.token)
+    .eq("tenant_id", await currentTenantIdForWrite())
     .select("id, ref")
     .single();
   if (error || !data) {
@@ -210,7 +224,9 @@ export async function submitRecord(input: {
   }
 
   await supabase.from("submission_events").insert({
-    tenant_id: DEFAULT_TENANT_ID,
+    // Must match the submission's own tenant: 0006's composite
+    // (tenant_id, submission_id) FK rejects any other value.
+    tenant_id: await currentTenantIdForWrite(),
     submission_id: data.id,
     actor: "client",
     action: "submitted",
@@ -290,7 +306,8 @@ export async function requestResumeLink(input: {
     .from("submissions")
     .update({ resume_email: email })
     .eq("id", saved.handle.draftId)
-    .eq("resume_token", saved.handle.token);
+    .eq("resume_token", saved.handle.token)
+    .eq("tenant_id", await currentTenantIdForWrite());
 
   try {
     await sendResumeLink({

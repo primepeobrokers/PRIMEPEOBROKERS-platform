@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireUser } from "@/lib/auth/session";
+import { requireStaff } from "@/lib/auth/session";
 import { Logo } from "@/app/components/logo";
 import { signOut } from "@/app/login/actions";
 import { Toaster } from "@/app/components/ui/sonner";
@@ -16,11 +16,16 @@ export default async function ConsoleLayout({
   children,
 }: LayoutProps<"/console">) {
   /*
-    requireUser also rejects a deactivated teammate, whose profile row still
+    requireStaff also rejects a deactivated teammate, whose profile row still
     exists so their name keeps resolving in old notes and events. Removal
     therefore takes effect on the next request rather than at token expiry.
+
+    Staff, not merely signed in: the console is Prime PEO Brokers' own
+    workflow tooling. A partner user reaching this URL gets a 404 rather than
+    a half-rendered console full of empty panels, which is what RLS alone
+    would produce.
   */
-  const ctx = await requireUser("/console");
+  const ctx = await requireStaff("/console");
 
   const name = ctx.fullName || ctx.email || "";
   const firstName = (ctx.fullName || "").trim().split(/\s+/)[0] || "";

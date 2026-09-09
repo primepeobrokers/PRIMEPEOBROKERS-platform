@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { classifyHost } from "@/lib/tenant/host";
 import {
   RESET_CODE_LENGTH,
   RESET_CODE_TTL_MINUTES,
@@ -33,8 +34,26 @@ export async function signIn(input: {
     };
   }
 
+  /*
+    Where to land. Still an allowlist of path PREFIXES, never "any path the
+    caller sent": `next` arrives from a query string, so accepting it wholesale
+    would be an open redirect (`//evil.example` is a protocol-relative URL that
+    browsers treat as absolute).
+
+    A partner has no console, so on a partner host the destination is their own
+    portal instead. classifyHost reads the Host header, which the client cannot
+    use to reach a route it is not already on.
+  */
+  const host = classifyHost((await headers()).get("host"));
+  const home = host.kind === "partner" ? "/portal" : "/console";
+  const allowed = host.kind === "partner"
+    ? ["/portal"]
+    : ["/console"];
+
   const next =
-    input.next && input.next.startsWith("/console") ? input.next : "/console";
+    input.next && allowed.some((p) => input.next!.startsWith(p))
+      ? input.next
+      : home;
   /*
     Both sign-in and sign-out end in a redirect, so a toast fired before it
     would be torn down with the page. The destination is flagged instead and

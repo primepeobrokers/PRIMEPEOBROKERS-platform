@@ -1,8 +1,22 @@
 import type { MetadataRoute } from "next";
+import { headers } from "next/headers";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+import { classifyHost } from "@/lib/tenant/host";
+import { houseOrigin } from "@/lib/tenant/urls";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+/**
+ * Host-aware for the same reason as robots.ts: a partner subdomain must not
+ * publish the house site's URLs.
+ *
+ * A partner portal is entirely behind auth, so its sitemap is empty rather
+ * than absent: an empty sitemap is a valid, honest answer, where a 404 looks
+ * like a misconfiguration.
+ */
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const host = classifyHost((await headers()).get("host"));
+  if (host.kind !== "apex") return [];
+
+  const siteUrl = houseOrigin();
   const lastModified = new Date();
   return [
     { url: siteUrl, lastModified, changeFrequency: "monthly", priority: 1 },

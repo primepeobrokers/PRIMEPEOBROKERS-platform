@@ -114,10 +114,16 @@ export async function setAssignee(input: {
   const supabase = await createClient();
 
   /*
-    Confirm the assignee is a live teammate. RLS already scopes profiles to
-    the caller's tenant, so a cross-tenant id simply returns no row. A
-    deactivated teammate is refused: they cannot sign in, so assigning work to
-    them would park the lead with nobody.
+    Confirm the assignee is a live teammate.
+
+    This check used to rely on RLS scoping profiles to the caller's own
+    tenant, so that a cross-tenant id "simply returned no row". Migration 0009
+    widened the profiles SELECT policy to tenant_scope(), so for platform
+    staff this lookup now returns partner profiles too and that reasoning no
+    longer holds. The real boundary is the submissions_guard_assignee trigger
+    (0009 section 6), which rejects any assignee who is neither in the lead's
+    tenant nor platform staff. This lookup is now only about giving a usable
+    error before the write rather than surfacing a 42501.
   */
   if (assigneeId) {
     const { data: person } = await supabase
@@ -145,6 +151,15 @@ export async function setAssignee(input: {
     .update({ assigned_to: assigneeId })
     .eq("id", submissionId);
   if (error) {
+    /*
+      submissions_guard_assignee (0009) raises a written-for-humans message
+      when the assignee could not legitimately own this lead. Pass it through
+      rather than flattening it to "try again", which would be advice that
+      cannot work. Same pattern as rpcMessage in the team actions.
+    */
+    if (error.message?.includes("cannot own this lead")) {
+      return { error: "That teammate cannot own this lead." };
+    }
     console.error("[console] setAssignee failed", error);
     return { error: "Could not update the owner. Try again." };
   }

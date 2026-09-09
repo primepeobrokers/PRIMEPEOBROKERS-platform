@@ -8,9 +8,21 @@ export type Role = "admin" | "member";
 export interface SessionContext {
   userId: string;
   email: string;
+  /**
+   * The caller's HOME tenant: the one they administer and the one their writes
+   * default to. Since migration 0009 this is no longer what they can READ:
+   * platform staff read every tenant through tenant_scope(). Use
+   * isPlatformStaff, not a tenantId comparison, to decide what to show.
+   */
   tenantId: string;
   role: Role;
   fullName: string | null;
+  /**
+   * Prime PEO Brokers' own team. True means RLS lets this person read every
+   * tenant's leads, which is the Phase 3 requirement that the client "retains
+   * visibility across every partner". A partner user is always false.
+   */
+  isPlatformStaff: boolean;
 }
 
 /**
@@ -35,7 +47,7 @@ export async function getSessionContext(): Promise<SessionContext | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("tenant_id, role, full_name, deactivated_at")
+    .select("tenant_id, role, full_name, deactivated_at, is_platform_staff")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -47,6 +59,7 @@ export async function getSessionContext(): Promise<SessionContext | null> {
     tenantId: profile.tenant_id,
     role: profile.role === "admin" ? "admin" : "member",
     fullName: profile.full_name ?? null,
+    isPlatformStaff: profile.is_platform_staff === true,
   };
 }
 
@@ -74,6 +87,25 @@ export async function requireAdminPage(): Promise<SessionContext> {
   const ctx = await getSessionContext();
   if (!ctx) redirect("/login?next=/console");
   if (ctx.role !== "admin") notFound();
+  return ctx;
+}
+
+/**
+ * Staff context, or a 404. For the console, which is Prime PEO Brokers' own
+ * workflow tooling and not part of what a partner is sold.
+ *
+ * notFound rather than a redirect, for the same reason requireAdminPage uses
+ * it: someone who guesses the URL should not learn whether the route exists.
+ *
+ * This is one of four layers keeping a partner out of /console, and it is the
+ * app-level one that actually matters. The proxy rewrite is convenience and
+ * would be disabled by a matcher typo; RLS is the real boundary and already
+ * denies a partner every row the console would try to render.
+ */
+export async function requireStaff(next = "/console"): Promise<SessionContext> {
+  const ctx = await getSessionContext();
+  if (!ctx) redirect(`/login?next=${encodeURIComponent(next)}`);
+  if (!ctx.isPlatformStaff) notFound();
   return ctx;
 }
 

@@ -10,6 +10,8 @@
  * lockups show.
  */
 
+import { logoUrl, type Branding } from "@/lib/tenant/branding";
+
 const CUBE_RATIO = 266 / 298;
 
 /**
@@ -54,7 +56,12 @@ export function LogoMark({
   size?: number;
   variant?: Variant;
 }) {
-  return <Cube size={size} color={variant === "onAccent" ? "#FFFFFF" : "#FF2D00"} />;
+  return (
+    <Cube
+      size={size}
+      color={variant === "onAccent" ? "#FFFFFF" : "var(--pv-accent)"}
+    />
+  );
 }
 
 /**
@@ -71,7 +78,7 @@ export function Logo({
   variant?: Variant;
 }) {
   const onDark = variant !== "accent";
-  const ink = onDark ? "#FFFFFF" : "#19233B";
+  const ink = onDark ? "#FFFFFF" : "var(--pv-ink)";
   const gap = size * 0.2;
   const type = size * 0.29;
 
@@ -85,7 +92,7 @@ export function Logo({
         lineHeight: 1,
       }}
     >
-      <Cube size={size} color={variant === "onAccent" ? "#FFFFFF" : "#FF2D00"} />
+      <Cube size={size} color={variant === "onAccent" ? "#FFFFFF" : "var(--pv-accent)"} />
       <span
         aria-hidden="true"
         style={{
@@ -115,6 +122,76 @@ export function Logo({
         </span>
         <span style={{ fontWeight: 400 }}>BROKERS</span>
       </span>
+    </span>
+  );
+}
+
+/**
+ * A tenant's own mark.
+ *
+ * The house tenant gets the real lockup. A partner gets their uploaded logo
+ * if they have one, else a typographic wordmark built from their company
+ * name.
+ *
+ * The fallback matters more than the image path: onboarding a partner must
+ * not block on them supplying artwork, so a tenant with empty branding still
+ * renders a legible, correctly-coloured identity from day one.
+ *
+ * The Prime PEO cube is deliberately unreachable for a partner. It is traced
+ * from this client's brand guide and is their trademark, not a generic
+ * placeholder.
+ */
+export function TenantMark({
+  tenant,
+  size = 26,
+  variant = "accent",
+}: {
+  tenant: { isHouse: boolean; name: string; branding: Branding };
+  size?: number;
+  variant?: Variant;
+}) {
+  if (tenant.isHouse) return <Logo size={size} variant={variant} />;
+
+  const name = tenant.branding.companyName ?? tenant.name;
+  const logo = tenant.branding.logo;
+
+  if (logo) {
+    /*
+      A plain <img>, not next/image. next.config.ts sets
+      images.remotePatterns: [] deliberately (a remote host once blew the
+      optimizer's upstream timeout and took the page with it), and one small
+      header logo gains almost nothing from optimisation. Intrinsic width and
+      height are required by parseBranding precisely so this reserves space
+      and does not shift the header on load.
+    */
+    const h = logo.displayHeight ?? Math.min(size, 32);
+    return (
+      /* The optimizer is off by design in next.config.ts, and this is one
+         small header asset with its intrinsic size already declared. */
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={logoUrl(logo.path)}
+        width={Math.round((logo.width / logo.height) * h)}
+        height={h}
+        alt={logo.alt ?? name}
+        style={{ display: "block", flex: "none", height: h, width: "auto" }}
+      />
+    );
+  }
+
+  return (
+    <span
+      style={{
+        fontFamily: "var(--font-archivo), system-ui, sans-serif",
+        fontSize: size * 0.44,
+        fontWeight: 700,
+        letterSpacing: "0.02em",
+        lineHeight: 1,
+        color: variant === "accent" ? "var(--pv-ink)" : "#FFFFFF",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {name}
     </span>
   );
 }

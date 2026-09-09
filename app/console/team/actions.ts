@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { guardAction } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { houseOrigin as siteUrl } from "@/lib/tenant/urls";
 import { createClient } from "@/lib/supabase/server";
 import { sendTeamInvite } from "@/lib/email";
 
@@ -25,9 +26,15 @@ const EMAIL_RE = /^[^@\s]+@[^@\s.]+\.[^@\s]+$/;
 
 export type TeamResult = { error: string } | { ok: true; message?: string };
 
-function siteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-}
+/*
+  The console is staff-only and apex-only (requireStaff plus the proxy
+  rewrite), so an invite sent from here always belongs on the house origin.
+  Using the shared helper rather than a local copy of the env read, so that
+  when partner-side invites arrive they change one function: a partner invite
+  built on the house origin would set the auth cookie on the wrong host, and
+  the invitee would land signed in on the marketing site and signed out of
+  their own portal.
+*/
 
 /**
  * Invites a teammate by email.
@@ -104,7 +111,22 @@ export async function inviteTeammate(input: {
     type: "invite",
     email,
     options: {
-      data: { full_name: fullName || null, role, tenant_id: ctx.tenantId },
+      /*
+        invited_by is what lets handle_new_user DERIVE is_platform_staff
+        (migration 0009). The flag is never read from this metadata: an
+        invitee could otherwise be handed read access to every tenant. The
+        trigger requires the inviter to be platform staff AND the tenant to be
+        the founding one, so a partner admin's invite can only ever produce a
+        partner-scoped account. Omitting this field degrades to a plain
+        member, which is the safe default but also means new staff would lose
+        cross-partner visibility, so it has to be sent.
+      */
+      data: {
+        full_name: fullName || null,
+        role,
+        tenant_id: ctx.tenantId,
+        invited_by: ctx.userId,
+      },
       redirectTo: `${siteUrl()}/auth/confirm?type=invite`,
     },
   });
