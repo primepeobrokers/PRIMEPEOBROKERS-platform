@@ -110,9 +110,18 @@ async function makeUser(
   return data.user.id;
 }
 
+/*
+  The same four stages create_partner seeds. Kept in step deliberately: a
+  fixture with a different pipeline tests a partner that provisioning would
+  never produce, and an earlier three-stage version made the routing test
+  assert the wrong thing (the lead fell back to the default because the
+  destination genuinely lacked 'contacted', which was correct behaviour
+  reported as a failure).
+*/
 const SEED_STAGES = [
   { slug: "new", label: "New", sort_order: 10, is_default: true, is_terminal: false, tone: "neutral" },
   { slug: "in-progress", label: "In progress", sort_order: 20, is_default: false, is_terminal: false, tone: "accent" },
+  { slug: "contacted", label: "Contacted", sort_order: 30, is_default: false, is_terminal: false, tone: "warning" },
   { slug: "closed", label: "Closed", sort_order: 40, is_default: false, is_terminal: true, tone: "positive" },
 ];
 
@@ -205,22 +214,25 @@ async function teardown() {
     }
     await admin.from("submissions").delete().eq("tenant_id", id);
     await admin.from("tenant_events").delete().eq("tenant_id", id);
-    /*
-      The partner-admin RPCs write their audit line against the HOUSE tenant,
-      not the partner: creating or suspending a partner is an action the
-      client's team took, so it belongs in the client's own trail. Deleting by
-      tenant_id therefore misses them, and a test run leaves four rows behind
-      referring to a tenant that no longer exists. Matched on the fixture
-      prefix, so real history is never touched.
-    */
-    await admin
-      .from("tenant_events")
-      .delete()
-      .like("detail", `%${PREFIX}%`);
     await admin.from("lead_stages").delete().eq("tenant_id", id);
     await admin.from("profiles").delete().eq("tenant_id", id);
     await admin.from("tenants").delete().eq("id", id);
   }
+
+  /*
+    Audit rows last, and once, not per tenant.
+
+    The partner-admin RPCs write their line against the HOUSE tenant, because
+    creating or suspending a partner is an action the client's team took and
+    belongs in the client's own trail. So deleting by tenant_id never reaches
+    them. Doing it inside the loop above also missed rows written after the
+    first iteration (routing, and the second tenant's own teardown), which is
+    why an earlier version still left nine behind.
+
+    Matched on the fixture name, which every one of these rows carries, so real
+    history is never touched.
+  */
+  await admin.from("tenant_events").delete().ilike("detail", "%ZZ Test%");
 }
 
 // Handle a bare --cleanup run, for recovering from an interrupted --keep.
@@ -838,6 +850,36 @@ try {
             p_to_tenant: b.tenantId,
           });
           ok(!!sameTenant.error, "routing a lead to the tenant it already belongs to is refused");
+
+          /*
+            The OTHER branch of the stage resolution, asserted explicitly
+            because it was only found by accident: when the destination has no
+            stage with the lead's slug, it must fall to the destination's
+            default rather than carrying a slug the composite FK would reject.
+            Retire 'contacted' on the third partner so the lead cannot keep it.
+          */
+          await admin
+            .from("lead_stages")
+            .update({ retired_at: new Date().toISOString() })
+            .eq("tenant_id", newId)
+            .eq("slug", "contacted");
+
+          const routedAgain = await staff2.rpc("route_submission", {
+            p_submission_id: a.leadId,
+            p_to_tenant: newId,
+          });
+          ok(!routedAgain.error, "the lead routes on to a third partner",
+             routedAgain.error?.message);
+
+          const fellBack = await admin
+            .from("submissions")
+            .select("lead_stage, tenant_id")
+            .eq("id", a.leadId)
+            .single();
+          equal(fellBack.data?.tenant_id, newId, "it moved to the third partner");
+          equal(fellBack.data?.lead_stage, "new",
+                "its stage fell back to the destination's default, because that "
+                  + "pipeline has no live 'contacted'");
 
           await staff2.auth.signOut();
         }
