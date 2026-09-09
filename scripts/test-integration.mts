@@ -205,6 +205,18 @@ async function teardown() {
     }
     await admin.from("submissions").delete().eq("tenant_id", id);
     await admin.from("tenant_events").delete().eq("tenant_id", id);
+    /*
+      The partner-admin RPCs write their audit line against the HOUSE tenant,
+      not the partner: creating or suspending a partner is an action the
+      client's team took, so it belongs in the client's own trail. Deleting by
+      tenant_id therefore misses them, and a test run leaves four rows behind
+      referring to a tenant that no longer exists. Matched on the fixture
+      prefix, so real history is never touched.
+    */
+    await admin
+      .from("tenant_events")
+      .delete()
+      .like("detail", `%${PREFIX}%`);
     await admin.from("lead_stages").delete().eq("tenant_id", id);
     await admin.from("profiles").delete().eq("tenant_id", id);
     await admin.from("tenants").delete().eq("id", id);
