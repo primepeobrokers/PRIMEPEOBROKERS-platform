@@ -7,7 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTeamInvite } from "@/lib/email";
 import { tenantOrigin } from "@/lib/tenant/urls";
-import { contrastRatio, type Branding } from "@/lib/tenant/branding";
+import { contrastRatio, parseBranding, type Branding } from "@/lib/tenant/branding";
+import { brandFor } from "@/lib/tenant/email-brand";
+import { imageInfo } from "@/lib/tenant/image-size";
+import type { SessionContext } from "@/lib/auth/session";
 
 /**
  * Partner administration. Platform staff only, enforced three times over:
@@ -71,12 +74,18 @@ async function guardStaff() {
 export async function createPartner(input: {
   slug: string;
   name: string;
+  /** The partner's work address: reply-to on their leads' mail, and where their new-lead alerts go. */
+  contactEmail?: string;
+  /** Send the first login to this address as part of the same step. */
+  inviteEmail?: string;
 }): Promise<PartnerResult> {
   const guard = await guardStaff();
   if (!guard.ok) return { error: guard.error };
 
   const slug = String(input.slug ?? "").trim().toLowerCase();
   const name = String(input.name ?? "").trim();
+  const contactEmail = String(input.contactEmail ?? "").trim().toLowerCase();
+  const inviteEmail = String(input.inviteEmail ?? "").trim().toLowerCase();
 
   if (!name) return { error: "Give the partner a company name." };
   if (name.length > 200) {
@@ -88,19 +97,62 @@ export async function createPartner(input: {
         "The subdomain must be 2 to 63 characters: lowercase letters, numbers and hyphens only.",
     };
   }
+  if (contactEmail && !EMAIL_RE.test(contactEmail)) {
+    return { error: "That partner email is not a valid address." };
+  }
+  if (inviteEmail && !EMAIL_RE.test(inviteEmail)) {
+    return { error: "That login email is not a valid address." };
+  }
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("create_partner", {
+  const { data: tenantId, error } = await supabase.rpc("create_partner", {
     p_slug: slug,
     p_name: name,
   });
 
-  if (error) return { error: rpcMessage(error.message, "Could not create that partner.") };
+  if (error || typeof tenantId !== "string") {
+    return { error: rpcMessage(error?.message ?? "", "Could not create that partner.") };
+  }
+
+  /*
+    The two follow-ups are separate calls, not part of the create transaction,
+    and that is acceptable: the tenant row exists and is visible in the table
+    whichever of them fails, and both can be redone from the partner's panel.
+    What must NOT be split is the tenant and its stages, and the RPC keeps
+    those together.
+  */
+  const notes: string[] = [];
+
+  if (contactEmail) {
+    const { error: be } = await supabase.rpc("set_partner_branding", {
+      p_tenant_id: tenantId,
+      p_branding: { supportEmail: contactEmail } satisfies Branding,
+    });
+    if (be) {
+      console.error("[partners] contact email not saved on create", be.message);
+      notes.push("their email could not be saved; add it under Branding");
+    }
+  }
+
+  if (inviteEmail) {
+    const sent = await inviteIntoTenant({
+      ctx: guard.ctx,
+      tenant: { id: tenantId, slug, name, branding: contactEmail ? { supportEmail: contactEmail } : {}, isHouse: false },
+      email: inviteEmail,
+      fullName: "",
+    });
+    if ("error" in sent) notes.push(`the login was not sent (${sent.error.replace(/\.$/, "")}); use Issue a login`);
+  }
 
   invalidateTenants();
+  const host = `${slug}.${process.env.NEXT_PUBLIC_APEX_HOST ?? "localhost:3000"}`;
   return {
     ok: true,
-    message: `${name} created. Their portal is ${slug}.${process.env.NEXT_PUBLIC_APEX_HOST ?? "localhost:3000"}`,
+    message: notes.length
+      ? `${name} created at ${host}, but ${notes.join(", and ")}.`
+      : inviteEmail
+        ? `${name} created at ${host}. Login sent to ${inviteEmail}.`
+        : `${name} created. Their portal is ${host}`,
   };
 }
 
@@ -140,7 +192,7 @@ export async function savePartnerBranding(input: {
     return { error: "That short name is too long. Keep it under 40 characters." };
   }
   if (supportEmail && !EMAIL_RE.test(supportEmail)) {
-    return { error: "That support address is not a valid email." };
+    return { error: "That partner email is not a valid address." };
   }
 
   const colors: Record<string, string> = {};
@@ -193,15 +245,10 @@ export async function savePartnerBranding(input: {
   if (Object.keys(colors).length) branding.colors = colors;
 
   // The existing logo survives a colour-only save: the form does not carry it.
-  const supabase = await createClient();
-  const { data: current } = await supabase
-    .from("tenants")
-    .select("branding")
-    .eq("id", tenantId)
-    .maybeSingle();
-  const existingLogo = (current?.branding as Branding | null)?.logo;
+  const existingLogo = (await currentBranding(tenantId)).logo;
   if (existingLogo) branding.logo = existingLogo;
 
+  const supabase = await createClient();
   const { error } = await supabase.rpc("set_partner_branding", {
     p_tenant_id: tenantId,
     p_branding: branding,
@@ -213,6 +260,133 @@ export async function savePartnerBranding(input: {
     ok: true,
     message: warnings.length ? `Saved, but ${warnings.join("; ")}.` : "Branding saved.",
   };
+}
+
+/**
+ * Everything savePartnerBranding and the logo actions must carry forward
+ * from the stored row. Listed explicitly rather than spread, so a key the RPC
+ * allowlist does not know can never be echoed back and fail the save.
+ */
+async function currentBranding(tenantId: string): Promise<Branding> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("tenants")
+    .select("branding, name")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (!data) return {};
+  const parsed = parseBranding(data.branding, data.name);
+  const out: Branding = {};
+  // parseBranding fills companyName from the tenant name; do not persist that.
+  const raw = (data.branding ?? {}) as Record<string, unknown>;
+  if (typeof raw.companyName === "string" && parsed.companyName) out.companyName = parsed.companyName;
+  if (parsed.shortName) out.shortName = parsed.shortName;
+  if (parsed.supportEmail) out.supportEmail = parsed.supportEmail;
+  if (parsed.colors) out.colors = parsed.colors;
+  if (parsed.logo) out.logo = parsed.logo;
+  return out;
+}
+
+const LOGO_BUCKET = "tenant-logos";
+const LOGO_MAX_BYTES = 200 * 1024;
+
+/**
+ * Uploads a partner's logo and points their branding at it.
+ *
+ * The file type is decided by the bytes (lib/tenant/image-size.ts), not by
+ * the name or the browser's MIME type, and only PNG and WebP pass. The bucket
+ * enforces the same allowlist and size cap, so a bypass here still fails
+ * there; this layer exists to give staff a sentence instead of a 400.
+ *
+ * Storage goes through the service-role client: the bucket is public to READ
+ * (an unauthenticated portal header loads it) but has no write policy for
+ * anyone, and the staff check has already happened above.
+ */
+export async function uploadPartnerLogo(formData: FormData): Promise<PartnerResult> {
+  const guard = await guardStaff();
+  if (!guard.ok) return { error: guard.error };
+
+  const tenantId = String(formData.get("tenantId") ?? "");
+  if (!UUID_RE.test(tenantId)) return { error: "That partner is not valid." };
+
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose a PNG or WebP file." };
+  }
+  if (file.size > LOGO_MAX_BYTES) {
+    return { error: `That file is ${Math.ceil(file.size / 1024)}KB. Logos must be 200KB or smaller.` };
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const info = imageInfo(bytes);
+  if (!info) {
+    return { error: "That is not a PNG or WebP image. SVG is not accepted." };
+  }
+
+  const before = await currentBranding(tenantId);
+  const path = `${tenantId}/${Date.now()}.${info.kind}`;
+
+  const admin = createAdminClient();
+  const { error: ue } = await admin.storage
+    .from(LOGO_BUCKET)
+    .upload(path, Buffer.from(bytes), {
+      contentType: info.kind === "png" ? "image/png" : "image/webp",
+      cacheControl: "31536000",
+      upsert: false,
+    });
+  if (ue) {
+    console.error("[partners] logo upload failed", ue.message);
+    return { error: "Could not store that file. Try again shortly." };
+  }
+
+  const branding: Branding = {
+    ...before,
+    logo: { path, width: info.width, height: info.height, displayHeight: 28 },
+  };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_partner_branding", {
+    p_tenant_id: tenantId,
+    p_branding: branding,
+  });
+  if (error) {
+    // Do not leave the orphan behind; the branding still points at the old one.
+    await admin.storage.from(LOGO_BUCKET).remove([path]);
+    return { error: rpcMessage(error.message, "Could not save that logo.") };
+  }
+
+  // The replaced file is unreferenced now. Best-effort: an orphan costs a
+  // few KB, a failed save would have cost the logo.
+  if (before.logo && before.logo.path !== path) {
+    await admin.storage.from(LOGO_BUCKET).remove([before.logo.path]);
+  }
+
+  invalidateTenants();
+  return { ok: true, message: `Logo saved (${info.width} × ${info.height}).` };
+}
+
+/** Removes a partner's logo; the header falls back to their name. */
+export async function removePartnerLogo(input: { tenantId: string }): Promise<PartnerResult> {
+  const guard = await guardStaff();
+  if (!guard.ok) return { error: guard.error };
+
+  const tenantId = String(input.tenantId ?? "");
+  if (!UUID_RE.test(tenantId)) return { error: "That partner is not valid." };
+
+  const before = await currentBranding(tenantId);
+  if (!before.logo) return { ok: true, message: "No logo to remove." };
+
+  const { logo, ...rest } = before;
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_partner_branding", {
+    p_tenant_id: tenantId,
+    p_branding: rest,
+  });
+  if (error) return { error: rpcMessage(error.message, "Could not remove that logo.") };
+
+  await createAdminClient().storage.from(LOGO_BUCKET).remove([logo.path]);
+
+  invalidateTenants();
+  return { ok: true, message: "Logo removed. Their name is shown instead." };
 }
 
 /**
@@ -305,13 +479,44 @@ export async function invitePartnerUser(input: {
   const supabase = await createClient();
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("slug, name, is_house, suspended_at")
+    .select("slug, name, branding, is_house, suspended_at")
     .eq("id", tenantId)
     .maybeSingle();
   if (!tenant) return { error: "That partner no longer exists." };
   if (tenant.suspended_at) {
     return { error: "That partner is suspended. Restore them before inviting anyone." };
   }
+
+  const sent = await inviteIntoTenant({
+    ctx,
+    tenant: {
+      id: tenantId,
+      slug: tenant.slug,
+      name: tenant.name,
+      branding: parseBranding(tenant.branding, tenant.name),
+      isHouse: tenant.is_house === true,
+    },
+    email,
+    fullName,
+  });
+  if ("error" in sent) return sent;
+
+  invalidateTenants();
+  return { ok: true, message: `Invite sent to ${email}.` };
+}
+
+/**
+ * Mints an invite link for a tenant and mails it in that tenant's brand.
+ * Shared by the Invite panel and by create-in-one-pass. Inputs are already
+ * validated and the caller is already known to be platform staff.
+ */
+async function inviteIntoTenant(input: {
+  ctx: SessionContext;
+  tenant: { id: string; slug: string; name: string; branding: Branding; isHouse: boolean };
+  email: string;
+  fullName: string;
+}): Promise<PartnerResult> {
+  const { ctx, tenant, email, fullName } = input;
 
   const admin = createAdminClient();
   const { data: linkData, error } = await admin.auth.admin.generateLink({
@@ -323,10 +528,10 @@ export async function invitePartnerUser(input: {
         // A partner admin can manage their own portal users later. It grants
         // nothing outside their tenant: is_platform_staff stays false.
         role: "admin",
-        tenant_id: tenantId,
+        tenant_id: tenant.id,
         invited_by: ctx.userId,
       },
-      redirectTo: `${tenantOrigin(tenant.slug, tenant.is_house === true)}/auth/confirm?type=invite`,
+      redirectTo: `${tenantOrigin(tenant.slug, tenant.isHouse)}/auth/confirm?type=invite`,
     },
   });
 
@@ -342,11 +547,15 @@ export async function invitePartnerUser(input: {
     return { error: "Could not create the invite. Try again shortly." };
   }
 
+  // In the partner's own brand: the invitee is joining THEIR portal, and the
+  // first thing they see from it should carry their name, not the house's.
   const delivery = await sendTeamInvite({
     to: email,
     acceptUrl: linkData.properties.action_link,
     invitedBy: ctx.fullName || ctx.email || "Prime PEO Brokers",
     role: "admin",
+    brand: brandFor(tenant),
+    destination: "portal",
   });
 
   if (!delivery.ok) {
@@ -360,8 +569,7 @@ export async function invitePartnerUser(input: {
     return { error: "Could not send the invite email. Try again shortly." };
   }
 
-  invalidateTenants();
-  return { ok: true, message: `Invite sent to ${email}.` };
+  return { ok: true };
 }
 
 /**

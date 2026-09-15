@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { houseOrigin as siteUrl } from "@/lib/tenant/urls";
 import { createClient } from "@/lib/supabase/server";
 import { sendTeamInvite } from "@/lib/email";
+import { houseBrand } from "@/lib/tenant/email-brand";
 
 /**
  * Team management. Every action is admin-only, enforced three times over:
@@ -148,6 +149,8 @@ export async function inviteTeammate(input: {
     acceptUrl: linkData.properties.action_link,
     invitedBy: ctx.fullName || ctx.email || "A teammate",
     role,
+    brand: houseBrand(),
+    destination: "console",
   });
 
   if (!delivery.ok) {

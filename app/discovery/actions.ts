@@ -2,7 +2,8 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { claimRequest, clientIp } from "@/lib/auth/throttle";
-import { currentTenantIdForWrite } from "@/lib/tenant/resolve";
+import { currentTenantIdForWrite, getTenant } from "@/lib/tenant/resolve";
+import { brandFor } from "@/lib/tenant/email-brand";
 import {
   TOTAL_STEPS,
   sanitizeAnswers,
@@ -234,19 +235,24 @@ export async function submitRecord(input: {
   });
 
   // Notifications are best-effort: a mail failure must never lose the lead.
+  // Branded for the host the lead submitted on: a partner's lead hears from
+  // the partner, and the partner and the house team are both told.
   const contactEmail = answers["email"];
   const contactName = answers["fullName"];
   try {
+    const brand = brandFor(await getTenant());
     await sendSubmissionNotification({
       ref: data.ref,
       id: data.id,
       answers,
+      brand,
     });
     if (typeof contactEmail === "string" && contactEmail) {
       await sendSubmissionConfirmation({
         to: contactEmail,
         ref: data.ref,
         name: typeof contactName === "string" ? contactName : "",
+        brand,
       });
     }
   } catch (e) {
@@ -314,6 +320,9 @@ export async function requestResumeLink(input: {
       to: email,
       token: saved.handle.token,
       stepsCompleted: input.stepsCompleted,
+      // The link is built on this host's origin, so a partner's draft
+      // reopens on the partner's subdomain where its tenant matches.
+      brand: brandFor(await getTenant()),
     });
   } catch (e) {
     console.error("[discovery] resume link email failed", e);

@@ -24,6 +24,8 @@ import { createPartner } from "./actions";
 export function CreatePartnerCard({ apexHost }: { apexHost: string }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
@@ -45,13 +47,15 @@ export function CreatePartnerCard({ apexHost }: { apexHost: string }) {
     if (pending || !name.trim() || !slug.trim()) return;
     setError("");
     startTransition(async () => {
-      const result = await createPartner({ slug, name });
+      const result = await createPartner({ slug, name, contactEmail, inviteEmail });
       if ("error" in result) {
         setError(result.error);
         return;
       }
       setName("");
       setSlug("");
+      setContactEmail("");
+      setInviteEmail("");
       setSlugEdited(false);
       toast.success(result.message ?? "Partner created.");
     });
@@ -107,6 +111,45 @@ export function CreatePartnerCard({ apexHost }: { apexHost: string }) {
             </p>
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="partner-contact" className="text-[13px] text-ink-soft">
+                Partner email
+              </label>
+              <Input
+                id="partner-contact"
+                type="email"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
+                placeholder="ops@acme.com"
+                disabled={pending}
+                className="mt-1.5"
+              />
+              <p className="mt-1.5 text-[12.5px] text-ink-muted">
+                Gets every new lead, and replies from their leads.
+              </p>
+            </div>
+            <div>
+              <label htmlFor="partner-invite" className="text-[13px] text-ink-soft">
+                First login
+              </label>
+              <Input
+                id="partner-invite"
+                type="email"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && submit()}
+                placeholder="Optional, often the same"
+                disabled={pending}
+                className="mt-1.5"
+              />
+              <p className="mt-1.5 text-[12.5px] text-ink-muted">
+                Sent an invite to their portal right away.
+              </p>
+            </div>
+          </div>
+
           {error && (
             <p role="alert" className="text-[13px] text-danger">
               {error}
@@ -123,7 +166,8 @@ export function CreatePartnerCard({ apexHost }: { apexHost: string }) {
               Create partner
             </Button>
             <span className="text-[12.5px] text-ink-muted">
-              Their lead pipeline is set up automatically.
+              Their pipeline is set up automatically. Add a logo and colours
+              from the row below once created.
             </span>
           </div>
         </div>

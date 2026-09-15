@@ -25,6 +25,8 @@ import {
   logoUrl,
   __testables,
 } from "../lib/tenant/branding";
+import { imageInfo } from "../lib/tenant/image-size";
+import { brandFor, formatFrom, houseBrand, parseSender } from "../lib/tenant/email-brand";
 import {
   slugifyStage,
   validateStageLabel,
@@ -310,5 +312,128 @@ ok(validateStageLabel("x".repeat(61), stages) !== "", "an over-long stage label 
 // A rename must not collide with itself.
 equal(validateStageLabel("New", stages, { ignoreId: "1" }), "",
       "renaming a stage to its own current label is allowed");
+
+// ===========================================================================
+describe("imageInfo: type by magic bytes, size from the container header");
+// ===========================================================================
+/*
+  Fixtures are hand-built headers, not real files: the parser reads only the
+  first ~30 bytes, and a fixture that shows those bytes is a better spec than
+  a binary blob. Each one mirrors the layout described in image-size.ts.
+*/
+function pngHeader(w: number, h: number): Uint8Array {
+  const b = new Uint8Array(33);
+  b.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+  b.set([0, 0, 0, 13], 8);
+  b.set([0x49, 0x48, 0x44, 0x52], 12); // IHDR
+  new DataView(b.buffer).setUint32(16, w, false);
+  new DataView(b.buffer).setUint32(20, h, false);
+  return b;
+}
+function riff(chunk: string, body: Uint8Array): Uint8Array {
+  const b = new Uint8Array(20 + body.length + 12);
+  b.set([0x52, 0x49, 0x46, 0x46], 0); // RIFF
+  b.set([0x57, 0x45, 0x42, 0x50], 8); // WEBP
+  for (let i = 0; i < 4; i++) b[12 + i] = chunk.charCodeAt(i);
+  b.set(body, 20);
+  return b;
+}
+function vp8(w: number, h: number): Uint8Array {
+  const body = new Uint8Array(12);
+  body.set([0x9d, 0x01, 0x2a], 3); // start code
+  body[6] = w & 0xff; body[7] = (w >> 8) & 0x3f;
+  body[8] = h & 0xff; body[9] = (h >> 8) & 0x3f;
+  return riff("VP8 ", body);
+}
+function vp8l(w: number, h: number): Uint8Array {
+  const body = new Uint8Array(12);
+  body[0] = 0x2f;
+  const bits = (w - 1) | ((h - 1) << 14);
+  body[1] = bits & 0xff; body[2] = (bits >> 8) & 0xff; body[3] = (bits >> 16) & 0xff; body[4] = (bits >>> 24) & 0xff;
+  return riff("VP8L", body);
+}
+function vp8x(w: number, h: number): Uint8Array {
+  const body = new Uint8Array(12);
+  const cw = w - 1, ch = h - 1;
+  body[4] = cw & 0xff; body[5] = (cw >> 8) & 0xff; body[6] = (cw >> 16) & 0xff;
+  body[7] = ch & 0xff; body[8] = (ch >> 8) & 0xff; body[9] = (ch >> 16) & 0xff;
+  return riff("VP8X", body);
+}
+
+equal(JSON.stringify(imageInfo(pngHeader(640, 120))), JSON.stringify({ kind: "png", width: 640, height: 120 }), "PNG IHDR");
+equal(JSON.stringify(imageInfo(vp8(300, 90))), JSON.stringify({ kind: "webp", width: 300, height: 90 }), "WebP lossy (VP8)");
+equal(JSON.stringify(imageInfo(vp8l(512, 128))), JSON.stringify({ kind: "webp", width: 512, height: 128 }), "WebP lossless (VP8L)");
+equal(JSON.stringify(imageInfo(vp8x(1000, 250))), JSON.stringify({ kind: "webp", width: 1000, height: 250 }), "WebP extended (VP8X)");
+
+equal(imageInfo(new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"></svg>')), null,
+      "SVG is rejected whatever the upload claims to be");
+equal(imageInfo(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new Array(40).fill(0)])), null, "JPEG is rejected");
+equal(imageInfo(pngHeader(640, 120).subarray(0, 20)), null, "a truncated PNG header is rejected, not read past the end");
+equal(imageInfo(pngHeader(0, 120)), null, "a zero dimension is rejected");
+equal(imageInfo(pngHeader(4001, 120)), null, "a dimension above parseBranding's 4000 cap is rejected here too");
+{
+  const bad = vp8(300, 90);
+  bad[24] = 0x00; // break the start code
+  equal(imageInfo(bad), null, "a VP8 chunk without its start code is rejected");
+}
+equal(imageInfo(riff("ALPH", new Uint8Array(12))), null, "an unexpected first WebP chunk is rejected");
+
+// ===========================================================================
+describe("email brand: one verified sender, the tenant's name on it");
+// ===========================================================================
+equal(JSON.stringify(parseSender("Prime PEO Brokers <notifications@primevantagehcm.com>")),
+      JSON.stringify({ name: "Prime PEO Brokers", address: "notifications@primevantagehcm.com" }),
+      "Name <addr> is split");
+equal(parseSender("notifications@primevantagehcm.com").address, "notifications@primevantagehcm.com",
+      "a bare address is kept");
+equal(parseSender("notifications@primevantagehcm.com").name, "Prime PEO Brokers",
+      "a bare address gets the house display name");
+equal(parseSender(undefined).address, "onboarding@resend.dev", "unset falls back to the Resend onboarding sender");
+equal(parseSender('"Quoted Name" <a@b.co>').name, "Quoted Name", "a quoted display name is unquoted");
+
+const sender = parseSender("Prime PEO Brokers <notifications@primevantagehcm.com>");
+equal(formatFrom("Acme Brokers", sender), '"Acme Brokers" <notifications@primevantagehcm.com>',
+      "the partner's name goes on the house address");
+equal(formatFrom('Acme "The Best" <Brokers>\r\nBcc: x', sender),
+      '"Acme The Best Brokers Bcc: x" <notifications@primevantagehcm.com>',
+      "quotes, angle brackets and line breaks cannot escape the display name");
+equal(formatFrom("   ", sender), '"Prime PEO Brokers" <notifications@primevantagehcm.com>',
+      "an empty name falls back to the sender's own");
+
+{
+  const partner = brandFor({
+    slug: "acme",
+    name: "Acme Brokers LLC",
+    isHouse: false,
+    branding: parseBranding(
+      {
+        companyName: "Acme Brokers",
+        supportEmail: "ops@acme.com",
+        colors: { accent: "#0055aa", ink: "#101820" },
+        logo: { path: "t/logo.png", width: 400, height: 100 },
+      },
+      "Acme Brokers LLC",
+    ),
+  });
+  equal(partner.isHouse, false, "a partner brand is not the house");
+  equal(partner.name, "Acme Brokers", "display name comes from branding.companyName");
+  equal(partner.replyTo, "ops@acme.com", "reply-to is the partner's contact address");
+  equal(partner.accent, "#0055aa", "accent is the validated hex");
+  equal(partner.ink, "#101820", "ink is the validated hex");
+  ok(partner.origin.startsWith("http") && partner.origin.includes("acme."),
+     "origin is the partner's own subdomain");
+  ok(!!partner.logo && partner.logo.url.includes("/tenant-logos/t/logo.png") && partner.logo.width === 400,
+     "logo resolves through logoUrl with its intrinsic size");
+
+  const bare = brandFor({ slug: "bare", name: "Bare Co", isHouse: false, branding: parseBranding({}, "Bare Co") });
+  equal(bare.name, "Bare Co", "an unbranded partner is named by its tenant name");
+  equal(bare.replyTo, undefined, "no contact address means no reply-to, not the house inbox");
+  equal(bare.logo, undefined, "no logo means a text-only header");
+  equal(bare.accent, undefined, "no colours means house tokens");
+}
+equal(brandFor(null).isHouse, true, "no tenant degrades to the house brand");
+equal(brandFor({ slug: "x", name: "X", isHouse: true, branding: {} }).name, "Prime PEO Brokers",
+      "the house tenant is always the house brand, whatever its row says");
+ok(houseBrand().logo?.url.endsWith("/brand/email-mark.png") === true, "the house mark is the hosted PNG");
 
 done("test-unit");

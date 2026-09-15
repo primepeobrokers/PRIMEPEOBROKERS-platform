@@ -23,7 +23,8 @@ import { Textarea } from "@/app/components/ui/textarea";
 import { Label } from "@/app/components/ui/label";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
-import { Logo } from "@/app/components/logo";
+import { TenantMark } from "@/app/components/logo";
+import type { Branding } from "@/lib/tenant/branding";
 import {
   saveDraft,
   submitRecord,
@@ -32,6 +33,9 @@ import {
 } from "./actions";
 
 const STORAGE_KEY = "pv-discovery-draft";
+
+/** What the header renders when the host resolved to no tenant at all. */
+const HOUSE_TENANT = { isHouse: true, name: "Prime PEO Brokers", branding: {} as Branding };
 
 interface Props {
   resumed: {
@@ -43,6 +47,11 @@ interface Props {
   intent?: string;
   /** Category named in the URL, so a deep link can skip the picker. */
   presetCategory?: Category;
+  /**
+   * The tenant whose host this is. Drives the header mark and the home link.
+   * Null renders the house identity (unknown host, or a lookup failure).
+   */
+  tenant: { isHouse: boolean; name: string; branding: Branding } | null;
 }
 
 interface Toast {
@@ -50,7 +59,18 @@ interface Toast {
   body: string;
 }
 
-export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
+export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props) {
+  /*
+    A partner subdomain has no marketing page: the proxy rewrites "/" to the
+    sign-in portal, which is the wrong place to send a lead who clicks the
+    logo mid-form. Their "home" is the form itself.
+  */
+  const isPartner = tenant !== null && !tenant.isHouse;
+  const brandName = isPartner
+    ? (tenant.branding.companyName ?? tenant.name)
+    : "Prime PEO Brokers";
+  const homeHref = isPartner ? "/discovery" : "/";
+
   // A draft resumed from an emailed link is available at first render.
   // A category in the URL skips the picker; a renewal entry preselects the
   // driver that sent them here.
@@ -315,8 +335,8 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
       {/* header */}
       <header className="sticky top-0 z-30 border-b border-line bg-surface">
         <div className="mx-auto flex h-16 w-full max-w-[1120px] items-center justify-between gap-6 px-8 max-sm:px-[18px]">
-          <Link href="/" aria-label="Prime PEO Brokers home" className="flex items-center">
-            <Logo size={30} />
+          <Link href={homeHref} aria-label={`${brandName} home`} className="flex items-center">
+            <TenantMark tenant={tenant ?? HOUSE_TENANT} size={30} />
           </Link>
           <div className="flex items-center gap-5">
             <div
@@ -633,14 +653,18 @@ export function DiscoveryFlow({ resumed, intent, presetCategory }: Props) {
                 </div>
               ))}
             </div>
-            <div className="mt-7 flex flex-wrap gap-3.5">
-              <Link
-                href="/"
-                className="rounded-md bg-accent px-[22px] py-3.5 text-[15.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
-              >
-                Back to the homepage
-              </Link>
-            </div>
+            {/* A partner host has no homepage to go back to: "/" is their
+                sign-in portal, which is not for the lead. */}
+            {!isPartner && (
+              <div className="mt-7 flex flex-wrap gap-3.5">
+                <Link
+                  href="/"
+                  className="rounded-md bg-accent px-[22px] py-3.5 text-[15.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
+                >
+                  Back to the homepage
+                </Link>
+              </div>
+            )}
             <p className="mt-6 text-sm leading-normal text-ink-muted">
               Something wrong in the record? Reply to the confirmation email and
               it is corrected before quoting starts.

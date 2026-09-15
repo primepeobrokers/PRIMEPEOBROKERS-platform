@@ -142,6 +142,11 @@ export const config = {
     Matcher values must be statically analysable at build time, so the host
     pattern cannot interpolate NEXT_PUBLIC_APEX_HOST and has to be kept in
     step with it by hand. scripts/check-proxy.mts asserts they agree.
+
+    The pattern names the production apex. Vercel preview hosts
+    (*.vercel.app) are not matched here and classify as apex in
+    lib/tenant/host.ts, so a preview serves the house site and partner
+    subdomains can only be exercised on production or on localhost.
   */
   matcher: [
     "/console/:path*",
@@ -152,7 +157,7 @@ export const config = {
       has: [
         {
           type: "host",
-          value: "(?<pvslug>[a-z0-9-]{2,63})\\.prime-vintage\\.vercel\\.app",
+          value: "(?<pvslug>[a-z0-9-]{2,63})\\.primevantagehcm\\.com",
         },
       ],
     },

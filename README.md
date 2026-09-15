@@ -97,10 +97,31 @@ body.
 
 ## Deploying
 
-Deploy to Netlify (client's account) or Vercel; set the env vars from
-`.env.example` with `NEXT_PUBLIC_SITE_URL` as the production domain. Deploy
-previews work out of the box, and the SOW asks for preview links throughout
-Phase 1.
+Production runs on Vercel at `primevantagehcm.com`. Partner portals are one
+label in front of the apex (`acme.primevantagehcm.com`), which needs three
+things outside this repo:
+
+- **Vercel domains**: the apex, `www` (redirecting to the apex) and the
+  wildcard `*.primevantagehcm.com`. The wildcard only works while the
+  domain's nameservers point at Vercel, so DNS for the zone is managed in
+  Vercel too. `*.domain` does not cover the apex; add all three.
+- **Supabase Auth**: Site URL `https://primevantagehcm.com`, and
+  `https://primevantagehcm.com/**` plus `https://*.primevantagehcm.com/**`
+  in the redirect allow list. A partner's invite link lands on their own
+  subdomain so the session cookie is set on the right host.
+- **Resend**: `primevantagehcm.com` verified as a sending domain (DKIM TXT,
+  plus MX and SPF for the `send.` return path). Every email goes out from
+  the one address in `EMAIL_FROM`; only the display name changes per tenant.
+
+Environment, from `.env.example`: `NEXT_PUBLIC_SITE_URL` and
+`NEXT_PUBLIC_APEX_HOST` name the apex (the second without a scheme and must
+agree with the host literal in `proxy.ts`, which `scripts/check-proxy.mts`
+asserts). `LEAD_NOTIFY_EMAIL` is the house inbox that receives a copy of every
+submission from every portal.
+
+Preview deployments serve the house site only: `*.vercel.app` classifies as
+the apex, and the proxy matcher names the production apex, so partner
+subdomains cannot be exercised on a preview.
 
 ## Cache and revalidation
 
@@ -126,11 +147,15 @@ edit at runtime, append-only internal notes, and an activity log. See
 `docs/data-model.md` for the schema decisions and `supabase/migrations/0005`
 and `0006` for the data layer.
 
-Phase 3 is partner-facing and not started: per-partner subdomains, wildcard
-DNS, branding from `tenants.branding`, and partner logins. The "Providers"
-nav item is stubbed for it. Multi-tenancy is already in every table and
-policy, so partner isolation comes from the existing RLS rather than new
-code.
+Phase 3 is the partner layer: every partner is a `tenants` row served on its
+own subdomain, with branding from `tenants.branding` (name, logo, colours and
+the partner's contact address), a read-only leads portal, and logins issued
+from `/console/partners`. Platform staff see across every tenant through
+`tenant_scope()` (migration 0009); partners see only their own. Leads submit
+through the partner's themed discovery form, and both the partner's contact
+address and the house inbox are told, with the lead's own confirmation sent
+in the partner's name. See `lib/tenant/` for host resolution and branding,
+`supabase/migrations/0009` to `0012` for the data layer.
 
 Two things deliberately left as they are, both worth raising with the client
 rather than quietly changing:

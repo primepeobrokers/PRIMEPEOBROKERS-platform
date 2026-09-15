@@ -17,10 +17,35 @@ const ok = (c: boolean, m: string) => { if (!c) { console.log("  FAIL: " + m); f
 
 const proxySrc = readFileSync("proxy.ts", "utf8");
 
-// The apex as configured. Mirrors the default in lib/tenant/host.ts.
-const apexHost = (process.env.NEXT_PUBLIC_APEX_HOST ?? "localhost:3000")
-  .split(":")[0]!
-  .toLowerCase();
+/**
+ * The apex the matcher must agree with.
+ *
+ * The matcher is a production literal, so the comparison target is the
+ * PRODUCTION apex: the shell env first (CI and Vercel export it), then
+ * .env.production.local, which is where the production value lives on a
+ * developer machine and is not loaded by tsx. Without the file fallback this
+ * check could only pass with the variable exported by hand, and a red check
+ * that everyone learns to ignore protects nothing.
+ *
+ * Only ENOENT is tolerated when reading the file. Any other failure is a
+ * broken loader, and swallowing it would turn "the check is misconfigured"
+ * into "the check passed against localhost".
+ */
+function productionApexHost(): string {
+  const fromEnv = process.env.NEXT_PUBLIC_APEX_HOST;
+  if (fromEnv) return fromEnv;
+  try {
+    const src = readFileSync(".env.production.local", "utf8");
+    const m = src.match(/^NEXT_PUBLIC_APEX_HOST=(.*)$/m);
+    if (m?.[1]) return m[1].trim().replace(/^["']|["']$/g, "");
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code !== "ENOENT") throw e;
+  }
+  // Mirrors the default in lib/tenant/host.ts.
+  return "localhost:3000";
+}
+
+const apexHost = productionApexHost().split(":")[0]!.toLowerCase();
 
 // ---------------------------------------------------------------------------
 // 1. There is exactly one host-gated matcher entry, and we can read it.

@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   ChevronDownIcon,
   ExternalLinkIcon,
+  ImageIcon,
   Loader2Icon,
   MailIcon,
   PaletteIcon,
+  XIcon,
 } from "lucide-react";
 
 import { Button } from "@/app/components/ui/button";
@@ -33,11 +35,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/app/components/ui/alert-dialog";
-import { contrastRatio, type Branding } from "@/lib/tenant/branding";
+import { contrastRatio, logoUrl, type Branding } from "@/lib/tenant/branding";
 import {
   invitePartnerUser,
+  removePartnerLogo,
   savePartnerBranding,
   setPartnerSuspended,
+  uploadPartnerLogo,
 } from "./actions";
 
 export interface PartnerRow {
@@ -281,14 +285,22 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
           placeholder="For tight spaces"
           disabled={pending}
         />
-        <Field
-          id={`se-${partner.id}`}
-          label="Support email"
-          value={supportEmail}
-          onChange={setSupportEmail}
-          placeholder="ops@partner.com"
-          disabled={pending}
-        />
+        <div>
+          <Field
+            id={`se-${partner.id}`}
+            label="Partner email"
+            value={supportEmail}
+            onChange={setSupportEmail}
+            placeholder="ops@partner.com"
+            disabled={pending}
+          />
+          <p className="mt-1.5 text-[12.5px] text-ink-muted">
+            Their work address. Gets an alert for every new lead, and replies
+            to their leads&rsquo; emails land here.
+          </p>
+        </div>
+
+        <LogoField partner={partner} />
 
         <ColorField
           id={`ac-${partner.id}`}
@@ -334,6 +346,120 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
           Save branding
         </Button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The partner's logo.
+ *
+ * The only branding input that is a file. Uploaded straight from the change
+ * event rather than staged in the form: the other fields save as one object
+ * and a file cannot travel in it, so making the logo part of "Save branding"
+ * would have meant a second, invisible upload step.
+ *
+ * PNG or WebP, 200KB. Not SVG: served from our own origin it can carry
+ * script, and the action rejects it by magic bytes whatever the extension.
+ */
+function LogoField({ partner }: { partner: PartnerRow }) {
+  const logo = partner.branding.logo;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  const onFile = (file: File | null) => {
+    if (!file || pending) return;
+    setError("");
+    const data = new FormData();
+    data.set("tenantId", partner.id);
+    data.set("file", file);
+    startTransition(async () => {
+      const result = await uploadPartnerLogo(data);
+      if (inputRef.current) inputRef.current.value = "";
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      toast.success(result.message ?? "Logo saved.");
+    });
+  };
+
+  const remove = () => {
+    if (pending) return;
+    setError("");
+    startTransition(async () => {
+      const result = await removePartnerLogo({ tenantId: partner.id });
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      toast.success(result.message ?? "Logo removed.");
+    });
+  };
+
+  const inputId = `lg-${partner.id}`;
+
+  return (
+    <div>
+      <span className="text-[13px] text-ink-soft">Logo</span>
+      <div className="mt-1.5 flex items-center gap-3">
+        <div className="flex h-12 min-w-12 items-center justify-center rounded-md border border-line bg-raised px-2">
+          {logo ? (
+            /* Plain <img>, as in TenantMark: the optimizer is off by design. */
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoUrl(logo.path)}
+              alt={`${partner.branding.companyName ?? partner.name} logo`}
+              style={{ height: 28, width: "auto", display: "block" }}
+            />
+          ) : (
+            <ImageIcon className="size-4 text-ink-faint" aria-hidden="true" />
+          )}
+        </div>
+
+        <input
+          ref={inputRef}
+          id={inputId}
+          type="file"
+          accept="image/png,image/webp"
+          disabled={pending}
+          onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+          className="sr-only"
+        />
+        <Button
+          asChild
+          variant="secondary"
+          size="sm"
+          disabled={pending}
+          className="cursor-pointer"
+        >
+          <label htmlFor={inputId}>
+            {pending && <Loader2Icon className="size-4 animate-spin" />}
+            {logo ? "Replace" : "Upload"}
+          </label>
+        </Button>
+        {logo && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={remove}
+            disabled={pending}
+            className="cursor-pointer"
+          >
+            <XIcon className="size-4" aria-hidden="true" />
+            Remove
+          </Button>
+        )}
+      </div>
+      <p className="mt-1.5 text-[12.5px] text-ink-muted">
+        PNG or WebP, up to 200KB. Shown in their portal header, on their
+        discovery form and at the top of their emails.
+      </p>
+      {error && (
+        <p role="alert" className="mt-1.5 text-[13px] text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

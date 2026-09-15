@@ -4,6 +4,8 @@ import { createHmac } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sendPasswordResetCode } from "@/lib/email";
+import { getTenant } from "@/lib/tenant/resolve";
+import { brandFor } from "@/lib/tenant/email-brand";
 
 /**
  * Password reset by one-time code.
@@ -110,10 +112,13 @@ export async function issueResetCode(
     return { ok: true };
   }
 
+  // Branded for the host the request came from: a partner's user resetting
+  // on their portal hears from the partner, not from the house.
   const sent = await sendPasswordResetCode({
     to: normalised,
     code: data.properties.email_otp,
     expiresInMinutes: RESET_CODE_TTL_MINUTES,
+    brand: brandFor(await getTenant()),
   });
 
   if (!sent.ok) {
