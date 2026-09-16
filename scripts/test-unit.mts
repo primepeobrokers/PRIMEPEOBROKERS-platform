@@ -26,7 +26,7 @@ import {
   __testables,
 } from "../lib/tenant/branding";
 import { imageInfo } from "../lib/tenant/image-size";
-import { brandFor, formatFrom, houseBrand, parseSender } from "../lib/tenant/email-brand";
+import { brandFor, formatFrom, houseBrand, inboxList, parseSender } from "../lib/tenant/email-brand";
 import {
   slugifyStage,
   validateStageLabel,
@@ -435,5 +435,24 @@ equal(brandFor(null).isHouse, true, "no tenant degrades to the house brand");
 equal(brandFor({ slug: "x", name: "X", isHouse: true, branding: {} }).name, "Prime PEO Brokers",
       "the house tenant is always the house brand, whatever its row says");
 ok(houseBrand().logo?.url.endsWith("/brand/email-mark.png") === true, "the house mark is the hosted PNG");
+
+// LEAD_NOTIFY_EMAIL as a list. Production had two addresses joined by a comma
+// and Resend 422d every send that carried the raw string, as `to` or as
+// `reply_to`. The list must reach Resend as an array, and reply-to as one address.
+equal(JSON.stringify(inboxList("admin@x.com,garrett@x.com")), JSON.stringify(["admin@x.com", "garrett@x.com"]),
+      "a comma-joined inbox list splits into addresses");
+equal(JSON.stringify(inboxList(" a@x.com ; b@x.com\nc@x.com ")), JSON.stringify(["a@x.com", "b@x.com", "c@x.com"]),
+      "semicolons, whitespace and newlines also separate");
+equal(JSON.stringify(inboxList("a@x.com,,not-an-address")), JSON.stringify(["a@x.com"]), "junk entries are dropped");
+equal(JSON.stringify(inboxList("")), "[]", "empty means no inbox");
+equal(JSON.stringify(inboxList(undefined)), "[]", "unset means no inbox");
+{
+  const prev = process.env.LEAD_NOTIFY_EMAIL;
+  process.env.LEAD_NOTIFY_EMAIL = "admin@x.com,garrett@x.com";
+  equal(houseBrand().replyTo, "admin@x.com", "house reply-to is the first inbox, never the joined string");
+  process.env.LEAD_NOTIFY_EMAIL = "";
+  equal(houseBrand().replyTo, undefined, "no inbox means no reply-to");
+  if (prev === undefined) delete process.env.LEAD_NOTIFY_EMAIL; else process.env.LEAD_NOTIFY_EMAIL = prev;
+}
 
 done("test-unit");

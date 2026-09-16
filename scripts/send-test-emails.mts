@@ -71,6 +71,7 @@ const FAKE_ID = "00000000-0000-4000-8000-000000000000";
 const sends: [string, () => Promise<unknown>][] = [
   ["resume link", () => email.sendResumeLink({ to, token: FAKE_ID, stepsCompleted: 3, brand })],
   ["submission confirmation", () => email.sendSubmissionConfirmation({ to, ref: 9999, name: "Test Recipient", brand })],
+  ["call request confirmation", () => email.sendSubmissionConfirmation({ to, ref: 9998, name: "Test Recipient", brand, kind: "call" })],
   ["lead notification (record)", () => email.sendSubmissionNotification({ ref: 9999, id: FAKE_ID, answers, brand })],
   [
     "lead notification (call request)",

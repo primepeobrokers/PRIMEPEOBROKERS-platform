@@ -25,6 +25,18 @@ opens `/talk`, a five-field call request stored as a complete submission
 production Resend sender with `scripts/send-test-emails.mts`; all six were
 accepted. Local drafts are now passed through `sanitizeAnswers` on restore.
 
+Production root cause (found 2026-09-16 evening, confirmed in Vercel runtime
+logs): `LEAD_NOTIFY_EMAIL` in Vercel holds two addresses joined by a comma.
+The code passed that raw string to Resend as `to` and as `reply_to`, and
+Resend returns 422 "Invalid `to` field" for it. So the team notification
+failed on every lead, and every visitor email carrying the team reply-to
+(resume link, submission confirmation) failed too. Only the reset code and
+team invite, which send no reply-to, ever went out. Fixed by `inboxList()`
+in `lib/tenant/email-brand.ts`: the list reaches Resend as an array and
+reply-to is the first address. Call requests now also send the person a
+confirmation. Still to set in Vercel: `NEXT_PUBLIC_SITE_URL` is
+`https://prime-vintage.vercel.app`, so email links point at the old host.
+
 Files that matter:
 
 - `lib/discovery/schema.ts`: the six steps, every field, per-field widths,

@@ -7,6 +7,7 @@ import {
   houseBrand,
   parseSender,
   type EmailBrand,
+  inboxList,
 } from "@/lib/tenant/email-brand";
 
 /*
@@ -247,7 +248,7 @@ export interface ComposedEmail {
  */
 function payload(
   brand: EmailBrand,
-  to: string,
+  to: string | string[],
   composed: ComposedEmail,
   replyTo?: string | null,
 ) {
@@ -389,8 +390,10 @@ export async function sendSubmissionNotification(input: {
   const sends: Promise<{ error: { message: string } | null }>[] = [];
 
   const house = houseBrand();
-  const houseTo = process.env.LEAD_NOTIFY_EMAIL?.trim();
-  if (houseTo) {
+  // An array, even for one address: LEAD_NOTIFY_EMAIL may hold several, and
+  // Resend rejects the raw comma-joined string as an invalid address.
+  const houseTo = inboxList();
+  if (houseTo.length > 0) {
     sends.push(
       resend.emails.send(
         payload(
@@ -560,22 +563,64 @@ export async function sendResumeLink(input: {
   token: string;
   stepsCompleted: number;
   brand: EmailBrand;
-}) {
+}): Promise<{ ok: boolean }> {
   const resend = getResend();
-  if (!resend) return;
+  if (!resend) return { ok: false };
 
+  // Reports the outcome, like the reset code: the whole point of the action
+  // is this one email, so "Link sent" must not show when Resend refused it.
   const { error } = await resend.emails.send(
     payload(input.brand, input.to, composeResumeLink(input)),
   );
-  if (error) console.error("[email] send failed:", error.message);
+  if (error) {
+    console.error("[email] resume link delivery failed:", error.message);
+    return { ok: false };
+  }
+  return { ok: true };
 }
 
-/** Confirms submission to the visitor. */
+/**
+ * Confirms submission to the visitor. "call" is the short /talk form: no
+ * record to speak of, so the message is about the phone call, not the
+ * shortlist.
+ */
 export function composeSubmissionConfirmation(input: {
   ref: number;
   name: string;
   brand: EmailBrand;
+  kind?: "record" | "call";
 }): ComposedEmail {
+  if (input.kind === "call") {
+    const greeting = input.name ? `${input.name},` : "Hello,";
+    return {
+      subject: `A broker will call you · REF ${input.ref}`,
+      text: [
+        greeting,
+        ``,
+        `Your request is with a licensed broker at ${input.brand.name}. They call within one business day, or email first to set a time if you left no number.`,
+        ``,
+        `Want the call to be more useful? Start the six steps at ${input.brand.origin}/discovery and anything you answer is in front of them before they dial.`,
+        ``,
+        `Need to change something? Reply to this email.`,
+      ].join("\n"),
+      html: renderEmail({
+        brand: input.brand,
+        preheader: "Within one business day.",
+        eyebrow: `REF ${input.ref}`,
+        heading: "A broker will call you",
+        bodyHtml:
+          para(escapeHtml(greeting)) +
+          para(
+            `Your request is with a licensed broker at ${escapeHtml(input.brand.name)}. They call within one business day, or email first to set a time if you left no number.`,
+          ) +
+          para(
+            "Want the call to be more useful? Start the six steps now and anything you answer is in front of them before they dial.",
+          ) +
+          button(input.brand, `${input.brand.origin}/discovery`, "Start the six steps"),
+        footerLines: ["Need to change something? Reply to this email."],
+      }),
+    };
+  }
   return {
     subject: `Your record is in · REF ${input.ref}`,
     text: [
@@ -607,6 +652,7 @@ export async function sendSubmissionConfirmation(input: {
   ref: number;
   name: string;
   brand: EmailBrand;
+  kind?: "record" | "call";
 }) {
   const resend = getResend();
   if (!resend) return;

@@ -317,7 +317,7 @@ export async function requestResumeLink(input: {
     .eq("tenant_id", await currentTenantIdForWrite());
 
   try {
-    await sendResumeLink({
+    const sent = await sendResumeLink({
       to: email,
       token: saved.handle.token,
       stepsCompleted: input.stepsCompleted,
@@ -325,6 +325,12 @@ export async function requestResumeLink(input: {
       // reopens on the partner's subdomain where its tenant matches.
       brand: brandFor(await getTenant()),
     });
+    if (!sent.ok) {
+      return {
+        ok: false,
+        error: "The link could not be sent. Your answers are saved in this browser; try again in a moment.",
+      };
+    }
   } catch (e) {
     console.error("[discovery] resume link email failed", e);
     return { ok: false, error: "Sending failed. Try again in a moment." };
@@ -417,12 +423,22 @@ export async function requestCall(input: {
   });
 
   // Best-effort, like the discovery submit: mail must never lose the lead.
+  // The team hears about it, and the person gets a confirmation, so the form
+  // is never silent even when the team inbox is unset.
   try {
+    const brand = brandFor(await getTenant());
     await sendSubmissionNotification({
       ref: data.ref,
       id: data.id,
       answers,
-      brand: brandFor(await getTenant()),
+      brand,
+      kind: "call",
+    });
+    await sendSubmissionConfirmation({
+      to: email,
+      ref: data.ref,
+      name: fullName,
+      brand,
       kind: "call",
     });
   } catch (e) {

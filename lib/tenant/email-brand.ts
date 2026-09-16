@@ -56,14 +56,30 @@ export interface BrandSource {
  */
 export function houseBrand(): EmailBrand {
   const origin = houseOrigin();
-  const inbox = process.env.LEAD_NOTIFY_EMAIL?.trim();
+  // One reply-to address: the first inbox in the list. Resend rejects a
+  // comma-joined string in reply_to with a 422, which is how every visitor
+  // email silently failed in production when the team set two inboxes.
+  const [inbox] = inboxList();
   return {
     name: HOUSE_NAME,
     origin,
     isHouse: true,
     logo: { url: `${origin}/brand/email-mark.png`, width: 30, height: 30 },
-    replyTo: inbox || undefined,
+    replyTo: inbox,
   };
+}
+
+/**
+ * The team inboxes from LEAD_NOTIFY_EMAIL, which may list several addresses
+ * separated by commas, semicolons, or whitespace. Anything without an "@" is
+ * dropped. Always pass the result to Resend as an array, never re-joined:
+ * a single string with a comma in it is an invalid address to them.
+ */
+export function inboxList(raw = process.env.LEAD_NOTIFY_EMAIL): string[] {
+  return (raw ?? "")
+    .split(/[\s,;]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.includes("@"));
 }
 
 /**
