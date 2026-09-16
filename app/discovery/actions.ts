@@ -331,3 +331,103 @@ export async function requestResumeLink(input: {
   }
   return { ok: true };
 }
+
+/**
+ * "Talk to a broker first": the short form at /talk.
+ *
+ * Stored as a complete submission rather than a draft, so it lands in the
+ * console as a lead like any other. A partial row would read as an abandoned
+ * form, which this is not. The answers use the discovery field ids so the
+ * console detail view, the export, and the notification email need no special
+ * case: contactPreference says "call" and notes carries what they wrote.
+ */
+export async function requestCall(input: {
+  fullName: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  notes?: string;
+  bestTime?: string;
+}): Promise<
+  | { ok: true; ref: number }
+  | { ok: false; error: string; fieldErrors?: Record<string, string> }
+> {
+  const clean = (v: unknown, max: number) =>
+    typeof v === "string" ? v.trim().slice(0, max) : "";
+  const fullName = clean(input.fullName, 200);
+  const email = clean(input.email, 320);
+
+  const fieldErrors: Record<string, string> = {};
+  if (!fullName) fieldErrors.fullName = "A name, so the broker knows who to ask for.";
+  if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(email)) {
+    fieldErrors.email = "That address is missing an @ or a domain.";
+  }
+  if (Object.keys(fieldErrors).length > 0) {
+    return { ok: false, error: "Check the highlighted fields.", fieldErrors };
+  }
+
+  // Same ceiling logic as a new draft: this is an unauthenticated insert.
+  const gate = await claimRequest("request_call", await clientIp(), 10, "1 hour");
+  if (!gate.allowed) {
+    return {
+      ok: false,
+      error: "Too many requests from this connection. Try again shortly.",
+    };
+  }
+
+  const answers: Answers = { fullName, email, contactPreference: "call" };
+  const phone = clean(input.phone, 60);
+  const company = clean(input.company, 200);
+  const notes = clean(input.notes, 2000);
+  const bestTime = clean(input.bestTime, 200);
+  if (phone) answers.phone = phone;
+  if (company) answers.company = company;
+  if (notes) answers.notes = notes;
+  if (bestTime) answers.bestTime = bestTime;
+
+  const supabase = createAdminClient();
+  const tenantId = await currentTenantIdForWrite();
+  const { data, error } = await supabase
+    .from("submissions")
+    .insert({
+      tenant_id: tenantId,
+      answers,
+      steps_completed: 0,
+      intent: "shop",
+      status: "complete",
+      submitted_at: new Date().toISOString(),
+      ...denormalize(answers),
+    })
+    .select("id, ref")
+    .single();
+  if (error || !data) {
+    console.error("[talk] insert failed", error);
+    return {
+      ok: false,
+      error: "Sending failed. Nothing was lost. Try again in a moment.",
+    };
+  }
+
+  await supabase.from("submission_events").insert({
+    tenant_id: tenantId,
+    submission_id: data.id,
+    actor: "client",
+    action: "submitted",
+    detail: "Asked for a call from the homepage",
+  });
+
+  // Best-effort, like the discovery submit: mail must never lose the lead.
+  try {
+    await sendSubmissionNotification({
+      ref: data.ref,
+      id: data.id,
+      answers,
+      brand: brandFor(await getTenant()),
+      kind: "call",
+    });
+  } catch (e) {
+    console.error("[talk] notification email failed", e);
+  }
+
+  return { ok: true, ref: data.ref };
+}

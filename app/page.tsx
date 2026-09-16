@@ -908,12 +908,12 @@ export default function LandingPage() {
               >
                 Start shopping
               </Link>
-              <a
-                href="mailto:admin@primepeobrokers.com?subject=Talk%20to%20a%20broker"
+              <Link
+                href="/talk"
                 className="rounded-md border border-ink-soft px-6 py-[15px] text-base font-semibold text-dark-ink transition-colors duration-150 hover:border-dark-ink-muted"
               >
                 Talk to a broker first
-              </a>
+              </Link>
             </div>
           </div>
           <div data-sequence className="rounded-md border border-dark-line">

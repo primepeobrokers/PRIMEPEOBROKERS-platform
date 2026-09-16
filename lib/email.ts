@@ -277,11 +277,21 @@ export function composeSubmissionNotification(input: {
   link: string;
   /** The partner the lead came through. House copy only. */
   via?: string;
+  /**
+   * "record" (default) is a finished discovery record. "call" is the short
+   * "talk to a broker first" form: same row shape, but the team should read
+   * it as a phone call to make, not a record to price.
+   */
+  kind?: "record" | "call";
   footer: string;
 }): ComposedEmail {
   const company = formatAnswer("company", input.answers);
   const contact = formatAnswer("fullName", input.answers);
   const email = formatAnswer("email", input.answers);
+  const isCall = input.kind === "call";
+  // A call request often has no company yet; the person's name carries it.
+  const who = company === "–" ? contact : company;
+  const headline = isCall ? "Call requested" : "New lead";
   const ink = input.brand.ink ?? HOUSE_INK;
 
   /*
@@ -315,7 +325,7 @@ export function composeSubmissionNotification(input: {
 
   const viaText = input.via ? ` · via ${input.via}` : "";
   const text = [
-    `New lead: ${company}${viaText}`,
+    `${headline}: ${who}${viaText}`,
     `${contact} (${email})`,
     ``,
     `Open REF ${input.ref}: ${input.link}`,
@@ -330,13 +340,13 @@ export function composeSubmissionNotification(input: {
   ].join("\n");
 
   return {
-    subject: `New discovery record · REF ${input.ref} · ${company}${viaText}`,
+    subject: `${isCall ? "Call request" : "New discovery record"} · REF ${input.ref} · ${who}${viaText}`,
     text,
     html: renderEmail({
       brand: input.brand,
       preheader: `${company} · ${contact}`,
       eyebrow: `REF ${input.ref}${input.via ? ` · via ${escapeHtml(input.via)}` : ""}`,
-      heading: `New lead: ${escapeHtml(company)}`,
+      heading: `${headline}: ${escapeHtml(who)}`,
       bodyHtml:
         `<p style="margin:10px 0 0;font-family:${FONT};font-size:15px;line-height:1.5;color:${INK_MUTED};">${escapeHtml(contact)} · ${escapeHtml(email)}</p>` +
         button(input.brand, input.link, `Open REF ${input.ref}`) +
@@ -366,6 +376,8 @@ export async function sendSubmissionNotification(input: {
   id: string;
   answers: Answers;
   brand: EmailBrand;
+  /** See composeSubmissionNotification. */
+  kind?: "record" | "call";
 }) {
   const resend = getResend();
   if (!resend) return;
@@ -389,6 +401,7 @@ export async function sendSubmissionNotification(input: {
             id: input.id,
             answers: input.answers,
             brand: house,
+            kind: input.kind,
             link: `${house.origin}/console/leads/${input.id}`,
             via: input.brand.isHouse ? undefined : input.brand.name,
             footer: "Sent to the team the moment a discovery record is submitted.",
@@ -413,6 +426,7 @@ export async function sendSubmissionNotification(input: {
               id: input.id,
               answers: input.answers,
               brand: input.brand,
+              kind: input.kind,
               link: `${input.brand.origin}/portal/leads/${input.id}`,
               footer: "Sent to you the moment a lead submits through your portal.",
             }),

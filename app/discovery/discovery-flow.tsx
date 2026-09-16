@@ -7,6 +7,7 @@ import {
   STEPS,
   TOTAL_STEPS,
   formatAnswer,
+  sanitizeAnswers,
   stepSummary,
   validateField,
   validateStep,
@@ -141,7 +142,10 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
         };
         if (saved && typeof saved.step === "number" && saved.answers) {
           handleRef.current = saved.handle ?? null;
-          setAnswers(saved.answers);
+          // Through the same sanitiser as the server, so a draft written by an
+          // older schema (a removed field, a multi-select that became single)
+          // is coerced rather than shown as unselected.
+          setAnswers(sanitizeAnswers(saved.answers));
           setStep(Math.min(Math.max(saved.step, 0), TOTAL_STEPS - 1));
           setVisited(
             Array.isArray(saved.visited) && saved.visited.length

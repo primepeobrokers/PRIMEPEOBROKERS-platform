@@ -17,6 +17,14 @@ screenshots of every step on desktop and iPhone 13 widths.
 Open decisions for the client: whether salary bands return (D3), and
 whether hourly vs salaried classification matters for quoting (D1).
 
+Follow-up, same day: the homepage "Talk to a broker first" button was a
+`mailto:` link, which does nothing on a machine with no mail app. It now
+opens `/talk`, a five-field call request stored as a complete submission
+(`requestCall` in `app/discovery/actions.ts`) and mailed to the team with a
+"Call request" subject. Every email template was sent through the
+production Resend sender with `scripts/send-test-emails.mts`; all six were
+accepted. Local drafts are now passed through `sanitizeAnswers` on restore.
+
 Files that matter:
 
 - `lib/discovery/schema.ts`: the six steps, every field, per-field widths,
