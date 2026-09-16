@@ -70,17 +70,24 @@ export interface FieldDef {
   label: string;
   help?: string;
   placeholder?: string;
-  /** max-width of the input, e.g. "180px" */
-  w?: string;
+  /**
+   * Share a row with the neighbouring half field. Inputs are otherwise full
+   * width: the form column sets the width, never the field. Only mark fields
+   * that are always visible, so a hidden partner never leaves an orphan.
+   */
+  half?: boolean;
   required?: boolean;
   /** whole numbers only */
   int?: boolean;
-  /** YYYY-MM-DD */
+  /** YYYY-MM-DD, rendered as a native date input */
   date?: boolean;
   email?: boolean;
   /** render in mono font */
   mono?: boolean;
-  /** currency field: show $ formatting in summaries */
+  /**
+   * Currency field: a $ adornment in the input, digits only in the stored
+   * value, thousands separators on display.
+   */
   prefix?: boolean;
   /** radio options: [value, label, note] */
   options?: string[] | [string, string, string][];
@@ -94,25 +101,39 @@ export interface FieldDef {
   when?: { field: string; is: string[] };
 }
 
+export type AnswerValue = string | string[] | undefined;
+export type Answers = Record<string, AnswerValue>;
+
 export interface StepDef {
   title: string;
   intro: string;
-  /** field whose value summarises the step in the ledger */
-  key: string;
   sensitive?: boolean;
-  summaryFmt?: (v: AnswerValue) => string;
+  /**
+   * One line for the record rail once the step is answered. Reads the whole
+   * record, not one field, so a step whose natural summary field is hidden
+   * for this visitor (benefit types for a Payroll lead) still says something.
+   * Return "" when nothing useful has been answered yet.
+   */
+  summary: (answers: Answers) => string;
   fields: FieldDef[];
 }
 
-export type AnswerValue = string | string[] | undefined;
-export type Answers = Record<string, AnswerValue>;
+/** Joins the non-empty parts of a summary with a middle dot. */
+function parts(...xs: (string | undefined | false)[]): string {
+  return xs.filter((x): x is string => !!x).join(" · ");
+}
+
+function str(answers: Answers, id: string): string | undefined {
+  const v = answers[id];
+  return typeof v === "string" && v !== "" ? v : undefined;
+}
 
 export const STEPS: StepDef[] = [
   {
     title: "What are you evaluating?",
     intro:
       "Pick a category. You will walk through a structured needs assessment, we benchmark your spend, and we match you against the market.",
-    key: "category",
+    summary: (a) => categoryName(str(a, "category")),
     fields: [
       {
         id: "category",
@@ -126,13 +147,14 @@ export const STEPS: StepDef[] = [
     title: "About you and your company",
     intro:
       "Who is running this, and the company it is for. Size and footprint shape every recommendation.",
-    key: "company",
+    summary: (a) => parts(str(a, "company"), str(a, "employeeCount")),
     fields: [
       {
         id: "fullName",
         type: "text",
         label: "Your name",
-        w: "340px",
+        placeholder: "Jane Doe",
+        half: true,
         required: true,
       },
       {
@@ -140,7 +162,8 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Work email",
         help: "Your record and the resume link go here.",
-        w: "380px",
+        placeholder: "jane@acme.com",
+        half: true,
         required: true,
         email: true,
       },
@@ -149,14 +172,15 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Phone",
         help: "Optional. Only used if the record is ambiguous.",
-        w: "220px",
+        placeholder: "(555) 123-4567",
+        half: true,
       },
       {
         id: "jobTitle",
         type: "text",
         label: "Job title",
         placeholder: "VP of HR",
-        w: "300px",
+        half: true,
       },
       {
         id: "decisionRole",
@@ -175,7 +199,8 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Company name",
         help: "As it appears on your payroll filings.",
-        w: "460px",
+        placeholder: "Acme Inc",
+        half: true,
         required: true,
       },
       {
@@ -183,14 +208,13 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Website",
         placeholder: "acme.com",
-        w: "300px",
+        half: true,
       },
       {
         id: "industry",
         type: "text",
         label: "Industry",
         placeholder: "Healthcare, SaaS, retail...",
-        w: "300px",
       },
       {
         id: "employeeCount",
@@ -220,7 +244,6 @@ export const STEPS: StepDef[] = [
         label: "Which states do you employ people in?",
         help: "Multi-state filings change which models are available to you.",
         placeholder: "TX, CA, NY...",
-        w: "460px",
       },
     ],
   },
@@ -228,30 +251,19 @@ export const STEPS: StepDef[] = [
     title: "Workforce & payroll",
     intro:
       "How your people are classified and paid drives most of the pricing. Answer what you know: anything you skip, your advisor picks up on the call.",
-    key: "fte",
-    summaryFmt: (v) => (v ? `${v} FTE` : "–"),
+    sensitive: true,
+    summary: (a) => {
+      const fte = str(a, "fte");
+      return parts(fte && `${fte} FTE`, str(a, "provider"));
+    },
     fields: [
-      {
-        id: "employeeTypes",
-        type: "check",
-        label: "Employee types",
-        help: "Select all that apply.",
-        options: [
-          "Full-time",
-          "Part-time",
-          "Hourly",
-          "Salaried",
-          "Seasonal",
-          "1099",
-        ],
-        required: true,
-      },
       {
         id: "fte",
         type: "num",
         label: "Full-time employees",
         help: "W-2, 30+ hours.",
-        w: "180px",
+        placeholder: "15",
+        half: true,
         required: true,
         int: true,
       },
@@ -260,7 +272,8 @@ export const STEPS: StepDef[] = [
         type: "num",
         label: "Part-time employees",
         help: "W-2, under 30 hours.",
-        w: "180px",
+        placeholder: "4",
+        half: true,
         int: true,
       },
       {
@@ -268,7 +281,7 @@ export const STEPS: StepDef[] = [
         type: "num",
         label: "Contractors (1099)",
         help: "Counted separately: classification affects eligibility.",
-        w: "180px",
+        placeholder: "2",
         int: true,
       },
       {
@@ -276,14 +289,14 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Current PEO or payroll provider",
         placeholder: "TriNet, ADP, Gusto, spreadsheets...",
-        w: "380px",
+        half: true,
       },
       {
         id: "accountingSoftware",
         type: "text",
         label: "Accounting software",
         placeholder: "QuickBooks, NetSuite...",
-        w: "300px",
+        half: true,
       },
       {
         id: "payrollFrequency",
@@ -314,9 +327,9 @@ export const STEPS: StepDef[] = [
       {
         id: "fee",
         type: "num",
-        label: "What you pay them a year",
-        help: "Admin and service fees, excluding insurance premium. A range is fine.",
-        w: "220px",
+        label: "What you pay your current provider a year",
+        help: "Admin and service fees, excluding insurance premium. Your best estimate is fine.",
+        placeholder: "48,000",
         prefix: true,
       },
     ],
@@ -324,9 +337,16 @@ export const STEPS: StepDef[] = [
   {
     title: "Time, HR and benefits",
     intro:
-      "What you need the platform to actually do, and what you offer today. Bands, not individual salaries.",
-    key: "benefitTypes",
+      "What you need the platform to actually do, and what you offer today.",
     sensitive: true,
+    summary: (a) => {
+      const offered = str(a, "benefitsOffered");
+      if (offered === "no") return "No benefits today";
+      if (offered !== "yes") return "";
+      const types = a["benefitTypes"];
+      const n = Array.isArray(types) ? types.filter((t) => t !== "None").length : 0;
+      return n ? `${n} benefit type${n === 1 ? "" : "s"}` : "Offers benefits";
+    },
     fields: [
       {
         id: "timeTracking",
@@ -399,7 +419,6 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Where do you post job openings today?",
         placeholder: "LinkedIn, Indeed, referrals...",
-        w: "380px",
         only: ["recruiting"],
       },
       {
@@ -451,7 +470,6 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Benefits platform",
         placeholder: "EENav, bswift, N/A...",
-        w: "300px",
         not: ["payroll", "recruiting", "performance", "learning"],
         when: { field: "benefitsOffered", is: ["yes"] },
       },
@@ -460,15 +478,15 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Benefits broker, if any",
         placeholder: "Firm name",
-        w: "300px",
         not: ["payroll", "recruiting", "performance", "learning"],
+        when: { field: "benefitsOffered", is: ["yes"] },
       },
       {
         id: "spend",
         type: "num",
         label: "Total benefits spend a year",
-        help: "Employer share of premium and contributions. A range is fine.",
-        w: "220px",
+        help: "Employer share of premium and contributions. Your best estimate is fine.",
+        placeholder: "120,000",
         prefix: true,
         not: ["payroll", "recruiting", "performance", "learning"],
         when: { field: "benefitsOffered", is: ["yes"] },
@@ -486,7 +504,7 @@ export const STEPS: StepDef[] = [
       {
         id: "managedServices",
         type: "check",
-        label: "If yes, what kind?",
+        label: "What kind of support?",
         help: "Select all that apply.",
         options: ["Managed payroll", "Managed HR support", "Managed benefits"],
         when: { field: "hrGuidance", is: ["yes", "exploring"] },
@@ -497,13 +515,14 @@ export const STEPS: StepDef[] = [
     title: "Your search",
     intro:
       "What is driving this, and what you want priced. This is the part a broker reads first.",
-    key: "drivers",
+    summary: (a) => parts(str(a, "drivers"), str(a, "timeline")),
     fields: [
       {
         id: "drivers",
-        type: "check",
+        type: "chips",
         label: "Primary reason for evaluating",
-        help: "Select all that apply.",
+        help: "Pick the one that matters most.",
+        single: true,
         options: [
           "Cost",
           "Service",
@@ -513,6 +532,20 @@ export const STEPS: StepDef[] = [
           "Leaving a PEO",
         ],
         required: true,
+      },
+      {
+        id: "otherDrivers",
+        type: "check",
+        label: "Anything else driving this?",
+        help: "Optional. Select all that apply.",
+        options: [
+          "Cost",
+          "Service",
+          "Compliance",
+          "Growth",
+          "Tech limits",
+          "Leaving a PEO",
+        ],
       },
       {
         id: "alsoQuote",
@@ -579,7 +612,6 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Any vendors to specifically include or exclude?",
         placeholder: "Include TriNet, exclude our current provider...",
-        w: "460px",
       },
     ],
   },
@@ -587,15 +619,21 @@ export const STEPS: StepDef[] = [
     title: "Anything else, and how to reach you",
     intro:
       "The last few things an advisor would ask on a call. Blunt is useful.",
-    key: "contactPreference",
+    summary: (a) => {
+      const pref = str(a, "contactPreference");
+      const renewal = str(a, "renewalDate");
+      return parts(
+        pref === "call" ? "Call" : pref === "email" ? "Email" : undefined,
+        renewal && `renews ${renewal}`,
+      );
+    },
     fields: [
       {
         id: "renewalDate",
         type: "text",
         label: "Is a contract renewal or anniversary driving your timing?",
-        help: "YYYY-MM-DD if you know it. This decides how much runway a comparison has.",
-        placeholder: "2027-01-31",
-        w: "220px",
+        help: "Leave it blank if you are not sure. This decides how much runway a comparison has.",
+        date: true,
         mono: true,
       },
       {
@@ -603,7 +641,6 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Who else is involved in the decision?",
         placeholder: "Name, title, and anyone else who has to sign off",
-        w: "460px",
       },
       {
         id: "notes",
@@ -627,7 +664,6 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Best time to reach you",
         placeholder: "Weekday mornings ET",
-        w: "300px",
         when: { field: "contactPreference", is: ["call"] },
       },
       {
@@ -635,7 +671,6 @@ export const STEPS: StepDef[] = [
         type: "text",
         label: "Referred by an advisor, broker, or partner?",
         placeholder: "Who sent you our way?",
-        w: "340px",
       },
     ],
   },
@@ -676,6 +711,21 @@ export function visibleFields(stepIndex: number, answers: Answers): FieldDef[] {
   );
 }
 
+/**
+ * Drops answers to fields this visitor can no longer see. Picking Medical and
+ * then switching "offer benefits" to No leaves the old list in state; the
+ * record should carry what the visitor last saw, not what they walked back.
+ */
+export function visibleAnswers(answers: Answers): Answers {
+  const out: Answers = {};
+  for (let i = 0; i < STEPS.length; i++) {
+    for (const f of visibleFields(i, answers)) {
+      if (answers[f.id] !== undefined) out[f.id] = answers[f.id];
+    }
+  }
+  return out;
+}
+
 export function isEmptyValue(v: AnswerValue): boolean {
   return v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
 }
@@ -687,7 +737,7 @@ export function validateField(field: FieldDef, answers: Answers): string {
   if (field.required && empty) {
     if (field.type === "cards") return "Pick a category to continue.";
     return field.type === "check" || field.type === "chips"
-      ? "Pick at least one. If none apply, choose Other."
+      ? "Pick at least one."
       : "This one is needed before the next step.";
   }
   if (empty) return "";
@@ -695,6 +745,8 @@ export function validateField(field: FieldDef, answers: Answers): string {
     return "Pick a category to continue.";
   if (field.int && !/^\d+$/.test(String(v)))
     return "Whole numbers only: no commas or ranges.";
+  if (field.prefix && !/^\d+$/.test(String(v)))
+    return "Dollars only, e.g. 48000. Your best estimate is fine.";
   if (field.date && !/^\d{4}-\d{2}-\d{2}$/.test(String(v)))
     return "Use YYYY-MM-DD, e.g. 2027-01-31.";
   if (field.email && !/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(String(v)))
@@ -741,6 +793,11 @@ export function sanitizeAnswers(raw: unknown): Answers {
         }
       } else if (typeof v === "string") {
         out[field.id] = v.slice(0, 2000);
+      } else if (Array.isArray(v) && typeof v[0] === "string") {
+        // A field that used to be multi-select (drivers, before it became a
+        // single "primary reason") may still hold an array in an older draft.
+        // Keep the first pick rather than dropping the answer.
+        out[field.id] = v[0].slice(0, 2000);
       }
     }
   }
@@ -754,7 +811,11 @@ export function formatAnswer(fieldId: string, answers: Answers): string {
   if (!v) return "–";
   if (fieldId === "category") return categoryName(String(v));
   const field = STEPS.flatMap((s) => s.fields).find((f) => f.id === fieldId);
-  if (field?.prefix) return "$" + Number(v).toLocaleString("en-US");
+  if (field?.prefix) {
+    // Older records may hold free text ("50k-60k"); show it rather than $NaN.
+    const n = Number(v);
+    return Number.isFinite(n) ? "$" + n.toLocaleString("en-US") : String(v);
+  }
   if (field?.type === "radio" && Array.isArray(field.options)) {
     const opt = (field.options as [string, string, string][]).find(
       (o) => o[0] === v,
@@ -766,9 +827,5 @@ export function formatAnswer(fieldId: string, answers: Answers): string {
 
 /** Ledger summary for a completed step. */
 export function stepSummary(stepIndex: number, answers: Answers): string {
-  const step = STEPS[stepIndex];
-  const v = answers[step.key];
-  if (isEmptyValue(v)) return "–";
-  if (step.summaryFmt) return step.summaryFmt(v);
-  return formatAnswer(step.key, answers);
+  return STEPS[stepIndex].summary(answers) || "–";
 }

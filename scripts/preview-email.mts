@@ -38,7 +38,8 @@ const answers: Answers = {
   phone: "555 0100",
   headcount: "26–50",
   states: ["TX", "CO"],
-  drivers: ["Cost", "Compliance"],
+  drivers: "Cost",
+  otherDrivers: ["Compliance"],
   timeline: "This quarter",
 };
 

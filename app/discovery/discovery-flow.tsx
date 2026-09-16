@@ -21,8 +21,6 @@ import { cn } from "@/lib/utils";
 import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Label } from "@/app/components/ui/label";
-import { Checkbox } from "@/app/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/app/components/ui/radio-group";
 import { TenantMark } from "@/app/components/logo";
 import type { Branding } from "@/lib/tenant/branding";
 import {
@@ -33,6 +31,19 @@ import {
 } from "./actions";
 
 const STORAGE_KEY = "pv-discovery-draft";
+/** Set once the visitor dismisses the resume-link bar; it stays closed for the session. */
+const RESUME_DISMISSED_KEY = "pv-discovery-resume-dismissed";
+const EMAIL_RE = /^[^@\s]+@[^@\s.]+\.[^@\s]+$/;
+
+/** "Saved just now", "Saved 2 min ago": relative, because a bare clock time has no context. */
+function savedLabelFor(savedAt: Date | null, now: number): string {
+  if (!savedAt) return "";
+  const mins = Math.floor((now - savedAt.getTime()) / 60_000);
+  if (mins < 1) return "Saved just now";
+  if (mins < 60) return `Saved ${mins} min ago`;
+  const hours = Math.floor(mins / 60);
+  return `Saved ${hours} hr${hours === 1 ? "" : "s"} ago`;
+}
 
 /** What the header renders when the host resolved to no tenant at all. */
 const HOUSE_TENANT = { isHouse: true, name: "Prime PEO Brokers", branding: {} as Branding };
@@ -76,7 +87,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
   // driver that sent them here.
   const seeded: Answers = {};
   if (presetCategory) seeded.category = presetCategory;
-  if (intent === "renewal") seeded.drivers = ["Cost"];
+  if (intent === "renewal") seeded.drivers = "Cost";
 
   const resumedStep = resumed
     ? Math.min(resumed.stepsCompleted, TOTAL_STEPS - 1)
@@ -95,7 +106,8 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<Toast | null>(null);
   const [abandon, setAbandon] = useState(false);
-  const [savedLabel, setSavedLabel] = useState("");
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState(false);
   const [doneRef, setDoneRef] = useState<number | null>(null);
   const [doneAt, setDoneAt] = useState("");
@@ -167,22 +179,39 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [answers, step, visited, hydrated, view]);
 
-  // ---- exit intent: offer the resume link once ----
+  // ---- exit intent: offer the resume link once, when the tab is left ----
+  // The earlier trigger (pointer leaving through the top edge) fired every
+  // time someone reached for the URL bar, so the bar read as an interruption
+  // rather than a rescue. Tab blur is the moment they are actually leaving,
+  // and the offer is waiting when they come back. Dismissal is remembered for
+  // the session.
   useEffect(() => {
-    const onMouseOut = (e: MouseEvent) => {
+    const onVisibility = () => {
       if (
-        e.clientY <= 4 &&
-        !exitShown.current &&
-        view === "flow" &&
-        step > 0
-      ) {
-        exitShown.current = true;
-        setAbandon(true);
+        document.visibilityState !== "hidden" ||
+        exitShown.current ||
+        view !== "flow" ||
+        step === 0
+      )
+        return;
+      try {
+        if (sessionStorage.getItem(RESUME_DISMISSED_KEY)) return;
+      } catch {
+        /* storage blocked: fall through and offer once */
       }
+      exitShown.current = true;
+      setAbandon(true);
     };
-    document.addEventListener("mouseout", onMouseOut);
-    return () => document.removeEventListener("mouseout", onMouseOut);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [view, step]);
+
+  // Keep the relative "Saved N min ago" label current.
+  useEffect(() => {
+    if (!savedAt) return;
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, [savedAt]);
 
   function fireToast(title: string, body: string) {
     setToast({ title, body });
@@ -191,14 +220,26 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
   }
 
   const markSaved = useCallback(() => {
-    const d = new Date();
-    setSavedLabel(
-      "SAVED " +
-        String(d.getHours()).padStart(2, "0") +
-        ":" +
-        String(d.getMinutes()).padStart(2, "0"),
-    );
+    setSavedAt(new Date());
+    setNow(Date.now());
   }, []);
+
+  function openResumeBar() {
+    setResumeError("");
+    setAbandon(true);
+  }
+
+  function closeResumeBar(remember: boolean) {
+    setResumeError("");
+    setAbandon(false);
+    if (remember) {
+      try {
+        sessionStorage.setItem(RESUME_DISMISSED_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+    }
+  }
 
   /**
    * Persists the draft to the server. Saves are serialised rather than
@@ -241,6 +282,9 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
     setDir(i < step ? "back" : "fwd");
     setStep(i);
     setView("flow");
+    // Moving on is the opposite of leaving: the resume offer closes so it
+    // never sits over the next step's buttons.
+    if (abandon) closeResumeBar(false);
   }
 
   function goNext() {
@@ -250,6 +294,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
       return;
     }
     void syncDraft(answers, step + 1);
+    if (abandon) closeResumeBar(false);
     if (step === TOTAL_STEPS - 1) {
       setDir("fwd");
       setView("review");
@@ -303,11 +348,20 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
 
   async function sendLink() {
     setResumeError("");
+    const email = resumeEmail.trim();
+    if (!EMAIL_RE.test(email)) {
+      setResumeError(
+        email
+          ? "That address is missing an @ or a domain."
+          : "Enter the address the link should go to.",
+      );
+      return;
+    }
     const res = await requestResumeLink({
       handle: handleRef.current,
       answers,
       stepsCompleted: step + 1,
-      email: resumeEmail,
+      email,
     });
     if (res.ok) {
       setAbandon(false);
@@ -343,12 +397,12 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
               aria-live="polite"
               className="whitespace-nowrap font-mono text-[11.5px] uppercase tracking-[.06em] text-positive-deep"
             >
-              {savedLabel}
+              {savedLabelFor(savedAt, now)}
             </div>
             {view !== "done" && (
               <button
                 type="button"
-                onClick={() => setAbandon(true)}
+                onClick={openResumeBar}
                 className="cursor-pointer rounded-md border border-line-strong bg-transparent px-3.5 py-2 text-[13.5px] font-semibold transition-colors duration-150 hover:border-ink"
               >
                 Finish later
@@ -358,12 +412,22 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-[1120px] flex-1 px-8 pb-24 pt-11 max-sm:px-[18px]">
+      {/* The resume bar is fixed to the bottom edge; while it is open the
+          page reserves its height so Back / Continue always scroll clear. */}
+      <main
+        className={cn(
+          "mx-auto w-full max-w-[1120px] flex-1 px-8 pt-11 max-sm:px-[18px]",
+          abandon && view !== "done" ? "pb-[260px] sm:pb-[200px]" : "pb-24",
+        )}
+      >
         {view === "flow" && (
           <div className="grid grid-cols-[312px_1fr] items-start gap-14 [&>*]:min-w-0 max-lg:grid-cols-1 max-lg:gap-7">
             {/* the record, doubling as progress */}
             <aside className="sticky top-[108px] max-lg:hidden">
               <div className="pv-label">Your record</div>
+              <div className="mt-3.5">
+                <ProgressBar step={step} visited={visited} />
+              </div>
               <div className="mt-3.5 overflow-hidden rounded-md border border-line bg-raised">
                 {STEPS.map((s, i) => {
                   const done = visited.includes(i) && i < step;
@@ -396,13 +460,11 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                         >
                           {s.title}
                         </span>
-                        <span className="mt-1 block font-mono text-xs text-ink-muted">
-                          {done
-                            ? stepSummary(i, answers)
-                            : cur
-                              ? "In progress"
-                              : "Not started"}
-                        </span>
+                        {(done || cur) && (
+                          <span className="mt-1 block truncate font-mono text-xs text-ink-muted">
+                            {done ? stepSummary(i, answers) : "In progress"}
+                          </span>
+                        )}
                       </span>
                     </button>
                   );
@@ -414,29 +476,9 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
             </aside>
 
             <section>
-              {/* mobile progress */}
+              {/* mobile progress: the rail is hidden under lg */}
               <div className="mb-[22px] hidden max-lg:block">
-                <div className="flex items-baseline justify-between font-mono text-[11.5px] uppercase tracking-[.1em] text-ink-muted">
-                  <span>
-                    Step {step + 1} of {TOTAL_STEPS}
-                  </span>
-                  <span>{Math.round(((step + 1) / TOTAL_STEPS) * 100)}% complete</span>
-                </div>
-                <div className="mt-2.5 flex gap-1">
-                  {STEPS.map((s, i) => (
-                    <div
-                      key={s.title}
-                      data-state={
-                        i === step
-                          ? "current"
-                          : visited.includes(i) && i < step
-                            ? "done"
-                            : "todo"
-                      }
-                      className="h-1 flex-1 rounded-sm bg-sunken transition-colors duration-250 data-[state=current]:bg-accent data-[state=done]:bg-positive"
-                    />
-                  ))}
-                </div>
+                <ProgressBar step={step} visited={visited} />
               </div>
 
               <div
@@ -470,27 +512,38 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                 )}
 
                 <div className="mt-8 flex flex-col gap-[30px]">
-                  {visibleFields(step, answers).map((f) => (
-                    <Field
-                      key={f.id}
-                      field={f}
-                      answers={answers}
-                      error={errors[f.id] ?? ""}
-                      onKey={onKey}
-                      set={set}
-                      onBlurValidate={() => {
-                        const e = validateField(f, answers);
-                        setErrors((prev) => ({ ...prev, [f.id]: e }));
-                      }}
-                    />
-                  ))}
+                  {pairFields(visibleFields(step, answers)).map((row) => {
+                    const cells = row.map((f) => (
+                      <Field
+                        key={f.id}
+                        field={f}
+                        answers={answers}
+                        error={errors[f.id] ?? ""}
+                        onKey={onKey}
+                        set={set}
+                        onBlurValidate={() => {
+                          const e = validateField(f, answers);
+                          setErrors((prev) => ({ ...prev, [f.id]: e }));
+                        }}
+                      />
+                    ));
+                    if (row.length === 1) return cells;
+                    return (
+                      <div
+                        key={row.map((f) => f.id).join("+")}
+                        className="grid grid-cols-2 items-end gap-x-5 gap-y-[30px] max-sm:grid-cols-1"
+                      >
+                        {cells}
+                      </div>
+                    );
+                  })}
                 </div>
 
                 <div className="mt-[38px] flex items-center justify-between gap-4 border-t border-sunken pt-[26px] max-sm:flex-col-reverse max-sm:items-stretch max-sm:[&>*]:w-full max-sm:[&>*]:text-center">
                   <button
                     type="button"
                     onClick={() =>
-                      step === 0 ? setAbandon(true) : goTo(step - 1)
+                      step === 0 ? openResumeBar() : goTo(step - 1)
                     }
                     className={cn(
                       "h-12 cursor-pointer rounded-md border border-line-strong bg-transparent px-5 text-[15px] font-semibold transition-colors duration-150 hover:border-ink",
@@ -688,36 +741,56 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                 You are {step + 1} of {TOTAL_STEPS} steps in. We will email a link that returns
                 you to this step. No other mail.
               </div>
-              {resumeError && (
-                <div className="mt-1.5 text-[13.5px] text-danger">{resumeError}</div>
-              )}
             </div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <label htmlFor="pv-resume" className="sr-only">
-                Email for your resume link
-              </label>
-              <input
-                id="pv-resume"
-                type="email"
-                value={resumeEmail}
-                onChange={(e) => setResumeEmail(e.target.value)}
-                placeholder="you@company.com"
-                className="w-[236px] rounded-md border border-line-strong bg-raised px-3.5 py-3 text-[15px] focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={sendLink}
-                className="cursor-pointer rounded-md border border-accent bg-accent px-[18px] py-3 text-[15px] font-semibold text-white"
-              >
-                Send the link
-              </button>
-              <button
-                type="button"
-                onClick={() => setAbandon(false)}
-                className="cursor-pointer px-2 py-3 text-sm text-ink-muted underline"
-              >
-                Not now
-              </button>
+            <div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <label htmlFor="pv-resume" className="sr-only">
+                  Email for your resume link
+                </label>
+                <input
+                  id="pv-resume"
+                  type="email"
+                  value={resumeEmail}
+                  onChange={(e) => {
+                    setResumeEmail(e.target.value);
+                    if (resumeError) setResumeError("");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void sendLink();
+                    }
+                  }}
+                  placeholder="you@company.com"
+                  aria-invalid={!!resumeError}
+                  aria-describedby={resumeError ? "pv-resume-error" : undefined}
+                  className="min-h-11 w-[236px] rounded-md border border-line-strong bg-raised px-3.5 py-3 text-[15px] focus:border-accent focus:shadow-[0_0_0_2px_var(--pv-accent)] focus:outline-none aria-invalid:border-danger max-sm:w-full"
+                />
+                <button
+                  type="button"
+                  onClick={sendLink}
+                  disabled={resumeEmail.trim() === ""}
+                  className="min-h-11 cursor-pointer rounded-md border border-accent bg-accent px-[18px] py-3 text-[15px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Send the link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => closeResumeBar(true)}
+                  className="min-h-11 cursor-pointer px-2 py-3 text-sm text-ink-muted underline"
+                >
+                  Not now
+                </button>
+              </div>
+              {resumeError && (
+                <div
+                  id="pv-resume-error"
+                  aria-live="polite"
+                  className="mt-2 text-[13.5px] text-danger"
+                >
+                  {resumeError}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -744,7 +817,123 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
   );
 }
 
+/* ---------- progress ---------- */
+
+/**
+ * "Step 3 of 6 · 50%" plus one segment per step. Shared by the desktop rail
+ * and the mobile header so the two never drift apart.
+ */
+function ProgressBar({ step, visited }: { step: number; visited: number[] }) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between font-mono text-[11.5px] uppercase tracking-[.1em] text-ink-muted">
+        <span>
+          Step {step + 1} of {TOTAL_STEPS}
+        </span>
+        <span>{Math.round(((step + 1) / TOTAL_STEPS) * 100)}%</span>
+      </div>
+      <div className="mt-2.5 flex gap-1">
+        {STEPS.map((s, i) => (
+          <div
+            key={s.title}
+            data-state={
+              i === step
+                ? "current"
+                : visited.includes(i) && i < step
+                  ? "done"
+                  : "todo"
+            }
+            className="h-1 flex-1 rounded-sm bg-sunken transition-colors duration-250 data-[state=current]:bg-accent data-[state=done]:bg-positive"
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ---------- field renderer ---------- */
+
+/**
+ * Groups consecutive `half` fields into rows of two. A lone half field (its
+ * partner hidden for this visitor) falls back to a full-width row.
+ */
+function pairFields(fields: FieldDef[]): FieldDef[][] {
+  const rows: FieldDef[][] = [];
+  for (let i = 0; i < fields.length; i++) {
+    const f = fields[i];
+    const next = fields[i + 1];
+    if (f.half && next?.half) {
+      rows.push([f, next]);
+      i++;
+    } else {
+      rows.push([f]);
+    }
+  }
+  return rows;
+}
+
+/** Radio options are [id, label, note] tuples; chips and checks are plain labels. */
+function optionTuples(f: FieldDef): [string, string, string][] {
+  return (f.options ?? []).map((o) =>
+    Array.isArray(o) ? o : [o, o, ""],
+  );
+}
+
+/** "48000" -> "48,000" for display; the stored value stays digits only. */
+function withThousands(v: string): string {
+  return v.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
+
+/*
+  One control vocabulary. Every choice, single or multi, is a chip: an
+  outlined pill that fills with the accent when selected. Single-select
+  (radio, single chips) and multi-select (check, chips) share the look; the
+  only difference is whether picking one clears the others. Tiles remain for
+  the category choice alone, which is the one decision that deserves the room.
+*/
+function Chip({
+  on,
+  onClick,
+  label,
+  note,
+  role,
+  id,
+}: {
+  on: boolean;
+  onClick: () => void;
+  label: string;
+  note?: string;
+  role: "radio" | "checkbox";
+  id?: string;
+}) {
+  return (
+    <button
+      id={id}
+      type="button"
+      role={role}
+      aria-checked={on}
+      onClick={onClick}
+      className={cn(
+        "inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-[15px] py-[10px] text-left text-[15px] leading-snug transition-colors duration-150",
+        on
+          ? "border-accent bg-accent font-medium text-white"
+          : "border-line-strong bg-raised text-ink hover:border-ink",
+      )}
+    >
+      {label}
+      {note && (
+        <span
+          className={cn(
+            "font-mono text-xs",
+            on ? "text-white/80" : "text-ink-muted",
+          )}
+        >
+          {note}
+        </span>
+      )}
+    </button>
+  );
+}
 
 function Field({
   field: f,
@@ -764,6 +953,10 @@ function Field({
   const val = answers[f.id];
   const mono = f.type === "num" || f.mono;
   const arr = Array.isArray(val) ? val : val ? [String(val)] : [];
+  const single = f.type === "radio" || (f.type === "chips" && f.single);
+  const isChoice =
+    f.type === "radio" || f.type === "check" || f.type === "chips";
+  const errorId = `${f.id}-error`;
 
   // The category picker is the whole of step 1 and carries its own heading.
   if (f.type === "cards") {
@@ -814,10 +1007,16 @@ function Field({
     );
   }
 
+  const inputClass = cn(
+    "mt-[11px] h-auto min-h-11 rounded-md px-[15px] py-3.5 text-base tabular-nums md:text-base",
+    mono && "font-mono",
+  );
+
   return (
     <div>
       <Label
-        htmlFor={f.id}
+        htmlFor={isChoice ? undefined : f.id}
+        id={isChoice ? `${f.id}-label` : undefined}
         className="block text-[14.5px] font-semibold text-ink"
       >
         {f.label}
@@ -828,7 +1027,45 @@ function Field({
         </div>
       )}
 
-      {(f.type === "text" || f.type === "num") && (
+      {(f.type === "text" || f.type === "num") && f.date && (
+        <Input
+          id={f.id}
+          type="date"
+          value={typeof val === "string" ? val : ""}
+          onChange={(e) => set(f.id, e.target.value)}
+          onBlur={onBlurValidate}
+          onKeyDown={onKey}
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
+          className={cn(inputClass, "sm:max-w-[260px]")}
+        />
+      )}
+
+      {(f.type === "text" || f.type === "num") && !f.date && f.prefix && (
+        <div className="relative mt-[11px]">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-[15px] flex items-center font-mono text-base text-ink-muted"
+          >
+            $
+          </span>
+          <Input
+            id={f.id}
+            type="text"
+            inputMode="numeric"
+            value={typeof val === "string" ? withThousands(val) : ""}
+            onChange={(e) => set(f.id, e.target.value.replace(/\D/g, ""))}
+            onBlur={onBlurValidate}
+            onKeyDown={onKey}
+            placeholder={f.placeholder}
+            aria-invalid={!!error}
+            aria-describedby={error ? errorId : undefined}
+            className={cn(inputClass, "mt-0 pl-8")}
+          />
+        </div>
+      )}
+
+      {(f.type === "text" || f.type === "num") && !f.date && !f.prefix && (
         <Input
           id={f.id}
           type="text"
@@ -839,11 +1076,8 @@ function Field({
           onKeyDown={onKey}
           placeholder={f.placeholder}
           aria-invalid={!!error}
-          className={cn(
-            "mt-[11px] h-auto rounded-md px-[15px] py-3.5 text-base tabular-nums md:text-base",
-            mono && "font-mono",
-          )}
-          style={{ maxWidth: f.w ?? "100%" }}
+          aria-describedby={error ? errorId : undefined}
+          className={inputClass}
         />
       )}
 
@@ -856,110 +1090,38 @@ function Field({
           onBlur={onBlurValidate}
           placeholder={f.placeholder}
           aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
           className="mt-[11px] resize-y rounded-md px-[15px] py-3.5 text-base leading-normal md:text-base"
         />
       )}
 
-      {f.type === "radio" && (
-        <RadioGroup
-          value={typeof val === "string" ? val : ""}
-          onValueChange={(v) => set(f.id, v)}
-          aria-label={f.label}
-          aria-invalid={!!error}
-          className="mt-3 gap-2"
-        >
-          {(f.options as [string, string, string][]).map(
-            ([id, label, note]) => {
-              const on = val === id;
-              return (
-                <Label
-                  key={id}
-                  htmlFor={`${f.id}-${id}`}
-                  className={cn(
-                    "flex cursor-pointer items-center gap-3 rounded-md border bg-raised px-4 py-3.5 text-[15.5px] font-normal transition-colors duration-150",
-                    on
-                      ? "border-accent bg-[color-mix(in_oklab,var(--pv-accent)_5%,white)]"
-                      : "border-line hover:border-line-strong",
-                  )}
-                >
-                  <RadioGroupItem id={`${f.id}-${id}`} value={id} />
-                  <span>{label}</span>
-                  {note && (
-                    <span className="ml-auto font-mono text-xs text-ink-muted">
-                      {note}
-                    </span>
-                  )}
-                </Label>
-              );
-            },
-          )}
-        </RadioGroup>
-      )}
-
-      {f.type === "check" && (
+      {isChoice && (
         <div
-          role="group"
-          aria-label={f.label}
-          className="mt-3 grid grid-cols-2 gap-2 max-sm:grid-cols-1"
+          role={single ? "radiogroup" : "group"}
+          aria-labelledby={`${f.id}-label`}
+          aria-invalid={!!error}
+          aria-describedby={error ? errorId : undefined}
+          className="mt-3 flex flex-wrap gap-2"
         >
-          {(f.options as string[]).map((label) => {
-            const on = arr.includes(label);
+          {optionTuples(f).map(([id, label, note]) => {
+            const on = single ? val === id : arr.includes(id);
             return (
-              <Label
-                key={label}
-                htmlFor={`${f.id}-${label}`}
-                className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-md border bg-raised px-4 py-3 text-[15px] font-normal transition-colors duration-150",
-                  on
-                    ? "border-accent bg-[color-mix(in_oklab,var(--pv-accent)_5%,white)]"
-                    : "border-line hover:border-line-strong",
-                )}
-              >
-                <Checkbox
-                  id={`${f.id}-${label}`}
-                  checked={on}
-                  onCheckedChange={() =>
-                    set(
-                      f.id,
-                      on ? arr.filter((x) => x !== label) : [...arr, label],
-                    )
-                  }
-                />
-                <span>{label}</span>
-              </Label>
-            );
-          })}
-        </div>
-      )}
-
-      {f.type === "chips" && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {(f.options as string[]).map((label) => {
-            const on = f.single ? val === label : arr.includes(label);
-            return (
-              <button
-                key={label}
-                type="button"
-                aria-pressed={on}
+              <Chip
+                key={id}
+                id={`${f.id}-${id}`}
+                role={single ? "radio" : "checkbox"}
+                on={on}
+                label={label}
+                note={note}
                 onClick={() =>
-                  f.single
-                    ? set(f.id, on ? "" : label)
+                  single
+                    ? set(f.id, on && f.type !== "radio" ? "" : id)
                     : set(
                         f.id,
-                        arr.includes(label)
-                          ? arr.filter((x) => x !== label)
-                          : [...arr, label],
+                        on ? arr.filter((x) => x !== id) : [...arr, id],
                       )
                 }
-                className={cn(
-                  "cursor-pointer rounded-md border px-[15px] py-[11px] text-[15px] transition-colors duration-150",
-                  on
-                    ? "border-accent bg-accent text-white"
-                    : "border-line bg-raised text-ink hover:border-line-strong",
-                )}
-              >
-                {label}
-              </button>
+              />
             );
           })}
         </div>
@@ -967,6 +1129,7 @@ function Field({
 
       {error && (
         <div
+          id={errorId}
           aria-live="polite"
           className="mt-[9px] text-[13.5px] leading-snug text-danger"
         >

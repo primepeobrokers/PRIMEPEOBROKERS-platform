@@ -7,6 +7,7 @@ import { brandFor } from "@/lib/tenant/email-brand";
 import {
   TOTAL_STEPS,
   sanitizeAnswers,
+  visibleAnswers,
   validateStep,
   formatAnswer,
   answeredCategory,
@@ -186,7 +187,7 @@ export async function submitRecord(input: {
   | { ok: true; ref: number }
   | { ok: false; error: string; fieldErrors?: Record<string, string> }
 > {
-  const answers = sanitizeAnswers(input.answers);
+  const answers = visibleAnswers(sanitizeAnswers(input.answers));
 
   for (let i = 0; i < TOTAL_STEPS; i++) {
     const errors = validateStep(i, answers);

@@ -266,6 +266,27 @@ body {
 }
 
 /*
+  Text fields get a 2px ring rather than the console's 1px. The discovery
+  flow is a long form filled by a first-time visitor, and the active field
+  has to be findable at a glance after a scroll; the 1px edge alone was
+  hard to spot against white. The resting border also steps up one shade
+  (--pv-line was near-invisible) so an empty field reads as a field.
+*/
+[data-slot="input"],
+[data-slot="textarea"] {
+  border-color: var(--pv-line-strong);
+}
+[data-slot="input"]:focus-visible,
+[data-slot="textarea"]:focus-visible {
+  --tw-ring-shadow: 0 0 0 2px var(--pv-accent);
+  box-shadow: 0 0 0 2px var(--pv-accent);
+}
+[data-slot="input"]:hover:not(:focus-visible):not(:disabled),
+[data-slot="textarea"]:hover:not(:focus-visible):not(:disabled) {
+  border-color: var(--pv-ink-muted, var(--pv-line-strong));
+}
+
+/*
   Hover on a field is an invitation, not a state change: a border that darkens
   one step. shadcn's default swaps the background, which makes a whole row of
   filters flicker as the pointer crosses them.

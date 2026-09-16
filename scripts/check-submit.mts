@@ -23,6 +23,7 @@ for (const cat of CATEGORIES) {
         else if (f.type === "radio") a[f.id] = (f.options as [string,string,string][])[0][0];
         else if (f.type === "num") a[f.id] = "42";
         else if (f.id === "email") a[f.id] = "x@y.com";
+        else if (f.date) a[f.id] = "2027-01-31";
         else a[f.id] = "test";
       }
 

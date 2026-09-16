@@ -68,12 +68,12 @@ const FLOW_STEPS = [
   {
     n: "3",
     title: STEPS[2].title,
-    body: "How your people are classified and paid, who runs payroll today, and what you pay them. Ranges are fine.",
+    body: "Headcounts, who runs payroll today, and what you pay your current provider. Estimates are fine.",
   },
   {
     n: "4",
     title: STEPS[3].title,
-    body: "Time tracking, the HR support you need, and what you offer today. Bands, never individual salaries.",
+    body: "Time tracking, the HR support you need, and what you offer today. Totals, never individual salaries.",
   },
   {
     n: "5",

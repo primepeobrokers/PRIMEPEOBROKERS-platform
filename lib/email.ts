@@ -48,7 +48,8 @@ function getResend(): Resend | null {
   why:
 
   - Layout is nested tables, not flex or grid. Outlook renders with Word's
-    engine and knows nothing else.
+    engine and knows nothing else. The column is fluid (width 100%, max
+    560px) so it fits a phone; Outlook alone gets a fixed 560 via MSO.
   - The mark is a hosted PNG, not the site's inline SVG: Gmail strips <svg>
     and Outlook cannot render SVG images at all. The wordmark next to it is
     live text, so when a client blocks remote images the header still says
@@ -81,23 +82,40 @@ const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
 const HOUSE_INK = "#19233B";
 const HOUSE_ACCENT = "#FF2D00";
 
+/*
+  Type scale and greys, used everywhere below so the messages read as one
+  family: 12 eyebrow, 13 footer, 14 label, 16 body, 24 heading. Greys are the
+  navy-mixed tokens from globals.css; a partner's ink replaces only the navy.
+*/
+const INK_SOFT = "#3E465A";
+const INK_MUTED = "#63697A";
+const INK_FAINT = "#808693";
+const LINE = "#E6E7EB";
+const LINE_SOFT = "#EEF0F3";
+const CANVAS = "#F4F5F7";
+
 /** Header mark plus live wordmark. */
 function renderHeader(brand: EmailBrand): string {
   const ink = brand.ink ?? HOUSE_INK;
-  const markHeight = 30;
+  const markHeight = 28;
   const mark = brand.logo
-    ? `<td style="vertical-align:middle;">
+    ? `<td style="vertical-align:middle;padding-right:10px;">
                     <img src="${brand.logo.url}" width="${Math.max(1, Math.round((brand.logo.width / brand.logo.height) * markHeight))}" height="${markHeight}" alt="" style="display:block;border:0;height:${markHeight}px;width:auto;" />
                   </td>`
     : "";
+  /*
+    House: the spaced small-caps lockup from the site. Partner: their name as
+    a plain bold wordmark, larger, because without a mark the name IS the
+    identity and 13px tracking-out text reads as a caption, not a brand.
+  */
   const wordmark = brand.isHouse
-    ? `PRIME&nbsp;<span style="font-weight:700;">PEO</span>&nbsp;BROKERS`
-    : `<span style="font-weight:700;">${escapeHtml(brand.name)}</span>`;
+    ? `<span style="font-size:13px;letter-spacing:.08em;">PRIME&nbsp;<span style="font-weight:700;">PEO</span>&nbsp;BROKERS</span>`
+    : `<span style="font-size:${brand.logo ? 14 : 16}px;font-weight:700;letter-spacing:-0.01em;">${escapeHtml(brand.name)}</span>`;
 
-  return `<table role="presentation" cellpadding="0" cellspacing="0">
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   ${mark}
-                  <td style="vertical-align:middle;${brand.logo ? "padding-left:11px;" : ""}font-family:${FONT};font-size:13px;letter-spacing:.08em;color:${ink};white-space:nowrap;">
+                  <td style="vertical-align:middle;font-family:${FONT};line-height:1;color:${ink};white-space:nowrap;">
                     ${wordmark}
                   </td>
                 </tr>
@@ -118,9 +136,20 @@ function renderEmail(opts: {
 }): string {
   const ink = opts.brand.ink ?? HOUSE_INK;
   const eyebrow = opts.eyebrow
-    ? `<p style="margin:0 0 10px;font-family:${MONO};font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#63697A;">${opts.eyebrow}</p>`
+    ? `<p style="margin:0 0 10px;font-family:${MONO};font-size:12px;line-height:1.4;letter-spacing:.12em;text-transform:uppercase;color:${INK_MUTED};">${opts.eyebrow}</p>`
     : "";
 
+  /*
+    Width: `width:100%; max-width:560px` on the inner table, never a fixed
+    560. A fixed width inside a shrink-to-fit centred cell wins over
+    max-width:100% and the card runs off a phone screen (verified in a
+    375px render). Outlook ignores max-width, so it gets a fixed 560 through
+    the MSO conditional instead.
+
+    The <style> block only tightens padding on narrow screens. Every value it
+    overrides is also set inline, so a client that strips <style> (older
+    Gmail, some Outlooks) still renders the desktop layout correctly.
+  */
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -129,35 +158,49 @@ function renderEmail(opts: {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <style>
+    @media only screen and (max-width: 600px) {
+      .pv-outer { padding: 20px 12px 28px !important; }
+      .pv-card { padding: 28px 22px !important; }
+      .pv-head { padding: 0 4px 18px !important; }
+      .pv-foot { padding: 20px 4px 0 !important; }
+      .pv-h1 { font-size: 22px !important; }
+      .pv-label { width: 42% !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#F5F5F6;">
+<body style="margin:0;padding:0;background-color:${CANVAS};-webkit-text-size-adjust:100%;">
   <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">${opts.preheader}</div>
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F5F5F6;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:${CANVAS};">
     <tr>
-      <td align="center" style="padding:36px 16px 44px;">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:100%;">
+      <td class="pv-outer" align="center" style="padding:36px 16px 44px;">
+        <!--[if mso]><table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;margin:0 auto;">
 
           <tr>
-            <td style="padding:0 6px 22px;">
+            <td class="pv-head" style="padding:0 6px 20px;">
               ${renderHeader(opts.brand)}
             </td>
           </tr>
 
           <tr>
-            <td style="background-color:#FFFFFF;border:1px solid #E1E2E6;border-radius:14px;padding:42px 44px;">
+            <td class="pv-card" style="background-color:#FFFFFF;border:1px solid ${LINE};border-radius:12px;padding:40px 40px 36px;">
               ${eyebrow}
-              <h1 style="margin:0;font-family:${FONT};font-size:26px;line-height:1.25;font-weight:600;letter-spacing:-0.015em;color:${ink};">${opts.heading}</h1>
+              <h1 class="pv-h1" style="margin:0;font-family:${FONT};font-size:24px;line-height:1.3;font-weight:600;letter-spacing:-0.01em;color:${ink};">${opts.heading}</h1>
               ${opts.bodyHtml}
             </td>
           </tr>
 
           <tr>
-            <td style="padding:24px 6px 0;font-family:${FONT};font-size:12.5px;line-height:1.7;color:#808693;">
+            <td class="pv-foot" style="padding:22px 6px 0;font-family:${FONT};font-size:13px;line-height:1.6;color:${INK_FAINT};">
+              <p style="margin:0 0 6px;font-weight:600;color:${INK_MUTED};">${escapeHtml(opts.brand.name)}</p>
               ${opts.footerLines.map((l) => `<p style="margin:0 0 4px;">${l}</p>`).join("")}
             </td>
           </tr>
 
         </table>
+        <!--[if mso]></td></tr></table><![endif]-->
       </td>
     </tr>
   </table>
@@ -167,16 +210,21 @@ function renderEmail(opts: {
 
 /** A body paragraph in the card. */
 function para(html: string): string {
-  return `<p style="margin:18px 0 0;font-family:${FONT};font-size:16.5px;line-height:1.65;color:#3E465A;">${html}</p>`;
+  return `<p style="margin:16px 0 0;font-family:${FONT};font-size:16px;line-height:1.6;color:${INK_SOFT};">${html}</p>`;
+}
+
+/** Small muted paragraph: the "or paste this link" line. */
+function small(html: string): string {
+  return `<p style="margin:14px 0 0;font-family:${FONT};font-size:13px;line-height:1.6;color:${INK_FAINT};word-break:break-all;">${html}</p>`;
 }
 
 /** The one place the accent appears: a button with a bold white label. */
 function button(brand: EmailBrand, href: string, label: string): string {
   return `
-    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 4px;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 0;">
       <tr>
-        <td style="background-color:${brand.accent ?? HOUSE_ACCENT};border-radius:10px;">
-          <a href="${href}" style="display:inline-block;padding:13px 28px;font-family:${FONT};font-size:16px;font-weight:600;color:#FFFFFF;text-decoration:none;">${label}</a>
+        <td style="background-color:${brand.accent ?? HOUSE_ACCENT};border-radius:8px;">
+          <a href="${href}" style="display:inline-block;padding:13px 24px;font-family:${FONT};font-size:15px;line-height:1.2;font-weight:600;color:#FFFFFF;text-decoration:none;">${label}</a>
         </td>
       </tr>
     </table>`;
@@ -241,19 +289,28 @@ export function composeSubmissionNotification(input: {
     it from their inbox on a phone and decides whether it can wait, without a
     sign-in round trip. Muted labels, ink values, a hairline between steps.
   */
+  /*
+    Label column fixed at 40% and allowed to wrap, so the longest question
+    ("Which states do you employ people in?") never widens the table past a
+    phone screen. One hairline per row keeps a 30-row record scannable, and
+    an unanswered field is rendered faint so the eye lands on the answers.
+  */
   const sections = STEPS.map((step) => {
     const rows = step.fields
-      .map(
-        (f) => `
+      .map((f, i) => {
+        const value = formatAnswer(f.id, input.answers);
+        const empty = value === "–";
+        const border = i === step.fields.length - 1 ? "" : `border-bottom:1px solid ${LINE_SOFT};`;
+        return `
         <tr>
-          <td style="padding:7px 18px 7px 0;font-family:${FONT};font-size:14px;line-height:1.5;color:#63697A;vertical-align:top;white-space:nowrap;">${escapeHtml(f.label)}</td>
-          <td style="padding:7px 0;font-family:${FONT};font-size:14.5px;line-height:1.5;color:${ink};">${escapeHtml(formatAnswer(f.id, input.answers))}</td>
-        </tr>`,
-      )
+          <td class="pv-label" width="40%" style="width:40%;padding:8px 16px 8px 0;${border}font-family:${FONT};font-size:14px;line-height:1.5;color:${INK_MUTED};vertical-align:top;">${escapeHtml(f.label)}</td>
+          <td style="padding:8px 0;${border}font-family:${FONT};font-size:15px;line-height:1.5;color:${empty ? INK_FAINT : ink};vertical-align:top;">${escapeHtml(value)}</td>
+        </tr>`;
+      })
       .join("");
     return `
-      <p style="margin:30px 0 6px;font-family:${MONO};font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:#63697A;border-top:1px solid #E1E2E6;padding-top:22px;">${escapeHtml(step.title)}</p>
-      <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rows}</table>`;
+      <p style="margin:32px 0 4px;padding-top:24px;border-top:1px solid ${LINE};font-family:${MONO};font-size:11.5px;line-height:1.4;letter-spacing:.12em;text-transform:uppercase;color:${INK_MUTED};">${escapeHtml(step.title)}</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">${rows}</table>`;
   }).join("");
 
   const viaText = input.via ? ` · via ${input.via}` : "";
@@ -281,7 +338,7 @@ export function composeSubmissionNotification(input: {
       eyebrow: `REF ${input.ref}${input.via ? ` · via ${escapeHtml(input.via)}` : ""}`,
       heading: `New lead: ${escapeHtml(company)}`,
       bodyHtml:
-        para(`${escapeHtml(contact)} · ${escapeHtml(email)}`) +
+        `<p style="margin:10px 0 0;font-family:${FONT};font-size:15px;line-height:1.5;color:${INK_MUTED};">${escapeHtml(contact)} · ${escapeHtml(email)}</p>` +
         button(input.brand, input.link, `Open REF ${input.ref}`) +
         sections,
       footerLines: [input.footer],
@@ -409,8 +466,8 @@ export function composePasswordResetCode(input: {
       heading: "Your reset code",
       bodyHtml:
         para("Enter this code to set a new password.") +
-        `<div style="margin:26px 0 0;background-color:#F5F5F6;border-radius:12px;padding:24px;text-align:center;">
-           <span style="font-family:${MONO};font-size:40px;font-weight:600;letter-spacing:.18em;color:${ink};">${code}</span>
+        `<div style="margin:24px 0 0;background-color:${CANVAS};border:1px solid ${LINE_SOFT};border-radius:10px;padding:22px;text-align:center;">
+           <span style="font-family:${MONO};font-size:36px;line-height:1.2;font-weight:600;letter-spacing:.16em;color:${ink};">${code}</span>
          </div>` +
         para(
           `It expires in ${input.expiresInMinutes} minutes and works once. Asking for another code cancels this one.`,
@@ -475,7 +532,7 @@ export function composeResumeLink(input: {
           `You are ${input.stepsCompleted} of 6 steps in, and everything you entered is saved.`,
         ) +
         button(input.brand, link, "Continue your record") +
-        `<p style="margin:14px 0 0;font-family:${FONT};font-size:13px;line-height:1.6;color:#808693;">Or paste this into your browser:<br/><a href="${link}" style="color:#63697A;">${link}</a></p>`,
+        small(`Or paste this into your browser:<br/><a href="${link}" style="color:${INK_MUTED};">${link}</a>`),
       footerLines: [
         "The link takes you back to the step you left and expires in 30 days.",
         "No other mail follows from this. If you did not request it, ignore this email.",
@@ -600,7 +657,7 @@ export function composeTeamInvite(input: {
       bodyHtml:
         para(`${inviter} ${escapeHtml(intro)}${escapeHtml(roleLine)}`) +
         button(input.brand, input.acceptUrl, "Accept invitation") +
-        `<p style="margin:14px 0 0;font-family:${FONT};font-size:13px;line-height:1.6;color:#808693;">Or paste this into your browser:<br/><a href="${input.acceptUrl}" style="color:#63697A;word-break:break-all;">${input.acceptUrl}</a></p>`,
+        small(`Or paste this into your browser:<br/><a href="${input.acceptUrl}" style="color:${INK_MUTED};">${input.acceptUrl}</a>`),
       footerLines: [
         "The link works once and takes you straight to setting a password. If it has expired by the time you use it, ask to be invited again.",
         "Not expecting this? Ignore this email and nothing happens.",
