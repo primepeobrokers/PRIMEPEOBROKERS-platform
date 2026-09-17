@@ -3,6 +3,9 @@ import "server-only";
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { tenantOrigin } from "@/lib/tenant/urls";
+import { DEFAULT_TENANT_ID } from "@/lib/tenant";
 
 export type Role = "admin" | "member";
 
@@ -130,11 +133,12 @@ export async function requireAdminPage(): Promise<SessionContext> {
 }
 
 /**
- * Staff context, or a 404. For the console, which is Prime PEO Brokers' own
- * workflow tooling and not part of what a partner is sold.
+ * Staff context. For the console, which is Prime PEO Brokers' own workflow
+ * tooling and not part of what a partner is sold.
  *
- * notFound rather than a redirect, for the same reason requireAdminPage uses
- * it: someone who guesses the URL should not learn whether the route exists.
+ * A partner user is sent to their own portal when we can name it, and gets a
+ * 404 when we cannot, so a URL guess by someone with no portal still learns
+ * nothing about what exists.
  *
  * This is one of four layers keeping a partner out of /console, and it is the
  * app-level one that actually matters. The proxy rewrite is convenience and
@@ -144,8 +148,40 @@ export async function requireAdminPage(): Promise<SessionContext> {
 export async function requireStaff(next = "/console"): Promise<SessionContext> {
   const ctx = await getSessionContext();
   if (!ctx) redirect(await signInRedirect(next));
-  if (!ctx.isPlatformStaff) notFound();
+  if (!ctx.isPlatformStaff) {
+    /*
+      A partner user who reaches the console is not an attacker to be stonewalled
+      but someone standing at the wrong door: the commonest way to get here is
+      accepting an invite and being handed /console by the app itself. Send them
+      to their own portal, which is the thing they were actually invited to.
+
+      Still notFound() when we cannot name a destination, so a genuine URL guess
+      by someone with no portal learns nothing about what exists.
+    */
+    const home = await partnerPortalUrl(ctx.tenantId);
+    if (home) redirect(home);
+    notFound();
+  }
   return ctx;
+}
+
+/**
+ * The absolute URL of a partner's own portal, or null for the house tenant.
+ *
+ * Absolute because a partner portal lives on its own subdomain: a relative
+ * "/portal" on the apex would land them on a host their session is not for.
+ * Read with the service-role client, since the caller is by definition not
+ * allowed to read the console's tenant rows.
+ */
+async function partnerPortalUrl(tenantId: string): Promise<string | null> {
+  if (tenantId === DEFAULT_TENANT_ID) return null;
+  const { data } = await createAdminClient()
+    .from("tenants")
+    .select("slug, is_house, suspended_at")
+    .eq("id", tenantId)
+    .maybeSingle<{ slug: string; is_house: boolean | null; suspended_at: string | null }>();
+  if (!data || data.is_house || data.suspended_at) return null;
+  return `${tenantOrigin(data.slug, false)}/portal`;
 }
 
 export type ActionGuard =

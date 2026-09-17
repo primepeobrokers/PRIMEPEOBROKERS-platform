@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { classifyHost } from "@/lib/tenant/host";
+import { getSessionContext } from "@/lib/auth/session";
 import {
   RESET_CODE_LENGTH,
   RESET_CODE_TTL_MINUTES,
@@ -152,6 +153,26 @@ export async function updatePassword(input: {
   const { error } = await supabase.auth.updateUser({ password });
   if (error) {
     return { error: "Setting the password failed. Try again." };
+  }
+
+  /*
+    Land them where they actually belong, the way signIn already does.
+
+    This used to redirect to /console unconditionally, which meant a partner
+    accepting their invite set a password and was immediately shown a 404:
+    requireStaff() rejects anyone who is not platform staff, so the last step
+    of onboarding looked like a broken product. The host decides, because a
+    partner's invite link is minted on their own subdomain (see
+    inviteIntoTenant in app/console/partners/actions.ts).
+
+    The staff check is the other half. A platform-staff user who somehow sets
+    a password on a partner host belongs in the console, not in a portal that
+    will show them nothing.
+  */
+  const host = classifyHost((await headers()).get("host"));
+  if (host.kind === "partner") {
+    const ctx = await getSessionContext();
+    redirect(ctx?.isPlatformStaff ? "/console" : "/portal");
   }
   redirect("/console");
 }
