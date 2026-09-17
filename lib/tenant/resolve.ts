@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { unstable_cache } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 
-import { getSessionContext, type SessionContext } from "@/lib/auth/session";
+import { getSessionContext, signInRedirect, type SessionContext } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { classifyHost } from "@/lib/tenant/host";
@@ -237,7 +237,9 @@ export async function requireTenantUser(): Promise<{
 }> {
   const tenant = await requireTenant();
   const ctx = await getSessionContext();
-  if (!ctx) redirect(`/login?next=${encodeURIComponent("/portal")}`);
+  // signInRedirect, not a bare path: a deactivated partner user holds a valid
+  // token, so the proxy would bounce them straight back here and loop.
+  if (!ctx) redirect(await signInRedirect("/portal"));
 
   if (ctx.tenantId !== tenant.id) {
     const supabase = await createClient();

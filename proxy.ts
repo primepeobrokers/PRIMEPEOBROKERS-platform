@@ -117,7 +117,26 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && pathname === "/login") {
+  /*
+    Send a signed-in visitor on from /login, but ONLY when they arrived under
+    their own steam.
+
+    This check is optimistic: it sees the auth token and nothing else. A
+    deactivated teammate still holds a valid token, so getSessionContext()
+    returns null, requireStaff() redirects them to /login, and this rule sent
+    them straight back to /console. That was an infinite redirect loop, and a
+    browser gives up with ERR_TOO_MANY_REDIRECTS rather than showing the sign
+    -in page.
+
+    `next` and `error` are the two markers the app itself sets when it bounces
+    someone here. Their presence means the redirect came FROM a guard, so the
+    login page must be allowed to render and explain itself.
+  */
+  const bouncedHere =
+    request.nextUrl.searchParams.has("next") ||
+    request.nextUrl.searchParams.has("error");
+
+  if (user && pathname === "/login" && !bouncedHere) {
     const url = request.nextUrl.clone();
     // A partner has no console. Their portal is the root of their own host.
     url.pathname = host.kind === "partner" ? "/" : "/console";

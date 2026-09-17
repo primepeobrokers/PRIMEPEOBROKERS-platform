@@ -393,7 +393,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
       {/* header */}
       <header className="sticky top-0 z-30 border-b border-line bg-surface">
         <div className="mx-auto flex h-16 w-full max-w-[1120px] items-center justify-between gap-6 px-8 max-sm:px-[18px]">
-          <Link href={homeHref} aria-label={`${brandName} home`} className="flex items-center">
+          <Link href={homeHref} aria-label={`${brandName} home`} className="flex min-h-11 items-center">
             <TenantMark tenant={tenant ?? HOUSE_TENANT} size={30} />
           </Link>
           <div className="flex items-center gap-5">
@@ -407,7 +407,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
               <button
                 type="button"
                 onClick={openResumeBar}
-                className="cursor-pointer rounded-md border border-line-strong bg-transparent px-3.5 py-2 text-[13.5px] font-semibold transition-colors duration-150 hover:border-ink"
+                className="cursor-pointer rounded-md border border-line-strong bg-transparent px-3.5 py-2 min-h-11 inline-flex items-center text-[13.5px] font-semibold transition-colors duration-150 hover:border-ink"
               >
                 Finish later
               </button>

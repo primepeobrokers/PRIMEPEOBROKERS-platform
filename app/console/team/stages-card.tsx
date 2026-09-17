@@ -314,7 +314,7 @@ export function StagesCard({
           <div className="border-t border-line bg-sunken px-row-x py-3.5">
             <div className="flex flex-col gap-3">
               <div>
-                <label htmlFor="stage-new" className="text-[13px] text-ink-muted">
+                <label htmlFor="stage-new" className="block text-[13px] text-ink-muted">
                   Name
                 </label>
                 <Input

@@ -31,3 +31,26 @@ export function tenantOrigin(slug: string, isHouse: boolean): string {
   const scheme = houseOrigin().startsWith("https://") ? "https" : "http";
   return `${scheme}://${slug}.${APEX_HOST}`;
 }
+
+/**
+ * The link an invite or recovery email should carry.
+ *
+ * NOT Supabase's `action_link`. That URL goes through Supabase's own verify
+ * endpoint, which consumes the one-time token there and then redirects to
+ * our confirm route with the session in the URL fragment (implicit flow).
+ * A server route never sees a fragment, so the confirm route found no
+ * token_hash, bounced to /login?error=link, and the token was already spent:
+ * the invite looked "expired" the instant it was clicked.
+ *
+ * Carrying `hashed_token` in the query instead lets the confirm route call
+ * verifyOtp itself, on our origin, and set the session cookie there. This is
+ * the pattern @supabase/ssr documents for email links.
+ */
+export function confirmUrl(
+  origin: string,
+  hashedToken: string,
+  type: "invite" | "recovery" = "invite",
+): string {
+  const q = new URLSearchParams({ token_hash: hashedToken, type });
+  return `${origin}/auth/confirm?${q.toString()}`;
+}

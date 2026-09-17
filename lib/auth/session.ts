@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -35,32 +36,70 @@ export interface SessionContext {
  * a member of anything, so treating the row as absent here is the truthful
  * answer and it means every caller gets the check for free.
  */
-export async function getSessionContext(): Promise<SessionContext | null> {
-  const supabase = await createClient();
+export const getSessionContext = cache(
+  async (): Promise<SessionContext | null> => (await resolveSession()).ctx,
+);
 
-  // getUser, not getSession: getSession trusts whatever is in the cookie,
-  // getUser revalidates it against the auth server.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
+/**
+ * Why there is no session, when there is none.
+ *
+ * "none" means no valid token: the ordinary signed-out case. "revoked" means
+ * the token is good but the account is not usable any more (removed from the
+ * team, or a profile that never existed). The difference matters at the door:
+ * a revoked user is bounced by the guard while the proxy still sees a valid
+ * token, so without saying WHY they would be told "your link expired" and go
+ * looking for a new invite that will do exactly the same thing.
+ */
+export type SessionFailure = "none" | "revoked";
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("tenant_id, role, full_name, deactivated_at, is_platform_staff")
-    .eq("id", user.id)
-    .maybeSingle();
+/**
+ * The session read, wrapped in React cache() so one request pays for it once.
+ *
+ * A console page reaches this twice (the layout guard and the page itself),
+ * and each call was previously a live round trip to the auth server plus a
+ * profiles read. cache() is per-request, which is exactly the scope wanted:
+ * a later request still revalidates the token. lib/tenant/resolve.ts uses the
+ * same pattern for getTenant().
+ */
+const resolveSession = cache(
+  async (): Promise<{ ctx: SessionContext | null; why: SessionFailure }> => {
+    const supabase = await createClient();
 
-  if (!profile || profile.deactivated_at) return null;
+    // getUser, not getSession: getSession trusts whatever is in the cookie,
+    // getUser revalidates it against the auth server.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ctx: null, why: "none" };
 
-  return {
-    userId: user.id,
-    email: user.email ?? "",
-    tenantId: profile.tenant_id,
-    role: profile.role === "admin" ? "admin" : "member",
-    fullName: profile.full_name ?? null,
-    isPlatformStaff: profile.is_platform_staff === true,
-  };
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("tenant_id, role, full_name, deactivated_at, is_platform_staff")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile || profile.deactivated_at) return { ctx: null, why: "revoked" };
+
+    return {
+      ctx: {
+        userId: user.id,
+        email: user.email ?? "",
+        tenantId: profile.tenant_id,
+        role: profile.role === "admin" ? "admin" : "member",
+        fullName: profile.full_name ?? null,
+        isPlatformStaff: profile.is_platform_staff === true,
+      },
+      why: "none",
+    };
+  },
+);
+
+/** Where a guard sends someone who has no usable session. */
+export async function signInRedirect(next: string): Promise<string> {
+  const { why } = await resolveSession();
+  const q = new URLSearchParams({ next });
+  if (why === "revoked") q.set("error", "revoked");
+  return `/login?${q.toString()}`;
 }
 
 /**
@@ -72,7 +111,7 @@ export async function getSessionContext(): Promise<SessionContext | null> {
  */
 export async function requireUser(next = "/console"): Promise<SessionContext> {
   const ctx = await getSessionContext();
-  if (!ctx) redirect(`/login?next=${encodeURIComponent(next)}`);
+  if (!ctx) redirect(await signInRedirect(next));
   return ctx;
 }
 
@@ -104,7 +143,7 @@ export async function requireAdminPage(): Promise<SessionContext> {
  */
 export async function requireStaff(next = "/console"): Promise<SessionContext> {
   const ctx = await getSessionContext();
-  if (!ctx) redirect(`/login?next=${encodeURIComponent(next)}`);
+  if (!ctx) redirect(await signInRedirect(next));
   if (!ctx.isPlatformStaff) notFound();
   return ctx;
 }

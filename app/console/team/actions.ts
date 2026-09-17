@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { guardAction } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { houseOrigin as siteUrl } from "@/lib/tenant/urls";
+import { confirmUrl, houseOrigin as siteUrl } from "@/lib/tenant/urls";
 import { createClient } from "@/lib/supabase/server";
 import { sendTeamInvite } from "@/lib/email";
 import { houseBrand } from "@/lib/tenant/email-brand";
@@ -132,7 +132,7 @@ export async function inviteTeammate(input: {
     },
   });
 
-  if (error || !linkData?.properties?.action_link) {
+  if (error || !linkData?.properties?.hashed_token) {
     const raw = (error?.message ?? "").toLowerCase();
     if (raw.includes("already been registered") || raw.includes("already registered")) {
       return {
@@ -146,7 +146,7 @@ export async function inviteTeammate(input: {
 
   const delivery = await sendTeamInvite({
     to: email,
-    acceptUrl: linkData.properties.action_link,
+    acceptUrl: confirmUrl(siteUrl(), linkData.properties.hashed_token),
     invitedBy: ctx.fullName || ctx.email || "A teammate",
     role,
     brand: houseBrand(),

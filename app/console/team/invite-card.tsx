@@ -53,7 +53,7 @@ export function InviteCard() {
 
         <div className="mt-3.5 flex flex-col gap-3">
           <div>
-            <label htmlFor="invite-email" className="text-[13px] text-ink-muted">
+            <label htmlFor="invite-email" className="block text-[13px] text-ink-muted">
               Email
             </label>
             <Input
@@ -78,7 +78,7 @@ export function InviteCard() {
           </div>
 
           <div>
-            <label htmlFor="invite-name" className="text-[13px] text-ink-muted">
+            <label htmlFor="invite-name" className="block text-[13px] text-ink-muted">
               Full name <span className="text-ink-faint">(optional)</span>
             </label>
             <Input
@@ -97,7 +97,7 @@ export function InviteCard() {
           </div>
 
           <div>
-            <label htmlFor="invite-role" className="text-[13px] text-ink-muted">
+            <label htmlFor="invite-role" className="block text-[13px] text-ink-muted">
               Role
             </label>
             <Select

@@ -242,19 +242,29 @@ export async function submitRecord(input: {
   const contactName = answers["fullName"];
   try {
     const brand = brandFor(await getTenant());
-    await sendSubmissionNotification({
-      ref: data.ref,
-      id: data.id,
-      answers,
-      brand,
-    });
+    /*
+      Both sends at once. They are independent, each is a ~300ms call to
+      Resend, and awaiting them in series put that whole time on the submit
+      button's spinner for work the visitor never sees. allSettled, not all,
+      so one failing address cannot stop the other message.
+    */
+    const sends: Promise<unknown>[] = [
+      sendSubmissionNotification({ ref: data.ref, id: data.id, answers, brand }),
+    ];
     if (typeof contactEmail === "string" && contactEmail) {
-      await sendSubmissionConfirmation({
-        to: contactEmail,
-        ref: data.ref,
-        name: typeof contactName === "string" ? contactName : "",
-        brand,
-      });
+      sends.push(
+        sendSubmissionConfirmation({
+          to: contactEmail,
+          ref: data.ref,
+          name: typeof contactName === "string" ? contactName : "",
+          brand,
+        }),
+      );
+    }
+    for (const r of await Promise.allSettled(sends)) {
+      if (r.status === "rejected") {
+        console.error("[discovery] notification email failed", r.reason);
+      }
     }
   } catch (e) {
     console.error("[discovery] notification email failed", e);
@@ -427,20 +437,28 @@ export async function requestCall(input: {
   // is never silent even when the team inbox is unset.
   try {
     const brand = brandFor(await getTenant());
-    await sendSubmissionNotification({
-      ref: data.ref,
-      id: data.id,
-      answers,
-      brand,
-      kind: "call",
-    });
-    await sendSubmissionConfirmation({
-      to: email,
-      ref: data.ref,
-      name: fullName,
-      brand,
-      kind: "call",
-    });
+    // Both at once, for the same reason as submitRecord above.
+    const results = await Promise.allSettled([
+      sendSubmissionNotification({
+        ref: data.ref,
+        id: data.id,
+        answers,
+        brand,
+        kind: "call",
+      }),
+      sendSubmissionConfirmation({
+        to: email,
+        ref: data.ref,
+        name: fullName,
+        brand,
+        kind: "call",
+      }),
+    ]);
+    for (const r of results) {
+      if (r.status === "rejected") {
+        console.error("[talk] notification email failed", r.reason);
+      }
+    }
   } catch (e) {
     console.error("[talk] notification email failed", e);
   }

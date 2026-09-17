@@ -479,9 +479,15 @@ function Field({
   placeholder?: string;
   disabled?: boolean;
 }) {
+  /*
+    `block` on the label is load-bearing, not cosmetic. A bare <label> is
+    display:inline, so the w-full Input started at the label's right edge and
+    ran the label's width past the column, overlapping the panel beside it.
+    The mt-1.5 never applied either, because nothing was stacked.
+  */
   return (
-    <div>
-      <label htmlFor={id} className="text-[13px] text-ink-soft">
+    <div className="min-w-0">
+      <label htmlFor={id} className="block text-[13px] text-ink-soft">
         {label}
       </label>
       <Input

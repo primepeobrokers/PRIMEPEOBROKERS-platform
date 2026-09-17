@@ -14,11 +14,12 @@ export default async function LoginPage(props: PageProps<"/login">) {
   const searchParams = await props.searchParams;
   const next = typeof searchParams.next === "string" ? searchParams.next : "";
   const linkError = searchParams.error === "link";
+  const revoked = searchParams.error === "revoked";
 
   return (
     <>
       <AuthShell>
-        <LoginCard next={next} linkError={linkError} />
+        <LoginCard next={next} linkError={linkError} revoked={revoked} />
       </AuthShell>
       {/*
         Outside AuthShell on purpose: as children these mounted inside the login

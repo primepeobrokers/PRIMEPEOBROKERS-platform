@@ -6,7 +6,7 @@ import { guardAction } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTeamInvite } from "@/lib/email";
-import { tenantOrigin } from "@/lib/tenant/urls";
+import { confirmUrl, tenantOrigin } from "@/lib/tenant/urls";
 import { contrastRatio, parseBranding, type Branding } from "@/lib/tenant/branding";
 import { brandFor } from "@/lib/tenant/email-brand";
 import { imageInfo } from "@/lib/tenant/image-size";
@@ -535,7 +535,7 @@ async function inviteIntoTenant(input: {
     },
   });
 
-  if (error || !linkData?.properties?.action_link) {
+  if (error || !linkData?.properties?.hashed_token) {
     const raw = (error?.message ?? "").toLowerCase();
     if (raw.includes("already registered") || raw.includes("already been registered")) {
       return {
@@ -551,7 +551,10 @@ async function inviteIntoTenant(input: {
   // first thing they see from it should carry their name, not the house's.
   const delivery = await sendTeamInvite({
     to: email,
-    acceptUrl: linkData.properties.action_link,
+    acceptUrl: confirmUrl(
+      tenantOrigin(tenant.slug, tenant.isHouse),
+      linkData.properties.hashed_token,
+    ),
     invitedBy: ctx.fullName || ctx.email || "Prime PEO Brokers",
     role: "admin",
     brand: brandFor(tenant),

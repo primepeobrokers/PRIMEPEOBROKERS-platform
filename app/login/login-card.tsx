@@ -30,15 +30,27 @@ const COPY = {
 export function LoginCard({
   next,
   linkError,
+  revoked = false,
 }: {
   next: string;
   linkError: boolean;
+  /** Their token is valid but the account is not on a team any more. */
+  revoked?: boolean;
 }) {
   const [view, setView] = useState<"signin" | "forgot" | "code">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  /*
+    "revoked" outranks "link": someone removed from the team clicking a fresh
+    invite hits both, and telling them the link expired would send them
+    chasing another one that fails exactly the same way.
+  */
   const [error, setError] = useState(
-    linkError ? "That link has expired or was already used. Ask for a fresh one." : "",
+    revoked
+      ? "This account no longer has access. Ask an admin on the team to restore it."
+      : linkError
+        ? "That link has expired or was already used. Ask for a fresh one."
+        : "",
   );
   const [code, setCode] = useState("");
   // Mirrors the server's 60s minimum gap, so the button cannot invite a
