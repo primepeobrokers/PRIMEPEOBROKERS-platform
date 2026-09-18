@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "/Users/macbookpro/Documents/Freelancing/prime-vintage/app/console/partners/partners-table.tsx"
+        ],
+        "createdAt": "2026-09-18T17:28:32.988Z",
+        "reason": "Claude verified: the only <img> is the partner logo preview at L417, whose src comes from logoUrl(logo.path) and which renders only inside a {logo ? ... : <ImageIcon/>} guard. No empty or placeholder src exists in this file."
+      }
+    ]
+  }
+}

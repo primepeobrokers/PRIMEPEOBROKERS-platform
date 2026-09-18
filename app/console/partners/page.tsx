@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { parseBranding } from "@/lib/tenant/branding";
 import { APEX_HOST } from "@/lib/tenant/host";
 import { CreatePartnerCard } from "./create-partner-card";
-import { PartnersTable, type PartnerRow } from "./partners-table";
+import { PartnersTable, type PartnerMember, type PartnerRow } from "./partners-table";
 
 export const metadata: Metadata = {
   title: "Partners",
@@ -49,7 +49,12 @@ export default async function PartnersPage() {
       // Counted in one pass rather than a query per partner: the roster is
       // single digits to low tens, so N+1 here would be gratuitous.
       supabase.from("submissions").select("tenant_id"),
-      supabase.from("profiles").select("tenant_id, deactivated_at"),
+      // The roster itself, not just a count: each partner row lists who has
+      // a login so the client can resend or revoke without asking us.
+      supabase
+        .from("profiles")
+        .select("id, tenant_id, full_name, email, deactivated_at")
+        .order("full_name", { ascending: true, nullsFirst: false }),
     ]);
 
   const tenants = (tenantRows ?? []) as TenantRecord[];
@@ -60,11 +65,23 @@ export default async function PartnersPage() {
     leadsByTenant.set(id, (leadsByTenant.get(id) ?? 0) + 1);
   }
 
-  const usersByTenant = new Map<string, number>();
+  const membersByTenant = new Map<string, PartnerMember[]>();
   for (const row of profileRows ?? []) {
-    const r = row as { tenant_id: string; deactivated_at: string | null };
-    if (r.deactivated_at) continue;
-    usersByTenant.set(r.tenant_id, (usersByTenant.get(r.tenant_id) ?? 0) + 1);
+    const r = row as {
+      id: string;
+      tenant_id: string;
+      full_name: string | null;
+      email: string | null;
+      deactivated_at: string | null;
+    };
+    const list = membersByTenant.get(r.tenant_id) ?? [];
+    list.push({
+      id: r.id,
+      name: r.full_name,
+      email: r.email,
+      deactivatedAt: r.deactivated_at,
+    });
+    membersByTenant.set(r.tenant_id, list);
   }
 
   // The house tenant is managed through /console/team, and it must never be
@@ -78,7 +95,7 @@ export default async function PartnersPage() {
       branding: parseBranding(t.branding, t.name),
       suspendedAt: t.suspended_at,
       leadCount: leadsByTenant.get(t.id) ?? 0,
-      userCount: usersByTenant.get(t.id) ?? 0,
+      members: membersByTenant.get(t.id) ?? [],
     }));
 
   const apexHost = APEX_HOST;

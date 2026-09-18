@@ -35,14 +35,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/app/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 import { contrastRatio, logoUrl, type Branding } from "@/lib/tenant/branding";
 import {
   invitePartnerUser,
+  setPartnerUserActive,
   removePartnerLogo,
   savePartnerBranding,
   setPartnerSuspended,
   uploadPartnerLogo,
 } from "./actions";
+
+/** One person with a login to a partner's portal. */
+export interface PartnerMember {
+  id: string;
+  name: string | null;
+  email: string | null;
+  /** Set means their access was removed; the row stays so their name resolves. */
+  deactivatedAt: string | null;
+}
 
 export interface PartnerRow {
   id: string;
@@ -51,7 +62,12 @@ export interface PartnerRow {
   branding: Branding;
   suspendedAt: string | null;
   leadCount: number;
-  userCount: number;
+  members: PartnerMember[];
+}
+
+/** Members who can actually sign in. Removed people stay in the list, greyed. */
+function activeMembers(partner: PartnerRow): PartnerMember[] {
+  return partner.members.filter((m) => !m.deactivatedAt);
 }
 
 /**
@@ -158,7 +174,7 @@ function PartnerRowView({
           {partner.leadCount}
         </TableCell>
         <TableCell className="text-right font-mono text-sm">
-          {partner.userCount}
+          {activeMembers(partner).length}
         </TableCell>
 
         <TableCell>
@@ -197,10 +213,20 @@ function PartnerRowView({
       {expanded && (
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={6} className="bg-sunken p-0">
-            <div id={`partner-panel-${partner.id}`} className="grid gap-5 p-5 md:grid-cols-2">
+            {/*
+              minmax(0,1fr), not the default minmax(auto,1fr): a grid track
+              sized to `auto` refuses to shrink below its widest child, so a
+              long email or a wide input pushed the panel past the cell and
+              gave the whole table a horizontal scrollbar. Both columns now
+              shrink to the space available and their contents wrap.
+            */}
+            <div
+              id={`partner-panel-${partner.id}`}
+              className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+            >
               <BrandingPanel partner={partner} />
               <div className="flex flex-col gap-5">
-                <InvitePanel partner={partner} />
+                <PeoplePanel partner={partner} />
                 <SuspendPanel partner={partner} />
               </div>
             </div>
@@ -568,14 +594,27 @@ function ColorField({
   );
 }
 
-/** Issue a partner login. */
-function InvitePanel({ partner }: { partner: PartnerRow }) {
+/**
+ * Who can sign in to this partner's portal, and the controls to change it.
+ *
+ * A partner firm usually has more than one person who needs access, and the
+ * client has to be able to add, resend and revoke without asking a developer:
+ * that is the SOW's "issue partner logins without developer involvement".
+ *
+ * Removed people stay listed, greyed, with a Restore button. Their profile row
+ * has to survive anyway so their name keeps resolving on anything they
+ * touched, and showing them is what makes "why can Dana not sign in" a
+ * five-second question instead of a support email.
+ */
+function PeoplePanel({ partner }: { partner: PartnerRow }) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
+  /** The member id currently being resent or revoked, for a per-row spinner. */
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const submit = () => {
+  const invite = () => {
     if (pending || !email.trim()) return;
     setError("");
     startTransition(async () => {
@@ -594,14 +633,138 @@ function InvitePanel({ partner }: { partner: PartnerRow }) {
     });
   };
 
+  /*
+    Resend goes through the same action as a new invite. The server decides:
+    an unknown address is invited, a known one on this partner gets a fresh
+    sign-in link, and an address belonging to anyone else is refused. Keeping
+    that decision server-side means the button cannot be wrong about which
+    case it is in.
+  */
+  const resend = (m: PartnerMember) => {
+    if (pending || !m.email) return;
+    setError("");
+    setBusyId(m.id);
+    startTransition(async () => {
+      const result = await invitePartnerUser({
+        tenantId: partner.id,
+        email: m.email!,
+        fullName: m.name ?? "",
+      });
+      setBusyId(null);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      toast.success(result.message ?? `A fresh link was sent to ${m.email}.`);
+    });
+  };
+
+  const setActive = (m: PartnerMember, active: boolean) => {
+    if (pending) return;
+    setError("");
+    setBusyId(m.id);
+    startTransition(async () => {
+      const result = await setPartnerUserActive({
+        tenantId: partner.id,
+        profileId: m.id,
+        active,
+      });
+      setBusyId(null);
+      if ("error" in result) {
+        setError(result.error);
+        return;
+      }
+      toast.success(result.message ?? "Access updated.");
+    });
+  };
+
   return (
     <div>
       <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
         <MailIcon className="size-3.5" aria-hidden="true" />
-        Issue a login
+        Portal logins
       </div>
 
-      <div className="mt-3.5 flex flex-col gap-3">
+      {partner.members.length > 0 ? (
+        <ul className="mt-3.5 flex flex-col divide-y divide-line overflow-hidden rounded-md border border-line bg-raised">
+          {partner.members.map((m) => {
+            const removed = !!m.deactivatedAt;
+            const rowBusy = busyId === m.id && pending;
+            return (
+              <li
+                key={m.id}
+                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3.5 py-2.5"
+              >
+                <div className="min-w-0">
+                  <div
+                    className={cn(
+                      "truncate text-[13.5px] font-medium",
+                      removed ? "text-ink-faint" : "text-ink",
+                    )}
+                  >
+                    {m.name || m.email || "Unnamed"}
+                  </div>
+                  {m.name && m.email && (
+                    <div className="truncate font-mono text-[11.5px] text-ink-muted">
+                      {m.email}
+                    </div>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  {removed ? (
+                    <>
+                      <Badge variant="neutral" tone="mono">
+                        No access
+                      </Badge>
+                      <Button
+                        onClick={() => setActive(m, true)}
+                        disabled={pending}
+                        variant="ghost"
+                        size="sm"
+                        className="cursor-pointer"
+                      >
+                        {rowBusy && <Loader2Icon className="size-4 animate-spin" />}
+                        Restore
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button
+                        onClick={() => resend(m)}
+                        disabled={pending || !m.email}
+                        variant="ghost"
+                        size="sm"
+                        className="cursor-pointer"
+                      >
+                        {rowBusy && <Loader2Icon className="size-4 animate-spin" />}
+                        Resend link
+                      </Button>
+                      <Button
+                        onClick={() => setActive(m, false)}
+                        disabled={pending}
+                        variant="ghost"
+                        size="sm"
+                        className="cursor-pointer text-ink-muted hover:text-danger"
+                      >
+                        Remove
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="mt-3.5 rounded-md border border-dashed border-line px-3.5 py-3 text-[13px] text-ink-muted">
+          Nobody has a login yet. Add the first person below.
+        </p>
+      )}
+
+      <div className="mt-4 flex flex-col gap-3">
+        <div className="font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-faint">
+          Add someone
+        </div>
         <Field
           id={`ie-${partner.id}`}
           label="Email"
@@ -624,17 +787,17 @@ function InvitePanel({ partner }: { partner: PartnerRow }) {
           </p>
         )}
         <Button
-          onClick={submit}
+          onClick={invite}
           disabled={pending || !email.trim()}
           variant="secondary"
           className="w-fit cursor-pointer"
         >
-          {pending && <Loader2Icon className="size-4 animate-spin" />}
+          {pending && !busyId && <Loader2Icon className="size-4 animate-spin" />}
           Send invite
         </Button>
         <p className="text-[12.5px] text-ink-muted">
           The link lands on their own portal, so their session belongs to their
-          subdomain.
+          subdomain. Add as many people as the partner needs.
         </p>
       </div>
     </div>
@@ -706,8 +869,9 @@ function SuspendPanel({ partner }: { partner: PartnerRow }) {
               Suspend {partner.branding.companyName ?? partner.name}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Their portal will return a 404 and their {partner.userCount}{" "}
-              login{partner.userCount === 1 ? "" : "s"} will stop working on
+              Their portal will return a 404 and their{" "}
+              {activeMembers(partner).length} login
+              {activeMembers(partner).length === 1 ? "" : "s"} will stop working on
               the next request. Their {partner.leadCount} lead
               {partner.leadCount === 1 ? "" : "s"} stay in your console. You can
               restore them at any time.

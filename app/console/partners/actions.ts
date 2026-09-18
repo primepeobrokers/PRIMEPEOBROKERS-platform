@@ -519,6 +519,7 @@ async function inviteIntoTenant(input: {
   const { ctx, tenant, email, fullName } = input;
 
   const admin = createAdminClient();
+  const origin = tenantOrigin(tenant.slug, tenant.isHouse);
   const { data: linkData, error } = await admin.auth.admin.generateLink({
     type: "invite",
     email,
@@ -531,17 +532,25 @@ async function inviteIntoTenant(input: {
         tenant_id: tenant.id,
         invited_by: ctx.userId,
       },
-      redirectTo: `${tenantOrigin(tenant.slug, tenant.isHouse)}/auth/confirm?type=invite`,
+      redirectTo: `${origin}/auth/confirm?type=invite`,
     },
   });
 
   if (error || !linkData?.properties?.hashed_token) {
     const raw = (error?.message ?? "").toLowerCase();
     if (raw.includes("already registered") || raw.includes("already been registered")) {
-      return {
-        error:
-          "That address already has an account. Ask them to sign in at their portal, or use a different address.",
-      };
+      /*
+        The address already has an account, which is the ordinary "resend it,
+        they lost the link" case. An invite token cannot be minted twice, so
+        send a recovery link instead: it lands on the same confirm route, sets
+        a session, and drops them on the set-password screen. Identical
+        experience, and it works whether or not they ever accepted.
+
+        Guarded on the account actually belonging to THIS partner, so a typo
+        matching someone else's address cannot mail them a working link into a
+        portal they have nothing to do with.
+      */
+      return resendIntoTenant({ ctx, tenant, email, origin });
     }
     console.error("[partners] invite link generation failed", error);
     return { error: "Could not create the invite. Try again shortly." };
@@ -573,6 +582,155 @@ async function inviteIntoTenant(input: {
   }
 
   return { ok: true };
+}
+
+/**
+ * Sends a fresh sign-in link to someone who already has an account on this
+ * partner. The "resend" half of inviteIntoTenant.
+ *
+ * A recovery link rather than an invite: GoTrue will not mint a second invite
+ * for an existing user, and recovery lands on the same /auth/confirm route,
+ * which sets the session and forwards to the set-password screen. To the
+ * recipient it is the same email and the same journey.
+ */
+async function resendIntoTenant(input: {
+  ctx: SessionContext;
+  tenant: { id: string; slug: string; name: string; branding: Branding; isHouse: boolean };
+  email: string;
+  origin: string;
+}): Promise<PartnerResult> {
+  const { ctx, tenant, email, origin } = input;
+  const admin = createAdminClient();
+
+  /*
+    The account must belong to THIS partner. Without this check a typo that
+    happens to match a staff address, or another partner's user, would be sent
+    a link that signs them in and lands them on a portal that is not theirs.
+    Read service-role: the row may be another tenant's, which RLS would hide,
+    and "not found" is exactly the answer we must not give ourselves here.
+  */
+  /*
+    Looked up by email on profiles, NOT by scanning auth.admin.listUsers():
+    that is paginated, so any page size is a silent cap, and past it a real
+    user reads as "not found" and the resend refuses someone who exists.
+    profiles carries the email (0005) and is the table that answers the
+    question actually being asked, which is "is this person on THIS partner".
+  */
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("id, tenant_id, deactivated_at")
+    .ilike("email", email)
+    .maybeSingle<{ id: string; tenant_id: string; deactivated_at: string | null }>();
+
+  if (!profile || profile.tenant_id !== tenant.id) {
+    return {
+      error:
+        "That address already has an account somewhere else. Use a different one.",
+    };
+  }
+  if (profile.deactivated_at) {
+    return {
+      error: "That person was removed. Restore their access first, then resend.",
+    };
+  }
+
+  const { data: linkData, error } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo: `${origin}/auth/confirm?type=recovery` },
+  });
+  if (error || !linkData?.properties?.hashed_token) {
+    console.error("[partners] resend link generation failed", error);
+    return { error: "Could not create the link. Try again shortly." };
+  }
+
+  const delivery = await sendTeamInvite({
+    to: email,
+    acceptUrl: confirmUrl(origin, linkData.properties.hashed_token, "recovery"),
+    invitedBy: ctx.fullName || ctx.email || "Prime PEO Brokers",
+    role: "admin",
+    brand: brandFor(tenant),
+    destination: "portal",
+  });
+  if (!delivery.ok) {
+    return { error: "Could not send that email. Try again shortly." };
+  }
+
+  // No cleanup branch here, unlike the invite path: this user already existed,
+  // so a failed send must never delete them.
+  return { ok: true, message: `A fresh link was sent to ${email}.` };
+}
+
+/**
+ * Removes or restores one partner user's access.
+ *
+ * Deactivates the profile rather than deleting the account, matching how the
+ * house team works (0005): their name has to keep resolving on any note or
+ * event they left behind, and getSessionContext() already treats a
+ * deactivated profile as no session at all.
+ */
+export async function setPartnerUserActive(input: {
+  tenantId: string;
+  profileId: string;
+  active: boolean;
+}): Promise<PartnerResult> {
+  const guard = await guardStaff();
+  if (!guard.ok) return { error: guard.error };
+
+  const tenantId = String(input.tenantId ?? "");
+  const profileId = String(input.profileId ?? "");
+  if (!UUID_RE.test(tenantId)) return { error: "That partner is not valid." };
+  if (!UUID_RE.test(profileId)) return { error: "That person is not valid." };
+  const active = input.active === true;
+
+  const admin = createAdminClient();
+
+  /*
+    This screen manages PARTNERS. The house team is managed at /console/team,
+    which has its own last-admin and self-removal rules, so refusing the house
+    tenant here keeps those from being bypassed through this route. The UI
+    never offers it, but the action is an addressable endpoint.
+  */
+  const { data: target } = await admin
+    .from("tenants")
+    .select("is_house")
+    .eq("id", tenantId)
+    .maybeSingle<{ is_house: boolean | null }>();
+  if (!target) return { error: "That partner no longer exists." };
+  if (target.is_house) {
+    return { error: "Manage your own team from the Team screen." };
+  }
+
+  /*
+    Pin the update to BOTH ids. A profile id alone would let a mistyped or
+    tampered value deactivate a user on another tenant, including the house
+    team, since this runs service-role and bypasses RLS entirely.
+  */
+  const { data, error } = await admin
+    .from("profiles")
+    .update({
+      deactivated_at: active ? null : new Date().toISOString(),
+      deactivated_by: active ? null : guard.ctx.userId,
+    })
+    .eq("id", profileId)
+    .eq("tenant_id", tenantId)
+    .select("email");
+
+  if (error) {
+    console.error("[partners] could not change partner user access", error);
+    return { error: "Could not change that person's access. Try again." };
+  }
+  // A zero-row update is not an error in PostgREST, so assert the row moved.
+  if (!data || data.length === 0) {
+    return { error: "That person is not on this partner." };
+  }
+
+  revalidatePath("/console/partners");
+  const who = data[0]?.email ?? "That person";
+  return {
+    ok: true,
+    message: active ? `${who} can sign in again.` : `${who} no longer has access.`,
+  };
 }
 
 /**
