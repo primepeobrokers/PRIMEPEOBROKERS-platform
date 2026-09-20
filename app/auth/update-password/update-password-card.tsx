@@ -6,9 +6,16 @@ import { updatePassword } from "@/app/login/actions";
 export function UpdatePasswordCard({
   flow,
   email,
+  brandName = "Prime PEO Brokers",
 }: {
   flow: "invite" | "recovery";
   email: string;
+  /**
+   * Whose invitation this is. A partner's new user accepts on the partner's
+   * own subdomain, so naming the house here was a white-label leak on the
+   * last screen of their onboarding.
+   */
+  brandName?: string;
 }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -39,7 +46,7 @@ export function UpdatePasswordCard({
   return (
     <>
       <div className="pv-label">
-        {flow === "invite" ? "Invitation · Prime PEO Brokers" : "Password reset"}
+        {flow === "invite" ? `Invitation · ${brandName}` : "Password reset"}
       </div>
       <h1 className="mt-3 font-display text-[29px] font-semibold leading-[1.08] tracking-[-.022em]">
         Set your password
@@ -63,7 +70,7 @@ export function UpdatePasswordCard({
 
       <div className="mt-[26px] flex flex-col gap-5">
         <div>
-          <label htmlFor="auth-new" className="text-sm font-semibold">
+          <label htmlFor="auth-new" className="block text-sm font-semibold">
             New password
           </label>
           <input

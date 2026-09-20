@@ -152,7 +152,18 @@ async function LeadsTable({
   const { q, complete, range, category, stage, assignee, page } = filters;
   const supabase = await createClient();
 
-  const { count: totalCount, error: totalError } = await supabase
+  /*
+    Started, not awaited.
+
+    This count exists only to tell "no leads at all" apart from "no leads
+    matching your filters" (see isEmpty / isNoResults below). It shares no
+    inputs with the filtered query, so awaiting it here blocked the real
+    query behind a full round trip on every render of this page.
+
+    Kicking it off and awaiting both together below turns two serial round
+    trips into one. head: true means it transfers no rows.
+  */
+  const totalPromise = supabase
     .from("submissions")
     .select("id", { count: "exact", head: true });
 
@@ -208,9 +219,12 @@ async function LeadsTable({
   }
 
   const from = (page - 1) * PAGE_SIZE;
-  const { data, count, error } = await query
-    .order("created_at", { ascending: false })
-    .range(from, from + PAGE_SIZE - 1);
+  // Both round trips in flight at once: the filtered page and the bare total.
+  const [{ data, count, error }, { count: totalCount, error: totalError }] =
+    await Promise.all([
+      query.order("created_at", { ascending: false }).range(from, from + PAGE_SIZE - 1),
+      totalPromise,
+    ]);
 
   const rows = (data ?? []) as SubmissionRow[];
   // One Map for the whole page: resolving an owner per row would otherwise be

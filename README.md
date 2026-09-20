@@ -85,10 +85,22 @@ body.
      The invite email lands on the set-password screen; a profile row is
      created automatically.
 
-3. **Env**: copy `.env.example` to `.env.local` and fill it in. Without
+3. **Storage** (Supabase dashboard → Storage): create a bucket named
+   `tenant-logos`, **public**, file size limit **200KB**, allowed MIME types
+   `image/png` and `image/webp`.
+
+   No migration creates this: Supabase buckets are not part of the SQL schema.
+   Partner logo upload writes here, so without it the Partners screen fails
+   with a bucket-not-found error from inside the storage client. SVG is
+   excluded deliberately: one served from our own origin can carry `<script>`,
+   and `next/image` passes SVG through untouched.
+
+   Verify with `pnpm check:storage`, which asserts all of the above.
+
+4. **Env**: copy `.env.example` to `.env.local` and fill it in. Without
    `RESEND_API_KEY` everything works except email (skipped with a warning).
 
-4. **Run**:
+5. **Run**:
 
    ```bash
    pnpm install
@@ -154,8 +166,18 @@ from `/console/partners`. Platform staff see across every tenant through
 `tenant_scope()` (migration 0009); partners see only their own. Leads submit
 through the partner's themed discovery form, and both the partner's contact
 address and the house inbox are told, with the lead's own confirmation sent
-in the partner's name. See `lib/tenant/` for host resolution and branding,
-`supabase/migrations/0009` to `0012` for the data layer.
+in the partner's name. A partner's subdomain root serves their own branded
+marketing page (`app/partner-home/`, rendered by
+`app/components/landing/landing-sections.tsx`, which the house page at
+`app/page.tsx` also renders with `tenant={null}`). See `lib/tenant/` for host
+resolution and branding, `supabase/migrations/0009` to `0013` for the data
+layer.
+
+**`app/page.tsx` must stay statically prerendered.** It renders the shared
+landing sections with `tenant={null}` and reads no headers, which is what
+keeps it `○` in the build output. Calling `getTenant()` there (directly or
+through the root layout) would turn the house marketing page dynamic. Only
+`/partner-home` is `ƒ`, and only partner hosts reach it.
 
 Two things deliberately left as they are, both worth raising with the client
 rather than quietly changing:

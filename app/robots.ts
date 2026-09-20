@@ -20,11 +20,29 @@ import { houseOrigin, tenantOrigin } from "@/lib/tenant/urls";
 export default async function robots(): Promise<MetadataRoute.Robots> {
   const host = classifyHost((await headers()).get("host"));
 
-  // A partner portal has nothing public. Disallow everything rather than
-  // listing paths: there is no marketing surface here to index.
+  /*
+    A partner host now serves a public marketing page at `/`, so this can no
+    longer disallow everything: that would deindex the page the partner is
+    paying for. Everything behind auth stays out, mirroring the apex rule
+    below, plus /partner-home itself, which is the rewrite target for `/` and
+    would otherwise be indexed as a duplicate of it.
+  */
   if (host.kind === "partner") {
     return {
-      rules: [{ userAgent: "*", disallow: "/" }],
+      rules: [
+        {
+          userAgent: "*",
+          allow: "/",
+          disallow: [
+            "/portal",
+            "/partner-home",
+            "/console",
+            "/login",
+            "/auth",
+            "/discovery",
+          ],
+        },
+      ],
       sitemap: `${tenantOrigin(host.slug, false)}/sitemap.xml`,
     };
   }
@@ -35,7 +53,16 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         userAgent: "*",
         allow: "/",
         // The flow itself and everything behind auth stays out of the index.
-        disallow: ["/console", "/portal", "/login", "/auth", "/discovery"],
+        // /partner-home is a rewrite target for partner hosts and 404s here,
+        // but it is listed so a crawler never spends a request discovering it.
+        disallow: [
+          "/console",
+          "/portal",
+          "/partner-home",
+          "/login",
+          "/auth",
+          "/discovery",
+        ],
       },
     ],
     sitemap: `${houseOrigin()}/sitemap.xml`,

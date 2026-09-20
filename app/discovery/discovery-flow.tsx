@@ -72,16 +72,18 @@ interface Toast {
 }
 
 export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props) {
-  /*
-    A partner subdomain has no marketing page: the proxy rewrites "/" to the
-    sign-in portal, which is the wrong place to send a lead who clicks the
-    logo mid-form. Their "home" is the form itself.
-  */
   const isPartner = tenant !== null && !tenant.isHouse;
   const brandName = isPartner
     ? (tenant.branding.companyName ?? tenant.name)
     : "Prime PEO Brokers";
-  const homeHref = isPartner ? "/discovery" : "/";
+  /*
+    "/" on every host now. This used to send a partner's lead to "/discovery"
+    because "/" on a partner subdomain rewrote to the sign-in portal, and
+    dropping a lead onto a login screen mid-form was worse than a link back to
+    the form they were already on. "/" is now that partner's own marketing
+    page, so it is the right destination again.
+  */
+  const homeHref = "/";
 
   // A draft resumed from an emailed link is available at first render.
   // A category in the URL skips the picker; a renewal entry preselects the

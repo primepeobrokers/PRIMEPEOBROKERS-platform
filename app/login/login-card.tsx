@@ -31,11 +31,18 @@ export function LoginCard({
   next,
   linkError,
   revoked = false,
+  partnerName = null,
 }: {
   next: string;
   linkError: boolean;
   /** Their token is valid but the account is not on a team any more. */
   revoked?: boolean;
+  /**
+   * The partner whose subdomain this is, or null on the house site. Names the
+   * card so a partner's user is not told they are signing in to the house
+   * product on their own domain.
+   */
+  partnerName?: string | null;
 }) {
   const [view, setView] = useState<"signin" | "forgot" | "code">("signin");
   const [email, setEmail] = useState("");
@@ -64,7 +71,20 @@ export function LoginCard({
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  const copy = COPY[view];
+  /*
+    On a partner subdomain the sign-in card names the partner, not the house
+    product: "Broker console" and "For Prime PEO Brokers staff" are both wrong
+    there and were the last white-label leak on this screen. Only the signin
+    view says either; the reset views are already brand-neutral.
+  */
+  const copy =
+    partnerName && view === "signin"
+      ? {
+          ...COPY.signin,
+          eyebrow: "Partner portal",
+          sub: `For ${partnerName} accounts.`,
+        }
+      : COPY[view];
 
   function submit() {
     if (busy) return;
@@ -133,7 +153,7 @@ export function LoginCard({
 
       <div className="mt-[26px] flex flex-col gap-5">
         <div>
-          <label htmlFor="auth-email" className="text-sm font-semibold">
+          <label htmlFor="auth-email" className="block text-sm font-semibold">
             Work email
           </label>
           <input
@@ -186,7 +206,7 @@ export function LoginCard({
 
         {view === "code" && (
           <div>
-            <label htmlFor="auth-code" className="text-sm font-semibold">
+            <label htmlFor="auth-code" className="block text-sm font-semibold">
               8-digit code
             </label>
             <input

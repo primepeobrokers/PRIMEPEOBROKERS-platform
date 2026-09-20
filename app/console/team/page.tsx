@@ -34,33 +34,54 @@ export default async function TeamPage() {
   const ctx = await requireAdminPage();
   const supabase = await createClient();
 
-  const [members, stages, { data: eventRows }, { data: loadRows }] =
-    await Promise.all([
-      fetchMembers(),
-      fetchStages(),
-      supabase
-        .from("tenant_events")
-        .select("id, actor, actor_id, action, detail, created_at")
-        .order("created_at", { ascending: false })
-        .limit(20),
-      // Per-owner counts, so removing someone can say what it will move.
-      supabase.from("submissions").select("assigned_to, lead_stage"),
-    ]);
+  const [members, stages, { data: eventRows }] = await Promise.all([
+    fetchMembers(),
+    fetchStages(),
+    supabase
+      .from("tenant_events")
+      .select("id, actor, actor_id, action, detail, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
 
   const events = (eventRows ?? []) as TenantEventRow[];
   const byId = new Map(members.map((m) => [m.id, m]));
 
-  const leadCounts = new Map<string, number>();
-  const stageCounts = new Map<string, number>();
-  for (const row of (loadRows ?? []) as {
-    assigned_to: string | null;
-    lead_stage: string;
-  }[]) {
-    if (row.assigned_to) {
-      leadCounts.set(row.assigned_to, (leadCounts.get(row.assigned_to) ?? 0) + 1);
-    }
-    stageCounts.set(row.lead_stage, (stageCounts.get(row.lead_stage) ?? 0) + 1);
-  }
+  /*
+    Per-owner and per-stage counts, as counts rather than rows.
+
+    This used to be `select("assigned_to, lead_stage")` with no limit, tallied
+    in JS. Two problems. It transferred every submission row in the tenant on
+    every render of this screen, to produce a handful of integers. Worse,
+    PostgREST caps an unbounded select (1000 rows by default), silently and
+    without an error, so past that cap the tallies would be computed from a
+    partial sample.
+
+    That matters more here than anywhere else in the app: `leadCounts` is what
+    the remove-teammate dialog uses to tell an admin how many leads a removal
+    will move. An undercount tells them a destructive action is cheaper than
+    it is.
+
+    `head: true` returns no rows, just the count. Both loops are bounded by the
+    team roster and the stage list (single digits), and every request is
+    concurrent, so this is a handful of parallel index counts.
+    `submissions_tenant_assigned_idx` and `submissions_tenant_stage_idx`
+    (0005) cover the two predicates.
+  */
+  const countFor = (column: "assigned_to" | "lead_stage", value: string) =>
+    supabase
+      .from("submissions")
+      .select("id", { count: "exact", head: true })
+      .eq(column, value)
+      .then(({ count }) => [value, count ?? 0] as const);
+
+  const [ownerCounts, stageTallies] = await Promise.all([
+    Promise.all(members.map((m) => countFor("assigned_to", m.id))),
+    Promise.all(stages.map((s) => countFor("lead_stage", s.slug))),
+  ]);
+
+  const leadCounts = new Map<string, number>(ownerCounts);
+  const stageCounts = new Map<string, number>(stageTallies);
 
   const active = members.filter((m) => !m.deactivated_at);
   const removed = members.filter((m) => m.deactivated_at);
@@ -110,14 +131,36 @@ export default async function TeamPage() {
           </section>
         </div>
 
-        <aside className="flex flex-col gap-7 max-lg:order-first">
+        {/*
+          Sticky on wide screens: the invite form is the action most often
+          wanted while reading the members table, and it used to scroll out of
+          reach as soon as the stage list grew. The console header is not
+          sticky (app/console/layout.tsx), so there is nothing to clear and a
+          small top gap is all this needs. Released below lg, where the column
+          stacks and sticking it would pin a card over the content.
+        */}
+        <aside className="flex flex-col gap-7 lg:sticky lg:top-6 max-lg:order-first">
           <InviteCard />
 
           <section>
             <h2 className="font-display text-[19px] font-semibold tracking-[-.015em]">
               Team activity
             </h2>
-            <div className="mt-3.5 rounded-md border border-line bg-raised" data-rows>
+            {/*
+              Scrolls inside a fixed height rather than setting the page's.
+
+              This is a log: it only ever grows, and every row is the same
+              low-value-per-row shape. Rendered at full height it decided how
+              tall the whole page was, so twenty entries left the left column
+              ending near 1000px against a sidebar running past 1300px, and
+              the page grew a little longer with each partner edit. Capping it
+              keeps the page a fixed size no matter how busy the team is, and
+              the newest entries (the only ones anyone reads) stay in view.
+            */}
+            <div
+              className="mt-3.5 max-h-[420px] overflow-y-auto overscroll-contain rounded-md border border-line bg-raised"
+              data-rows
+            >
               {events.length === 0 ? (
                 <div className="px-gutter-sm py-[13px] text-sm text-ink-muted">
                   Nothing yet.

@@ -3,10 +3,19 @@ import { Archivo, Libre_Franklin, IBM_Plex_Mono } from "next/font/google";
 import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 
+/*
+  Only the weights actually rendered. Each one is a separate woff2 that
+  next/font preloads, so an unused weight is a render-blocking request for
+  bytes nothing draws with.
+
+  Archivo (display): 400 and 700 in the Logo lockup (app/components/logo.tsx),
+  600 via the 44 `font-display font-semibold` headings. 500 was never used by
+  a utility or inline style, so it is gone. Grep before adding one back.
+*/
 const archivo = Archivo({
   variable: "--font-archivo",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["400", "600", "700"],
 });
 
 const franklin = Libre_Franklin({

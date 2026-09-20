@@ -35,13 +35,14 @@ const EMPTY: Values = {
 };
 
 export function TalkForm({ tenant }: Props) {
-  // Same reasoning as the discovery flow: a partner host has no marketing
-  // page, so the mark links to the form rather than to their sign-in portal.
   const isPartner = tenant !== null && !tenant.isHouse;
   const brandName = isPartner
     ? (tenant.branding.companyName ?? tenant.name)
     : "Prime PEO Brokers";
-  const homeHref = isPartner ? "/discovery" : "/";
+  // Every host has a marketing page at "/" now, the partner's own in their
+  // brand. This used to point partners at "/discovery" because "/" was their
+  // sign-in portal. Same change as the discovery flow.
+  const homeHref = "/";
 
   const [v, setV] = useState<Values>(EMPTY);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -230,14 +231,14 @@ export function TalkForm({ tenant }: Props) {
               >
                 Start the six steps
               </Link>
-              {!isPartner && (
-                <Link
-                  href="/"
-                  className="rounded-md border border-line-strong px-[22px] py-3.5 text-[15.5px] font-semibold text-ink transition-colors duration-150 hover:border-ink"
-                >
-                  Back to the homepage
-                </Link>
-              )}
+              {/* Shown on partner hosts too now that they have a homepage of
+                  their own to go back to. */}
+              <Link
+                href={homeHref}
+                className="rounded-md border border-line-strong px-[22px] py-3.5 text-[15.5px] font-semibold text-ink transition-colors duration-150 hover:border-ink"
+              >
+                Back to the homepage
+              </Link>
             </div>
           </div>
         )}

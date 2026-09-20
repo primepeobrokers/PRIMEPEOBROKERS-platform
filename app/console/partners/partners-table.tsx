@@ -35,6 +35,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/app/components/ui/alert-dialog";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/app/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { contrastRatio, logoUrl, type Branding } from "@/lib/tenant/branding";
 import {
@@ -92,8 +98,8 @@ export function PartnersTable({
       <Card className="rounded-md">
         <CardContent className="py-10 text-center">
           <p className="text-[14px] text-ink-muted">
-            No partners yet. Add one above and their portal is live as soon as
-            the subdomain resolves.
+            No partners yet. Use &ldquo;Add a partner&rdquo; above, and their
+            portal is live as soon as the subdomain resolves.
           </p>
         </CardContent>
       </Card>
@@ -214,21 +220,53 @@ function PartnerRowView({
         <TableRow className="hover:bg-transparent">
           <TableCell colSpan={6} className="bg-sunken p-0">
             {/*
-              minmax(0,1fr), not the default minmax(auto,1fr): a grid track
-              sized to `auto` refuses to shrink below its widest child, so a
-              long email or a wide input pushed the panel past the cell and
-              gave the whole table a horizontal scrollbar. Both columns now
-              shrink to the space available and their contents wrap.
+              TABS, NOT ONE FLAT WALL.
+
+              This panel used to open as a two-column grid with everything in
+              it at once: an eight-field branding form, the login roster, the
+              invite form and the Suspend button, all visible together. Three
+              unrelated jobs competing for the same glance, and the most
+              common one (issuing a login) sat below the one almost nobody
+              touches twice (colours). Suspend, which closes a partner's
+              portal, was permanently on screen next to routine controls.
+
+              One job per tab. Logins first because it is what this screen is
+              opened for. Access last, so a destructive action takes a
+              deliberate click to reach rather than sitting under the cursor.
+
+              min-w-0 on the content: without it a long email or a wide input
+              refuses to shrink and gives the whole table a horizontal
+              scrollbar.
             */}
-            <div
-              id={`partner-panel-${partner.id}`}
-              className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
-            >
-              <BrandingPanel partner={partner} />
-              <div className="flex flex-col gap-5">
-                <PeoplePanel partner={partner} />
-                <SuspendPanel partner={partner} />
-              </div>
+            <div id={`partner-panel-${partner.id}`} className="p-5">
+              <Tabs defaultValue="logins" className="gap-4">
+                <TabsList variant="line" className="w-full justify-start">
+                  <TabsTrigger value="logins" className="flex-none px-3">
+                    <MailIcon className="size-3.5" aria-hidden="true" />
+                    Logins
+                    <span className="ml-1 font-mono text-[11px] text-ink-faint">
+                      {activeMembers(partner).length}
+                    </span>
+                  </TabsTrigger>
+                  <TabsTrigger value="branding" className="flex-none px-3">
+                    <PaletteIcon className="size-3.5" aria-hidden="true" />
+                    Branding
+                  </TabsTrigger>
+                  <TabsTrigger value="access" className="flex-none px-3">
+                    Access
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="logins" className="min-w-0 max-w-[640px]">
+                  <PeoplePanel partner={partner} />
+                </TabsContent>
+                <TabsContent value="branding" className="min-w-0">
+                  <BrandingPanel partner={partner} />
+                </TabsContent>
+                <TabsContent value="access" className="min-w-0 max-w-[640px]">
+                  <SuspendPanel partner={partner} />
+                </TabsContent>
+              </Tabs>
             </div>
           </TableCell>
         </TableRow>
@@ -287,14 +325,14 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
     });
   };
 
+  /*
+    No section heading here: the tab is the heading. Two columns rather than
+    one, because eight stacked fields in a single narrow column made the form
+    taller than the viewport and pushed Save out of sight.
+  */
   return (
-    <div>
-      <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
-        <PaletteIcon className="size-3.5" aria-hidden="true" />
-        Branding
-      </div>
-
-      <div className="mt-3.5 flex flex-col gap-3">
+    <div className="grid gap-x-8 gap-y-3 md:grid-cols-[minmax(0,360px)_minmax(0,320px)]">
+      <div className="flex flex-col gap-3">
         <Field
           id={`cn-${partner.id}`}
           label="Display name"
@@ -326,6 +364,12 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
           </p>
         </div>
 
+      </div>
+
+      {/* Second column: the visual assets. Grouping the three colour pickers
+          with the logo keeps the eye in one place while matching a brand,
+          instead of scrolling past name and email fields between each pick. */}
+      <div className="flex flex-col gap-3">
         <LogoField partner={partner} />
 
         <ColorField
@@ -356,7 +400,11 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
           onChange={setDark}
           disabled={pending}
         />
+      </div>
 
+      {/* Save spans both columns so it reads as saving the whole form, not
+          just the column it happens to sit under. */}
+      <div className="flex flex-col gap-3 md:col-span-2">
         {error && (
           <p role="alert" className="text-[13px] text-danger">
             {error}
@@ -559,7 +607,10 @@ function ColorField({
 
   return (
     <div>
-      <label htmlFor={id} className="text-[13px] text-ink-soft">
+      {/* `block`, for the reason spelled out in Field above: a bare <label>
+          is display:inline, so it does not stack and its mt-1.5 never
+          applies. */}
+      <label htmlFor={id} className="block text-[13px] text-ink-soft">
         {label}
       </label>
       <div className="mt-1.5 flex items-center gap-2">
@@ -609,10 +660,41 @@ function ColorField({
 function PeoplePanel({ partner }: { partner: PartnerRow }) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
+  /** Errors from the "Add someone" form, which has no row to sit under. */
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   /** The member id currently being resent or revoked, for a per-row spinner. */
   const [busyId, setBusyId] = useState<string | null>(null);
+  /*
+    Errors keyed by member, so a failed resend on the third person appears
+    under the third person. They used to land in the panel-level `error` at
+    the bottom of the list, where "that person was removed" gave no clue which
+    of five rows it meant.
+  */
+  const [rowError, setRowError] = useState<Record<string, string>>({});
+  /** The member the Remove dialog is asking about, or null when closed. */
+  const [confirmRemove, setConfirmRemove] = useState<PartnerMember | null>(null);
+
+  /*
+    Mirrors the guard in migration 0013 so the dialog can explain the refusal
+    before the click rather than after it. The database is the authority: this
+    reads a snapshot of the roster and a concurrent removal could invalidate
+    it, which is exactly why the real check counts under an advisory lock.
+  */
+  const lastActiveLogin =
+    confirmRemove !== null &&
+    !confirmRemove.deactivatedAt &&
+    activeMembers(partner).length <= 1;
+
+  const setRowErrorFor = (id: string, message: string) =>
+    setRowError((prev) => ({ ...prev, [id]: message }));
+  const clearRowError = (id: string) =>
+    setRowError((prev) => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
 
   const invite = () => {
     if (pending || !email.trim()) return;
@@ -642,7 +724,7 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
   */
   const resend = (m: PartnerMember) => {
     if (pending || !m.email) return;
-    setError("");
+    clearRowError(m.id);
     setBusyId(m.id);
     startTransition(async () => {
       const result = await invitePartnerUser({
@@ -652,7 +734,7 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
       });
       setBusyId(null);
       if ("error" in result) {
-        setError(result.error);
+        setRowErrorFor(m.id, result.error);
         return;
       }
       toast.success(result.message ?? `A fresh link was sent to ${m.email}.`);
@@ -661,7 +743,7 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
 
   const setActive = (m: PartnerMember, active: boolean) => {
     if (pending) return;
-    setError("");
+    clearRowError(m.id);
     setBusyId(m.id);
     startTransition(async () => {
       const result = await setPartnerUserActive({
@@ -670,23 +752,20 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
         active,
       });
       setBusyId(null);
+      setConfirmRemove(null);
       if ("error" in result) {
-        setError(result.error);
+        setRowErrorFor(m.id, result.error);
         return;
       }
       toast.success(result.message ?? "Access updated.");
     });
   };
 
+  // The tab is the heading; no duplicate label here.
   return (
     <div>
-      <div className="flex items-center gap-2 font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
-        <MailIcon className="size-3.5" aria-hidden="true" />
-        Portal logins
-      </div>
-
       {partner.members.length > 0 ? (
-        <ul className="mt-3.5 flex flex-col divide-y divide-line overflow-hidden rounded-md border border-line bg-raised">
+        <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-md border border-line bg-raised">
           {partner.members.map((m) => {
             const removed = !!m.deactivatedAt;
             const rowBusy = busyId === m.id && pending;
@@ -710,6 +789,11 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
                     </div>
                   )}
                 </div>
+                {/*
+                  Disabled per row, not panel-wide: `pending` is one flag for
+                  the whole transition, so resending for one person used to
+                  grey out every other row's buttons at the same time.
+                */}
                 <div className="flex shrink-0 items-center gap-1.5">
                   {removed ? (
                     <>
@@ -718,7 +802,7 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
                       </Badge>
                       <Button
                         onClick={() => setActive(m, true)}
-                        disabled={pending}
+                        disabled={rowBusy}
                         variant="ghost"
                         size="sm"
                         className="cursor-pointer"
@@ -731,7 +815,7 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
                     <>
                       <Button
                         onClick={() => resend(m)}
-                        disabled={pending || !m.email}
+                        disabled={rowBusy || !m.email}
                         variant="ghost"
                         size="sm"
                         className="cursor-pointer"
@@ -739,9 +823,15 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
                         {rowBusy && <Loader2Icon className="size-4 animate-spin" />}
                         Resend link
                       </Button>
+                      {/*
+                        Confirmed, like Suspend. Removing a login is
+                        destructive and was a single unguarded click, which
+                        sat one row above "Resend link" and two pixels from
+                        it.
+                      */}
                       <Button
-                        onClick={() => setActive(m, false)}
-                        disabled={pending}
+                        onClick={() => setConfirmRemove(m)}
+                        disabled={rowBusy}
                         variant="ghost"
                         size="sm"
                         className="cursor-pointer text-ink-muted hover:text-danger"
@@ -751,6 +841,14 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
                     </>
                   )}
                 </div>
+                {rowError[m.id] && (
+                  <div
+                    role="alert"
+                    className="w-full text-[12.5px] leading-snug text-danger"
+                  >
+                    {rowError[m.id]}
+                  </div>
+                )}
               </li>
             );
           })}
@@ -761,44 +859,107 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
         </p>
       )}
 
-      <div className="mt-4 flex flex-col gap-3">
+      {/*
+        One dialog for the whole list, driven by which member is in state,
+        rather than one mounted per row. Removing the last active login is
+        refused by the database (migration 0013), but the warning is stated
+        here too so the admin is not surprised by an error after confirming.
+      */}
+      <AlertDialog
+        open={confirmRemove !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmRemove(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display tracking-[-.015em]">
+              Remove {confirmRemove?.name || confirmRemove?.email || "this person"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {lastActiveLogin ? (
+                <>
+                  This is the only person who can sign in to{" "}
+                  {partner.branding.companyName ?? partner.name}. Removing them
+                  leaves the partner with no way into their portal, so add
+                  someone else first, or suspend the partner instead.
+                </>
+              ) : (
+                <>
+                  They lose access to{" "}
+                  {partner.branding.companyName ?? partner.name} immediately.
+                  Nothing they have done is deleted, their name still shows on
+                  past activity, and you can restore them at any time.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={pending || lastActiveLogin}
+              onClick={(e) => {
+                e.preventDefault();
+                if (confirmRemove) setActive(confirmRemove, false);
+              }}
+            >
+              {pending && <Loader2Icon className="size-4 animate-spin" />}
+              Remove access
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/*
+        Its own bordered block, so "adding a person" reads as a separate act
+        from "managing the people already there". The two fields sit side by
+        side: stacked, they made a short form look like a long one, and the
+        helper text ended up far from the button it explains.
+      */}
+      <div className="mt-4 rounded-md border border-dashed border-line p-3.5">
         <div className="font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-faint">
           Add someone
         </div>
-        <Field
-          id={`ie-${partner.id}`}
-          label="Email"
-          value={email}
-          onChange={setEmail}
-          placeholder="ops@partner.com"
-          disabled={pending}
-        />
-        <Field
-          id={`in-${partner.id}`}
-          label="Name"
-          value={fullName}
-          onChange={setFullName}
-          placeholder="Optional"
-          disabled={pending}
-        />
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <Field
+            id={`ie-${partner.id}`}
+            label="Email"
+            value={email}
+            onChange={setEmail}
+            placeholder="ops@partner.com"
+            disabled={pending}
+          />
+          <Field
+            id={`in-${partner.id}`}
+            label="Name"
+            value={fullName}
+            onChange={setFullName}
+            placeholder="Optional"
+            disabled={pending}
+          />
+        </div>
         {error && (
-          <p role="alert" className="text-[13px] text-danger">
+          <p role="alert" className="mt-3 text-[13px] text-danger">
             {error}
           </p>
         )}
-        <Button
-          onClick={invite}
-          disabled={pending || !email.trim()}
-          variant="secondary"
-          className="w-fit cursor-pointer"
-        >
-          {pending && !busyId && <Loader2Icon className="size-4 animate-spin" />}
-          Send invite
-        </Button>
-        <p className="text-[12.5px] text-ink-muted">
-          The link lands on their own portal, so their session belongs to their
-          subdomain. Add as many people as the partner needs.
-        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <Button
+            onClick={invite}
+            disabled={pending || !email.trim()}
+            variant="secondary"
+            className="cursor-pointer"
+          >
+            {pending && !busyId && (
+              <Loader2Icon className="size-4 animate-spin" />
+            )}
+            Send invite
+          </Button>
+          <p className="min-w-0 flex-1 text-[12.5px] text-ink-muted">
+            The link lands on their own portal, so their session belongs to
+            their subdomain.
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -827,11 +988,8 @@ function SuspendPanel({ partner }: { partner: PartnerRow }) {
 
   if (suspended) {
     return (
-      <div>
-        <div className="font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
-          Access
-        </div>
-        <p className="mt-2 text-[13px] text-ink-soft">
+      <div className="rounded-md border border-line bg-raised p-3.5">
+        <p className="text-[13px] text-ink-soft">
           Their portal is closed and their logins are disabled. Every lead,
           note and event is untouched.
         </p>
@@ -849,11 +1007,8 @@ function SuspendPanel({ partner }: { partner: PartnerRow }) {
   }
 
   return (
-    <div>
-      <div className="font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-muted">
-        Access
-      </div>
-      <p className="mt-2 text-[13px] text-ink-soft">
+    <div className="rounded-md border border-danger/30 bg-raised p-3.5">
+      <p className="text-[13px] text-ink-soft">
         Suspending closes their portal and disables their logins. Nothing is
         deleted, and you keep every lead.
       </p>

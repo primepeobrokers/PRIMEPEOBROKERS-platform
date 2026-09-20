@@ -20,7 +20,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getTenant();
   const name = tenant && !tenant.isHouse ? (tenant.branding.companyName ?? tenant.name) : null;
   return {
-    title: name ? `Discovery · ${name}` : "Discovery",
+    /*
+      `absolute` so the root layout's title template does not append
+      "· Prime PEO Brokers". This page is what a partner sends their own
+      client to, so the house name in the browser tab is a white-label leak in
+      front of the partner's prospect.
+    */
+    title: name ? { absolute: `Discovery · ${name}` } : "Discovery",
     description:
       "Pick a category, then six steps about your team, payroll setup, and priorities. Ranges are fine everywhere, and each answered step is saved.",
     alternates: { canonical: "/discovery" },

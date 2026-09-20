@@ -27,6 +27,8 @@ import {
 } from "../lib/tenant/branding";
 import { imageInfo } from "../lib/tenant/image-size";
 import { brandFor, formatFrom, houseBrand, inboxList, parseSender } from "../lib/tenant/email-brand";
+import { landingBrand } from "../app/components/landing/landing-sections";
+import { CONSOLE_EMAIL_RE, escapeLike } from "../lib/console/email-match";
 import {
   slugifyStage,
   validateStageLabel,
@@ -454,5 +456,74 @@ equal(JSON.stringify(inboxList(undefined)), "[]", "unset means no inbox");
   equal(houseBrand().replyTo, undefined, "no inbox means no reply-to");
   if (prev === undefined) delete process.env.LEAD_NOTIFY_EMAIL; else process.env.LEAD_NOTIFY_EMAIL = prev;
 }
+
+
+// ---------------------------------------------------------------------------
+describe("landing page: what a partner's own marketing page must not say");
+// ---------------------------------------------------------------------------
+// The house page and a partner page are one component. Getting these wrong
+// puts Prime's inbox, Prime's name or Prime's licensing claim on a domain
+// belonging to someone else, which is the whole point of the white-label.
+
+{
+  const house = landingBrand(null);
+  equal(house.brandName, "Prime PEO Brokers", "the house route keeps the house name");
+  equal(house.contactEmail, "admin@primepeobrokers.com", "the house route keeps the house inbox");
+  ok(house.showPartnerSection, "the house site still recruits partners");
+  ok(!house.isPartner, "a null tenant is not a partner");
+}
+
+{
+  // The house TENANT (resolved on the apex), not just the null route.
+  const b = landingBrand({ isHouse: true, name: "Prime PEO Brokers", branding: {} });
+  equal(b.brandName, "Prime PEO Brokers", "the house tenant renders as the house");
+  ok(b.showPartnerSection, "the house tenant still recruits partners");
+}
+
+{
+  const b = landingBrand({
+    isHouse: false,
+    name: "Acme Advisors",
+    branding: { companyName: "Acme Benefits", supportEmail: "hello@acme.com" },
+  });
+  equal(b.brandName, "Acme Benefits", "a partner is named by branding.companyName");
+  equal(b.contactEmail, "hello@acme.com", "a partner's visitors reach the PARTNER, not Prime");
+  ok(!b.showPartnerSection, "a partner site does not recruit partners for Prime");
+  ok(b.isPartner, "a non-house tenant is a partner");
+}
+
+{
+  // The onboarding case: a partner created minutes ago, nothing filled in.
+  const b = landingBrand({ isHouse: false, name: "Acme Advisors", branding: {} });
+  equal(b.brandName, "Acme Advisors", "an unbranded partner falls back to its tenant name");
+  equal(b.contactEmail, "admin@primepeobrokers.com",
+        "no supportEmail means Prime's inbox, never a dead mailto");
+  ok(!b.showPartnerSection, "an unbranded partner still does not recruit partners");
+}
+
+// ---------------------------------------------------------------------------
+describe("console email matching: no LIKE wildcards reach a query");
+// ---------------------------------------------------------------------------
+// An address from the Partners form lands in a PostgREST .ilike() filter,
+// where `%` and `_` are wildcards. `%@partner.com` would match an arbitrary
+// other user on the tenant and mail THEM a working sign-in link.
+
+ok(CONSOLE_EMAIL_RE.test("ops@partner.com"), "an ordinary address is accepted");
+ok(CONSOLE_EMAIL_RE.test("first.last+tag@sub.partner.co"), "dots and plus tags are accepted");
+ok(!CONSOLE_EMAIL_RE.test("%@partner.com"), "a bare % local part is refused");
+ok(!CONSOLE_EMAIL_RE.test("ops%@partner.com"), "% anywhere in the local part is refused");
+ok(!CONSOLE_EMAIL_RE.test("_@partner.com"), "a bare _ local part is refused");
+ok(!CONSOLE_EMAIL_RE.test("ops@%.com"), "% in the domain is refused");
+ok(!CONSOLE_EMAIL_RE.test("ops@partner.c%m"), "% in the TLD is refused");
+ok(!CONSOLE_EMAIL_RE.test("not-an-address"), "a string with no @ is still refused");
+ok(!CONSOLE_EMAIL_RE.test("ops@partner"), "a domain with no dot is still refused");
+
+equal(escapeLike("ops@partner.com"), "ops@partner.com", "an ordinary address passes through unchanged");
+equal(escapeLike("%@partner.com"), "\\%@partner.com", "% is escaped");
+equal(escapeLike("a_b@partner.com"), "a\\_b@partner.com", "_ is escaped");
+equal(escapeLike("a%b_c"), "a\\%b\\_c", "every wildcard in one string is escaped");
+// The backslash must be escaped FIRST, or escaping % would emit a backslash
+// that the next replacement consumes, re-opening the hole.
+equal(escapeLike("a\\%b"), "a\\\\\\%b", "a literal backslash is escaped before the wildcards");
 
 done("test-unit");

@@ -11,6 +11,7 @@ import { contrastRatio, parseBranding, type Branding } from "@/lib/tenant/brandi
 import { brandFor } from "@/lib/tenant/email-brand";
 import { imageInfo } from "@/lib/tenant/image-size";
 import type { SessionContext } from "@/lib/auth/session";
+import { CONSOLE_EMAIL_RE, escapeLike } from "@/lib/console/email-match";
 
 /**
  * Partner administration. Platform staff only, enforced three times over:
@@ -25,7 +26,13 @@ import type { SessionContext } from "@/lib/auth/session";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const EMAIL_RE = /^[^@\s]+@[^@\s.]+\.[^@\s]+$/;
+/*
+  EMAIL_RE and escapeLike live in lib/console/email-match.ts, not here: this
+  file is "use server", where every export must be an async action, and both
+  are pure and unit-tested. See that module for why the wildcard characters
+  are excluded twice over.
+*/
+const EMAIL_RE = CONSOLE_EMAIL_RE;
 const HEX_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 
 export type PartnerResult = { error: string } | { ok: true; message?: string };
@@ -501,8 +508,16 @@ export async function invitePartnerUser(input: {
   });
   if ("error" in sent) return sent;
 
+  /*
+    Revalidate AFTER inviteIntoTenant has waited for the profile row, never
+    before: the row is written by a trigger on GoTrue's follow-up update, so
+    re-rendering too early re-reads the member list without the new person in
+    it. See waitForProfile().
+  */
   invalidateTenants();
-  return { ok: true, message: `Invite sent to ${email}.` };
+  // The inner call keeps its own message when the row did not land in time,
+  // so the admin is told to refresh rather than shown a plain success.
+  return { ok: true, message: sent.message ?? `Invite sent to ${email}.` };
 }
 
 /**
@@ -537,8 +552,32 @@ async function inviteIntoTenant(input: {
   });
 
   if (error || !linkData?.properties?.hashed_token) {
+    /*
+      Key off the error CODE, not the message.
+
+      AuthError carries a typed `code` (see @supabase/auth-js error-codes), and
+      GoTrue returns `email_exists` or `user_already_exists` here. The message
+      wording has changed across GoTrue versions ("User already registered" vs
+      "A user with this email address has already been registered"), so
+      matching on English prose means this silently stops resending the day the
+      wording moves: every resend would fall through to the generic failure
+      below. The substring test is kept only as a fallback for a version that
+      sends no code at all.
+
+      Not `status === 422`: validation_failed is also a 422, and treating a
+      malformed address as "already registered" would mail a recovery link
+      decision path for an account that does not exist.
+    */
+    const code = error?.code;
     const raw = (error?.message ?? "").toLowerCase();
-    if (raw.includes("already registered") || raw.includes("already been registered")) {
+    const alreadyExists =
+      code === "email_exists" ||
+      code === "user_already_exists" ||
+      (!code &&
+        (raw.includes("already registered") ||
+          raw.includes("already been registered")));
+
+    if (alreadyExists) {
       /*
         The address already has an account, which is the ordinary "resend it,
         they lost the link" case. An invite token cannot be minted twice, so
@@ -581,7 +620,55 @@ async function inviteIntoTenant(input: {
     return { error: "Could not send the invite email. Try again shortly." };
   }
 
-  return { ok: true };
+  const listed = await waitForProfile(admin, linkData.user.id);
+
+  return listed
+    ? { ok: true }
+    : {
+        ok: true,
+        message: `Invite sent to ${email}. Refresh to see them in the list.`,
+      };
+}
+
+/**
+ * Waits for the profile row the invite will produce.
+ *
+ * WHY THIS EXISTS
+ *
+ * GoTrue's invite is two statements, not one: it inserts the auth user, then
+ * stamps invited_at in a follow-up update, measured at 48ms apart on the live
+ * project (0008_invite_update_trigger.sql). Since 0007 the profile is only
+ * created once invited_at is set, so for a moment after generateLink() returns
+ * there is an auth user and no profile.
+ *
+ * The partners screen reads its member list from profiles. Revalidating in
+ * that window re-renders the page from the database BEFORE the row lands, so
+ * the admin sees a success toast and an unchanged list, which reads as "adding
+ * users is broken". That is the defect this closes.
+ *
+ * Polls by primary key, so each attempt is an index hit, not a scan.
+ *
+ * Returns false rather than throwing when the row never appears. The invite
+ * genuinely was sent and the row will exist moments later; failing here would
+ * report a successful invite as an error, which is worse than asking for a
+ * refresh. The caller says so in the toast.
+ */
+async function waitForProfile(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  attempts = 10,
+  intervalMs = 50,
+): Promise<boolean> {
+  for (let i = 0; i < attempts; i++) {
+    const { data } = await admin
+      .from("profiles")
+      .select("id")
+      .eq("id", userId)
+      .maybeSingle();
+    if (data) return true;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return false;
 }
 
 /**
@@ -616,11 +703,45 @@ async function resendIntoTenant(input: {
     profiles carries the email (0005) and is the table that answers the
     question actually being asked, which is "is this person on THIS partner".
   */
-  const { data: profile } = await admin
+  /*
+    Scoped to this tenant in the QUERY, and read as a list.
+
+    It used to be a tenant-blind .maybeSingle(), which had two failure modes.
+    profiles.email carries no unique index, so two tenants holding the same
+    address (the same person invited to both, or an old house row beside a
+    partner one) made PostgREST return 406 for "more than one row". The error
+    was discarded, `profile` came back undefined, and a legitimate user was
+    refused with "that address already has an account somewhere else": the one
+    message that sends staff off to change an address that was never the
+    problem.
+
+    .eq, not .ilike: email reaches here straight from the form, and in a LIKE
+    pattern `%` and `_` are wildcards, so `%@partner.com` would match an
+    arbitrary other user on the tenant and mail THEM a working sign-in link.
+    EMAIL_RE now rejects both characters as well; this is the second lock.
+
+    Case: the address is lowercased at the entry point, but profiles stores
+    auth.users.email verbatim, so a row predating that normalisation could be
+    mixed case. Compared on lower(email) to stay correct either way.
+  */
+  const { data: rows, error: lookupError } = await admin
     .from("profiles")
-    .select("id, tenant_id, deactivated_at")
-    .ilike("email", email)
-    .maybeSingle<{ id: string; tenant_id: string; deactivated_at: string | null }>();
+    .select("id, tenant_id, deactivated_at, email")
+    .eq("tenant_id", tenant.id)
+    .ilike("email", escapeLike(email))
+    .limit(2)
+    .overrideTypes<
+      { id: string; tenant_id: string; deactivated_at: string | null; email: string | null }[]
+    >();
+
+  if (lookupError) {
+    console.error("[partners] resend lookup failed", lookupError);
+    return { error: "Could not look that account up. Try again shortly." };
+  }
+
+  // Filtered server-side, so this is not a client-side scan with a silent cap:
+  // limit(2) exists only to prove the match is unambiguous, never to page.
+  const profile = (rows ?? [])[0];
 
   if (!profile || profile.tenant_id !== tenant.id) {
     return {
@@ -683,14 +804,108 @@ export async function setPartnerUserActive(input: {
   if (!UUID_RE.test(profileId)) return { error: "That person is not valid." };
   const active = input.active === true;
 
-  const admin = createAdminClient();
+  const supabase = await createClient();
 
   /*
-    This screen manages PARTNERS. The house team is managed at /console/team,
-    which has its own last-admin and self-removal rules, so refusing the house
-    tenant here keeps those from being bypassed through this route. The UI
-    never offers it, but the action is an addressable endpoint.
+    Through the RPC, not a service-role UPDATE.
+
+    This was the one partner mutation with no database-level re-check of the
+    caller, which made the file's opening claim of "enforced three times over"
+    untrue for exactly this function. 0013 moves the house-tenant refusal, the
+    both-ids pin and the new last-user guard into the database, where the count
+    runs under lock_tenant_team() and a concurrent call cannot slip between the
+    count and the update.
+
+    The session client, so require_platform_staff() sees a real auth.uid().
   */
+  const { data: who, error } = await supabase.rpc("set_partner_user_access", {
+    p_tenant_id: tenantId,
+    p_profile_id: profileId,
+    p_active: active,
+  });
+
+  if (error) {
+    /*
+      PGRST202 means 0013 has not been applied to this project yet. Migrations
+      here are run by hand in the Supabase SQL editor, so code and schema can
+      deploy out of step, and a hard failure would take Remove and Restore down
+      on a screen where they work today.
+
+      So fall back to the pre-0013 service-role path, which keeps the feature
+      working but WITHOUT the last-user guard. Logged loudly, because this is a
+      degraded mode that should last only until the migration is applied.
+    */
+    if (error.code === "PGRST202") {
+      console.error(
+        "[partners] set_partner_user_access missing: apply migration 0013. " +
+          "Falling back to the unguarded path.",
+      );
+      return legacySetPartnerUserActive({
+        tenantId,
+        profileId,
+        active,
+        actorId: guard.ctx.userId,
+      });
+    }
+
+    // The RPC raises with a message written for this screen, so surface it
+    // rather than a generic one: "that is the only person who can sign in to
+    // Acme Brokers" tells the admin what to do next.
+    return {
+      error: rpcMessage(error.message, "Could not change that person's access."),
+    };
+  }
+
+  const name = typeof who === "string" && who ? who : "That person";
+
+  /*
+    NO SESSION REVOCATION HERE, AND IT IS NOT AN OVERSIGHT.
+
+    A removed user keeps a valid access token until it expires, which looks
+    like a hole: it is a real Supabase JWT and PostgREST accepts it with the
+    public anon key, so the concern is direct API reads, not page renders
+    (getSessionContext already treats a deactivated profile as no session).
+
+    But tenant_scope() (0009) filters `deactivated_at is null` in BOTH of its
+    branches, so a deactivated profile resolves to an empty scope and every
+    RLS policy denies the row. Verified against the live project by minting a
+    real session for a partner user, reading their leads (1 row), deactivating
+    the profile, and re-using the SAME session: 0 rows, no error.
+
+    Adding auth.admin.signOut() would not help anyway: it takes a JWT, not a
+    user id, and there is no user-id revocation in auth-js 2.112. The
+    alternative, ban_duration via updateUserById, is an account-level action
+    with its own reversal semantics, and it would be buying nothing here.
+  */
+
+  revalidatePath("/console/partners");
+  return {
+    ok: true,
+    message: active ? `${name} can sign in again.` : `${name} no longer has access.`,
+  };
+}
+
+/**
+ * The pre-0013 path: a direct service-role UPDATE.
+ *
+ * Kept ONLY so Remove and Restore keep working on a project where migration
+ * 0013 has not been applied yet. Delete this once 0013 is live everywhere.
+ *
+ * It carries the house-tenant refusal and the both-ids pin, which were always
+ * here, but it CANNOT carry the last-user guard: counting active users and
+ * then updating is a race in application code, which is the whole reason the
+ * guard belongs in the database under lock_tenant_team(). See 0006 section 2
+ * for the same argument about the house team.
+ */
+async function legacySetPartnerUserActive(input: {
+  tenantId: string;
+  profileId: string;
+  active: boolean;
+  actorId: string;
+}): Promise<PartnerResult> {
+  const { tenantId, profileId, active, actorId } = input;
+  const admin = createAdminClient();
+
   const { data: target } = await admin
     .from("tenants")
     .select("is_house")
@@ -701,16 +916,11 @@ export async function setPartnerUserActive(input: {
     return { error: "Manage your own team from the Team screen." };
   }
 
-  /*
-    Pin the update to BOTH ids. A profile id alone would let a mistyped or
-    tampered value deactivate a user on another tenant, including the house
-    team, since this runs service-role and bypasses RLS entirely.
-  */
   const { data, error } = await admin
     .from("profiles")
     .update({
       deactivated_at: active ? null : new Date().toISOString(),
-      deactivated_by: active ? null : guard.ctx.userId,
+      deactivated_by: active ? null : actorId,
     })
     .eq("id", profileId)
     .eq("tenant_id", tenantId)
@@ -786,6 +996,11 @@ function rpcMessage(raw: string, fallback: string): string {
     "cannot suspend",
     "company name",
     "Unknown branding key",
+    // 0013's guards. "only person who can sign in" names the partner and says
+    // what to do next, so it must reach the admin rather than be swallowed.
+    "only person who can sign in",
+    "not on this partner",
+    "Team screen",
   ];
   if (known.some((k) => raw.toLowerCase().includes(k.toLowerCase()))) return raw;
   console.error("[partners] rpc failed", raw);

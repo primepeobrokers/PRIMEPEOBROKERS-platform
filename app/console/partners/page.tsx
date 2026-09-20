@@ -4,7 +4,7 @@ import { requireStaff } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { parseBranding } from "@/lib/tenant/branding";
 import { APEX_HOST } from "@/lib/tenant/host";
-import { CreatePartnerCard } from "./create-partner-card";
+import { CreatePartnerDialog } from "./create-partner-dialog";
 import { PartnersTable, type PartnerMember, type PartnerRow } from "./partners-table";
 
 export const metadata: Metadata = {
@@ -40,30 +40,50 @@ export default async function PartnersPage() {
   await requireStaff("/console/partners");
   const supabase = await createClient();
 
-  const [{ data: tenantRows }, { data: leadRows }, { data: profileRows }] =
-    await Promise.all([
-      supabase
-        .from("tenants")
-        .select("id, slug, name, branding, is_house, suspended_at")
-        .order("name", { ascending: true }),
-      // Counted in one pass rather than a query per partner: the roster is
-      // single digits to low tens, so N+1 here would be gratuitous.
-      supabase.from("submissions").select("tenant_id"),
-      // The roster itself, not just a count: each partner row lists who has
-      // a login so the client can resend or revoke without asking us.
-      supabase
-        .from("profiles")
-        .select("id, tenant_id, full_name, email, deactivated_at")
-        .order("full_name", { ascending: true, nullsFirst: false }),
-    ]);
+  const [{ data: tenantRows }, { data: profileRows }] = await Promise.all([
+    supabase
+      .from("tenants")
+      .select("id, slug, name, branding, is_house, suspended_at")
+      .order("name", { ascending: true }),
+    // The roster itself, not just a count: each partner row lists who has
+    // a login so the client can resend or revoke without asking us.
+    supabase
+      .from("profiles")
+      .select("id, tenant_id, full_name, email, deactivated_at")
+      .order("full_name", { ascending: true, nullsFirst: false }),
+  ]);
 
   const tenants = (tenantRows ?? []) as TenantRecord[];
 
-  const leadsByTenant = new Map<string, number>();
-  for (const row of leadRows ?? []) {
-    const id = (row as { tenant_id: string }).tenant_id;
-    leadsByTenant.set(id, (leadsByTenant.get(id) ?? 0) + 1);
-  }
+  /*
+    Lead counts as counts, not as rows.
+
+    This used to be `select("tenant_id")` with no limit, tallied in JS. It
+    avoided an N+1, which the old comment was right about, but it paid for
+    that by transferring EVERY submission row in scope on every render of
+    this screen: at ten partners averaging 5,000 leads that is 50,000 rows
+    crossing the wire to produce ten integers, and it grows forever.
+
+    `head: true` with an exact count returns no rows at all, just the count in
+    a Content-Range header, and `submissions_tenant_created_idx` (0001) covers
+    the tenant_id predicate. One request per partner, but each is an index
+    count of a few bytes rather than a full table read, and the roster is
+    single digits to low tens. Promise.all keeps them concurrent.
+
+    The same `count: "exact", head: true` pattern is already used on the main
+    console list (app/console/page.tsx:126).
+  */
+  const partnerTenants = tenants.filter((t) => t.is_house !== true);
+  const counts = await Promise.all(
+    partnerTenants.map((t) =>
+      supabase
+        .from("submissions")
+        .select("id", { count: "exact", head: true })
+        .eq("tenant_id", t.id)
+        .then(({ count }) => [t.id, count ?? 0] as const),
+    ),
+  );
+  const leadsByTenant = new Map<string, number>(counts);
 
   const membersByTenant = new Map<string, PartnerMember[]>();
   for (const row of profileRows ?? []) {
@@ -102,27 +122,34 @@ export default async function PartnersPage() {
 
   return (
     <main className="mx-auto max-w-[1100px] px-7 py-9 max-sm:px-[18px] max-sm:py-6">
-      <header className="mb-7">
-        <h1 className="font-display text-[26px] font-semibold tracking-[-.02em] text-ink">
-          Partners
-        </h1>
-        <p className="mt-1.5 max-w-[68ch] text-[14px] text-ink-muted">
-          Each partner gets a branded portal on their own subdomain showing
-          only their own leads. Every submission still reaches your console, and
-          your team works all of them.
-        </p>
+      {/*
+        The create action sits in the header as a button, not as a form
+        occupying the top of the page. Creating a partner is rare and
+        permanent; reading the list is the daily job, so the list starts at
+        the top of the screen and the rare task is one click away.
+      */}
+      <header className="mb-7 flex items-start justify-between gap-6 max-sm:flex-col max-sm:gap-4">
+        <div>
+          <h1 className="font-display text-[26px] font-semibold tracking-[-.02em] text-ink">
+            Partners
+          </h1>
+          <p className="mt-1.5 max-w-[68ch] text-[14px] text-ink-muted">
+            Each partner gets a branded portal on their own subdomain showing
+            only their own leads. Every submission still reaches your console,
+            and your team works all of them.
+          </p>
+        </div>
+        <div className="shrink-0">
+          <CreatePartnerDialog apexHost={apexHost} />
+        </div>
       </header>
 
-      <div className="flex flex-col gap-6">
-        <CreatePartnerCard apexHost={apexHost} />
-
-        <section>
-          <h2 className="mb-3 font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-faint">
-            {partners.length} partner{partners.length === 1 ? "" : "s"}
-          </h2>
-          <PartnersTable partners={partners} apexHost={apexHost} />
-        </section>
-      </div>
+      <section>
+        <h2 className="mb-3 font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-faint">
+          {partners.length} partner{partners.length === 1 ? "" : "s"}
+        </h2>
+        <PartnersTable partners={partners} apexHost={apexHost} />
+      </section>
     </main>
   );
 }

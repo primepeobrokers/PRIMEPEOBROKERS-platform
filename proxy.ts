@@ -50,9 +50,15 @@ export async function proxy(request: NextRequest) {
   // the header and decides, so a stray Host on an asset path still works.
 
   /*
-    Surface routing. A partner subdomain has no marketing site and no staff
-    console; the apex has no partner portal. Rewrites rather than redirects,
-    so the URL the partner sees stays their own.
+    Surface routing. A partner subdomain has its own branded marketing page
+    and no staff console; the apex has no partner portal and no partner home.
+    Rewrites rather than redirects, so the URL the partner sees stays theirs.
+
+    /partner-home is a rewrite target, not an address. Left reachable on the
+    apex it would serve a second copy of the marketing page for crawlers to
+    index. The rule below only bites on hosts this proxy runs for, and the
+    matcher does not cover arbitrary apex paths, so the page ALSO checks
+    tenant.isHouse itself. That check is the one that actually closes it here.
 
     This is convenience and clarity, not enforcement: requireStaff() and
     requireTenantUser() re-check server-side, and RLS is the real boundary.
@@ -61,10 +67,20 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith("/console")) {
       return NextResponse.rewrite(new URL("/404", request.url));
     }
+    /*
+      The partner's public marketing page, in their brand.
+
+      This used to rewrite to /portal, which sits behind requireTenantUser(),
+      so an anonymous visitor to a partner's domain was bounced straight to a
+      sign-in screen: a partner had a branded form and a branded portal, but no
+      branded front door. The portal is still at /portal on this host.
+
+      Rewrite, not redirect, so the URL stays the partner's own root.
+    */
     if (pathname === "/") {
-      return NextResponse.rewrite(new URL("/portal", request.url));
+      return NextResponse.rewrite(new URL("/partner-home", request.url));
     }
-  } else if (pathname.startsWith("/portal")) {
+  } else if (pathname.startsWith("/portal") || pathname.startsWith("/partner-home")) {
     return NextResponse.rewrite(new URL("/404", request.url));
   }
 

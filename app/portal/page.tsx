@@ -42,21 +42,47 @@ import {
  * in this file, which is the misconception the SOW warns against ("enforcing
  * at the data access layer, not just in the UI").
  */
+/**
+ * How many leads the portal shows at once.
+ *
+ * A cap rather than pagination, per the SOW's "visibility, not workflow
+ * tooling". The count beside it is what makes the cap honest: the footer says
+ * so when there are more, instead of silently ending the list.
+ */
+const PAGE_CAP = 250;
+
 export default async function PortalPage() {
   const { tenant } = await requireTenantUser();
   const supabase = await createClient();
 
-  const [{ data }, stages] = await Promise.all([
+  /*
+    PAGE_CAP is a display cap, and the count tells the partner when they have
+    hit it.
+
+    The list was capped at 100 with no count and no pagination, so a partner
+    with 101 leads simply could not see the 101st: no next page, no total, no
+    indication anything was missing. Leads appeared to vanish, which is the
+    worst failure mode for the one screen partners are given.
+
+    Raised, and paired with an exact count so the footer can say "showing the
+    250 most recent of 412". Full pagination is deliberately not added here:
+    the SOW scopes this portal to visibility rather than workflow tooling, and
+    LeadsPagination hardcodes /console hrefs. If partners routinely pass this
+    cap, that is the point to build it properly rather than keep raising a
+    number.
+  */
+  const [{ data, count }, stages] = await Promise.all([
     supabase
       .from("submissions")
-      .select(SUBMISSION_LIST_SELECT)
+      .select(SUBMISSION_LIST_SELECT, { count: "exact" })
       .eq("status", "complete")
       .order("created_at", { ascending: false })
-      .limit(100),
+      .limit(PAGE_CAP),
     fetchStages(),
   ]);
 
   const rows = (data ?? []) as SubmissionRow[];
+  const total = count ?? rows.length;
   const company = tenant.branding.companyName ?? tenant.name;
 
   return (
@@ -133,6 +159,17 @@ export default async function PortalPage() {
               ))}
             </TableBody>
           </Table>
+          {/*
+            Only when the cap actually bit. A partner under it sees nothing
+            extra; a partner over it is told the list is partial and who to
+            ask, rather than quietly missing leads.
+          */}
+          {total > rows.length && (
+            <p className="border-t border-line px-4 py-3 text-[13px] text-ink-muted">
+              Showing the {rows.length} most recent of {total} leads. Ask your
+              contact for the full list.
+            </p>
+          )}
         </div>
       )}
     </main>
