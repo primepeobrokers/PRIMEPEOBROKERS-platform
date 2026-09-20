@@ -331,8 +331,8 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
     taller than the viewport and pushed Save out of sight.
   */
   return (
-    <div className="grid gap-x-8 gap-y-3 md:grid-cols-[minmax(0,360px)_minmax(0,320px)]">
-      <div className="flex flex-col gap-3">
+    <div className="grid gap-x-8 gap-y-3 [&>*]:min-w-0 md:grid-cols-[minmax(0,360px)_minmax(0,320px)]">
+      <div className="flex min-w-0 flex-col gap-3">
         <Field
           id={`cn-${partner.id}`}
           label="Display name"
@@ -369,7 +369,7 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
       {/* Second column: the visual assets. Grouping the three colour pickers
           with the logo keeps the eye in one place while matching a brand,
           instead of scrolling past name and email fields between each pick. */}
-      <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3">
         <LogoField partner={partner} />
 
         <ColorField
@@ -474,17 +474,34 @@ function LogoField({ partner }: { partner: PartnerRow }) {
   const inputId = `lg-${partner.id}`;
 
   return (
-    <div>
-      <span className="text-[13px] text-ink-soft">Logo</span>
-      <div className="mt-1.5 flex items-center gap-3">
-        <div className="flex h-12 min-w-12 items-center justify-center rounded-md border border-line bg-raised px-2">
+    <div className="min-w-0">
+      {/* `block`, for the reason spelled out in Field below: a bare inline
+          label does not stack, so the mt-1.5 on the row under it never
+          applied and the row started at the label right edge. This one was a
+          <span> rather than a <label>, so it was missed when Field and
+          ColorField were fixed. */}
+      <span className="block text-[13px] text-ink-soft">Logo</span>
+      {/* min-w-0 and flex-wrap: without them this row takes a minimum width
+          from the preview box plus two buttons, refuses to shrink below it,
+          and overflows the 320px grid column, dragging the help text beneath
+          it out past the panel edge. */}
+      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-3">
+        <div className="flex h-12 min-w-12 shrink-0 items-center justify-center rounded-md border border-line bg-raised px-2">
           {logo ? (
             /* Plain <img>, as in TenantMark: the optimizer is off by design. */
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={logoUrl(logo.path)}
               alt={`${partner.branding.companyName ?? partner.name} logo`}
-              style={{ height: 28, width: "auto", display: "block" }}
+              /* maxWidth caps a wide wordmark. Without it a 900px logo sets
+                 the row width and overflows the column. */
+              style={{
+                height: 28,
+                width: "auto",
+                maxWidth: 120,
+                objectFit: "contain",
+                display: "block",
+              }}
             />
           ) : (
             <ImageIcon className="size-4 text-ink-faint" aria-hidden="true" />
@@ -606,7 +623,7 @@ function ColorField({
   const marginal = ratio !== undefined && !fails && ratio < 4.5;
 
   return (
-    <div>
+    <div className="min-w-0">
       {/* `block`, for the reason spelled out in Field above: a bare <label>
           is display:inline, so it does not stack and its mt-1.5 never
           applies. */}

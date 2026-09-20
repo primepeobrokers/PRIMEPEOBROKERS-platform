@@ -361,9 +361,19 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             */}
             {partner ? <TenantMark tenant={partner} size={34} /> : <Logo size={34} />}
           </Link>
+          {/*
+            Hidden below lg, not below md.
+
+            The links appeared at md (768px) but do not FIT until about
+            900px: logo + six links + two buttons + gap-8 + px-10 measured
+            868px of content in a 768px viewport, so the header overflowed by
+            100px and the whole page scrolled sideways on a tablet. Held back
+            to lg (1024px), which is the first width where the row has room.
+            e2e/layout-overflow.spec.ts asserts this at 768px.
+          */}
           <nav
             aria-label="Primary"
-            className="flex items-center gap-[30px] text-[14.5px] max-md:hidden"
+            className="flex items-center gap-[30px] text-[14.5px] max-lg:hidden"
           >
             <a href="#how" className="text-ink-soft hover:text-accent-press">How it works</a>
             <a href="#compare" className="text-ink-soft hover:text-accent-press">What we compare</a>

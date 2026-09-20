@@ -42,3 +42,9 @@ next-env.d.ts
 
 # rendered email previews (pnpm email:preview)
 .preview-email/
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
