@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { tenantIcons } from "@/lib/tenant/favicon";
 import { getTenant } from "@/lib/tenant/resolve";
 import { TenantTheme } from "@/app/components/tenant-theme";
 import { TalkForm } from "./talk-form";
@@ -17,6 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const name =
     tenant && !tenant.isHouse ? (tenant.branding.companyName ?? tenant.name) : null;
   return {
+    icons: tenantIcons(tenant),
     /*
       `absolute` so the root layout's title template does not append
       "· Prime PEO Brokers". This page is what a partner sends their own

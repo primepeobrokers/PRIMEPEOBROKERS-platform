@@ -74,7 +74,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
   });
 
   return (
-    <main className="pv-page mx-auto max-w-[1400px] px-gutter pb-20 pt-8 max-sm:px-gutter-sm">
+    <main className="pv-page mx-auto max-w-[1400px] px-gutter pb-12 pt-6 max-sm:px-gutter-sm">
       <div className="flex flex-wrap items-end justify-between gap-7">
         <div>
           <h1 className="font-display text-[30px] font-semibold tracking-[-.022em]">
@@ -96,11 +96,11 @@ export default async function LeadsPage(props: PageProps<"/console">) {
         </div>
       </div>
 
-      <div className="mt-[26px] border-b border-line pb-4">
+      <div className="mt-5 border-b border-line pb-3.5">
         <LeadFilters initial={filters} stages={stages} members={members} />
       </div>
 
-      <div className="mt-[22px]">
+      <div className="mt-4">
         {/*
           The key restarts the boundary whenever a filter changes, so switching
           tabs shows the skeleton again instead of leaving stale rows on screen

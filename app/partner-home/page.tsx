@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { LandingSections } from "@/app/components/landing/landing-sections";
 import { TenantTheme } from "@/app/components/tenant-theme";
+import { tenantIcons } from "@/lib/tenant/favicon";
 import { getTenant, requireTenant } from "@/lib/tenant/resolve";
 import { tenantOrigin } from "@/lib/tenant/urls";
 
@@ -29,6 +30,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase: new URL(tenantOrigin(tenant.slug, false)),
+    // The partner own mark in the browser tab, not Prime cube.
+    icons: tenantIcons(tenant),
     // Overrides the house template in app/layout.tsx, which would otherwise
     // append "· Prime PEO Brokers" to a partner's own page title.
     title: {

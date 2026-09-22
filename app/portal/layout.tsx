@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { tenantIcons } from "@/lib/tenant/favicon";
 import { getTenant, requireTenantUser } from "@/lib/tenant/resolve";
 import { tenantOrigin } from "@/lib/tenant/urls";
 import { TenantTheme } from "@/app/components/tenant-theme";
@@ -28,6 +29,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const name = tenant?.branding.companyName ?? tenant?.name ?? "Portal";
 
   return {
+    icons: tenantIcons(tenant),
     metadataBase: tenant
       ? new URL(tenantOrigin(tenant.slug, tenant.isHouse))
       : undefined,

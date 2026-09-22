@@ -250,9 +250,13 @@ export default function PrivacyPage() {
       <Section id="retention" heading="6. Retention">
         <ul>
           <li>
-            Evaluation, quote, and placement records: five (5) years from the
-            date the transaction is completed, consistent with Texas producer
-            recordkeeping requirements
+            Placement records: six (6) years from the date the transaction is
+            completed, consistent with Texas producer recordkeeping
+            requirements
+          </li>
+          <li>
+            Evaluation and quote records where no placement follows: deleted
+            within thirty (30) days of your request
           </li>
           <li>
             Census files containing Social Security numbers: deleted or

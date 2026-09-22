@@ -12,7 +12,7 @@ import { LeadsTableSkeleton } from "./leads-skeleton";
  */
 export default function ConsoleLoading() {
   return (
-    <main className="pv-page mx-auto max-w-[1400px] px-gutter pb-20 pt-8 max-sm:px-gutter-sm">
+    <main className="pv-page mx-auto max-w-[1400px] px-gutter pb-12 pt-6 max-sm:px-gutter-sm">
       <div className="flex flex-wrap items-end justify-between gap-7">
         <div>
           <h1 className="font-display text-[30px] font-semibold tracking-[-.022em]">
@@ -28,7 +28,7 @@ export default function ConsoleLoading() {
         </div>
       </div>
 
-      <div className="mt-[26px] border-b border-line pb-4">
+      <div className="mt-5 border-b border-line pb-3.5">
         <div className="flex flex-wrap items-center gap-2.5">
           <Skeleton className="h-9 w-[220px]" />
           <Skeleton className="h-9 w-[130px]" />
@@ -38,7 +38,7 @@ export default function ConsoleLoading() {
         </div>
       </div>
 
-      <div className="mt-[22px]">
+      <div className="mt-4">
         <LeadsTableSkeleton />
       </div>
     </main>

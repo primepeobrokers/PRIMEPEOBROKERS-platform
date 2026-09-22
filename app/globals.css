@@ -78,8 +78,24 @@
     Console density scale. The list view was built from one-off pixel values
     (13.5px, 11px, 26px); these give the same rhythm a name so a row, a chip
     and a filter all step on the same grid.
+
+    TIGHTENED for the console's real job. This is an Operate surface: staff
+    live in these tables and scan them dozens of times a day, and rows per
+    screen is the metric that matters, not breathing room. At 14px vertical a
+    two-line lead row measured ~62px, so a 900px viewport showed about eleven
+    leads and the eye spent most of its travel on empty ground. At 10px the
+    same row is ~54px and roughly two more rows fit per screen without the
+    text ever touching.
+
+    Not tighter than 10px: a row carries a link and, in the members and
+    partners tables, buttons. Below this the hit areas start to crowd and the
+    8px minimum gap between adjacent targets stops holding on touch.
+
+    The horizontal value stays at 20px. Columns need their separation more
+    than rows need theirs, and narrowing it would run the first column into
+    the table's own border.
   */
-  --pv-row-y: 14px;
+  --pv-row-y: 10px;
   --pv-row-x: 20px;
   --pv-gutter: 28px;
   --pv-gutter-sm: 18px;
@@ -556,6 +572,25 @@ body {
 
 [data-slot="tabs-content"] {
   animation: pv-in 220ms var(--pv-ease-out) both;
+}
+
+/*
+  A disclosure panel opening: the partner settings drawer, and anything else
+  that mounts in place under the row that opened it.
+
+  pv-panel-in has existed as a keyframe since the console was built but never
+  had a class to invoke it, so every expanding panel snapped into place at
+  full height. That snap is a large part of what reads as "stuttery": the
+  table jumps, the rows below it are displaced instantly, and the eye has
+  nothing to follow to the new content.
+
+  Shorter than the page arrival (200ms against 300ms) because this is a
+  response to a deliberate click, and a slower panel would feel like lag
+  rather than polish. The rise is small for the same reason: the panel is
+  already anchored to the row, so it needs to settle, not travel.
+*/
+.pv-panel {
+  animation: pv-panel-in 200ms var(--pv-ease-out) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

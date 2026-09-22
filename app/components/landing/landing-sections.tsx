@@ -239,7 +239,7 @@ const TRUST = [
   {
     tag: "Retention",
     title: "Deleted on request, in 30 days",
-    body: "Ask and we delete the record and the partial drafts within 30 days, excluding what we must retain for licensing.",
+    body: "If we do not place you, ask and we delete the record and the partial drafts within 30 days. Placement records are held for six years, as licensing requires.",
   },
 ];
 

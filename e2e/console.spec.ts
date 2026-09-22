@@ -84,7 +84,13 @@ test.describe("console", () => {
         Asserting the box is SHORTER than its contents proves the cap is doing
         something. Asserting only max-height would pass on an empty feed.
       */
-      const feed = page.locator("[data-rows]");
+      /*
+        The capped one specifically. The Team page has three [data-rows]
+        containers (members, stages, activity) because the attribute drives
+        the staggered row entrance everywhere; only the activity feed is
+        height-capped, so the max-h class is what identifies it.
+      */
+      const feed = page.locator("[data-rows].max-h-\\[420px\\]");
       await expect(feed).toBeVisible();
 
       const { clientHeight, scrollHeight } = await feed.evaluate((el) => ({

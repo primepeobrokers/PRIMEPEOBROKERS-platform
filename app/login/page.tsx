@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthShell } from "@/app/components/auth-shell";
 import { TenantTheme } from "@/app/components/tenant-theme";
+import { tenantIcons } from "@/lib/tenant/favicon";
 import { getTenant } from "@/lib/tenant/resolve";
 import { LoginCard } from "./login-card";
 import { Toaster } from "@/app/components/ui/sonner";
@@ -23,6 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
     : null;
 
   return {
+    icons: tenantIcons(tenant),
     // `absolute` bypasses the house template; the house keeps it.
     title: name ? { absolute: `Sign in · ${name}` } : "Sign in",
     description: "Sign in to your account.",

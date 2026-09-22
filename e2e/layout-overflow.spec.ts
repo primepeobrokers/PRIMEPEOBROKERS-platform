@@ -34,6 +34,18 @@ async function overflowing(page: Page, root: string) {
         // their job. The activity feed is one.
         if (s.overflowX === "auto" || s.overflowX === "scroll") return false;
         if (s.overflowX === "hidden") return false;
+        /*
+          scrollWidth > clientWidth catches text painting wider than its own
+          box, which is the failure this check exists for and the one a
+          bounding-box comparison cannot see.
+
+          The case that taught us: the partner branding panel sits inside a
+          <td>, TableCell sets whitespace-nowrap, and white-space INHERITS.
+          Every hint in that form became one unbroken line that painted
+          straight across the next column and out past the panel, while its
+          BOX stayed the declared 320px. Box-intersection reported nothing.
+          This comparison reported 316px.
+        */
         return el.scrollWidth - el.clientWidth > 2;
       })
       .slice(0, 10)

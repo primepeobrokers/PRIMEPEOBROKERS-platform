@@ -87,7 +87,7 @@ export default async function TeamPage() {
   const removed = members.filter((m) => m.deactivated_at);
 
   return (
-    <main className="pv-page mx-auto max-w-[1400px] px-gutter pb-20 pt-8 max-sm:px-gutter-sm">
+    <main className="pv-page mx-auto max-w-[1400px] px-gutter pb-12 pt-6 max-sm:px-gutter-sm">
       <div>
         <h1 className="font-display text-[30px] font-semibold tracking-[-.022em]">
           Team
@@ -99,8 +99,8 @@ export default async function TeamPage() {
         </div>
       </div>
 
-      <div className="mt-8 grid grid-cols-[1fr_340px] items-start gap-7 [&>*]:min-w-0 max-lg:grid-cols-1">
-        <div className="flex flex-col gap-7">
+      <div className="mt-6 grid grid-cols-[1fr_340px] items-start gap-6 [&>*]:min-w-0 max-lg:grid-cols-1">
+        <div className="flex flex-col gap-6">
           <section>
             <h2 className="font-display text-[19px] font-semibold tracking-[-.015em]">
               Members
@@ -139,7 +139,7 @@ export default async function TeamPage() {
           small top gap is all this needs. Released below lg, where the column
           stacks and sticking it would pin a card over the content.
         */}
-        <aside className="flex flex-col gap-7 lg:sticky lg:top-6 max-lg:order-first">
+        <aside className="flex flex-col gap-6 lg:sticky lg:top-6 max-lg:order-first">
           <InviteCard />
 
           <section>

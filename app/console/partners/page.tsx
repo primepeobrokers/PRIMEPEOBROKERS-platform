@@ -121,14 +121,14 @@ export default async function PartnersPage() {
   const apexHost = APEX_HOST;
 
   return (
-    <main className="mx-auto max-w-[1100px] px-7 py-9 max-sm:px-[18px] max-sm:py-6">
+    <main className="pv-page mx-auto max-w-[1100px] px-7 pb-12 pt-6 max-sm:px-[18px] max-sm:py-5">
       {/*
         The create action sits in the header as a button, not as a form
         occupying the top of the page. Creating a partner is rare and
         permanent; reading the list is the daily job, so the list starts at
         the top of the screen and the rare task is one click away.
       */}
-      <header className="mb-7 flex items-start justify-between gap-6 max-sm:flex-col max-sm:gap-4">
+      <header className="mb-5 flex items-start justify-between gap-6 max-sm:flex-col max-sm:gap-4">
         <div>
           <h1 className="font-display text-[26px] font-semibold tracking-[-.02em] text-ink">
             Partners

@@ -119,7 +119,7 @@ export function PartnersTable({
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
-        <TableBody>
+        <TableBody data-rows>
           {partners.map((p) => (
             <PartnerRowView
               key={p.id}
@@ -238,7 +238,31 @@ function PartnerRowView({
               refuses to shrink and gives the whole table a horizontal
               scrollbar.
             */}
-            <div id={`partner-panel-${partner.id}`} className="p-5">
+            {/*
+              whitespace-normal is load-bearing, and the bug it fixes is
+              invisible to a box-overlap check.
+
+              This panel is nested inside a <td>, and TableCell sets
+              whitespace-nowrap so that a row of data never wraps mid-value.
+              white-space INHERITS, so every paragraph in this form was
+              nowrap too: the logo hint and the field hints rendered as one
+              long unbroken line each, painting straight across the column
+              beside them and running out past the panel edge, clipped
+              mid-word.
+
+              Their boxes stayed the declared 320px the whole time (the text
+              overflowed without widening them), which is why min-w-0 on the
+              grid did not help and why a detector comparing bounding boxes
+              found nothing to report.
+
+              Reset it here, once, at the panel root, rather than per
+              paragraph: everything inside this drawer is a form, and no part
+              of a form wants table wrapping rules.
+            */}
+            <div
+              id={`partner-panel-${partner.id}`}
+              className="pv-panel whitespace-normal p-5"
+            >
               <Tabs defaultValue="logins" className="gap-4">
                 <TabsList variant="line" className="w-full justify-start">
                   <TabsTrigger value="logins" className="flex-none px-3">

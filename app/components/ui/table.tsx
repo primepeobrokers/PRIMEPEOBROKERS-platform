@@ -57,7 +57,25 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b border-sunken transition-colors duration-150 hover:bg-sunken has-aria-expanded:bg-sunken data-[state=selected]:bg-sunken",
+        /*
+          h-11 is a row MINIMUM, not a fixed height.
+
+          Tightening --pv-row-y to 10px buys about two more rows per screen on
+          a two-line lead row, which is what this console is scanned for. But
+          a single-line row (a partner name, a stage) then measured 38px,
+          under the 44px floor for a comfortable hit target, and those rows
+          are clickable.
+
+          In the CSS table model `height` on a tr is treated as a minimum:
+          the row grows past it when its content is taller. So a single-line
+          row comes back to 44px while a two-line row stays at 56.6px, and the
+          density gain survives exactly where it was worth having.
+
+          It has to live here, not on the cell: min-height has no effect on
+          display:table-cell, which is why the obvious version silently did
+          nothing. Verified in a browser, not assumed.
+        */
+        "h-11 border-b border-sunken transition-colors duration-150 hover:bg-sunken has-aria-expanded:bg-sunken data-[state=selected]:bg-sunken",
         className
       )}
       {...props}

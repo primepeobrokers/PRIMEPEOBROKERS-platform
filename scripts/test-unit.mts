@@ -16,6 +16,7 @@
  *
  * Run: npx tsx scripts/test-unit.mts
  */
+import { existsSync } from "node:fs";
 import { describe, ok, equal, done } from "./lib/harness";
 import { classifyHost, APEX_HOST } from "../lib/tenant/host";
 import {
@@ -29,6 +30,7 @@ import { imageInfo } from "../lib/tenant/image-size";
 import { brandFor, formatFrom, houseBrand, inboxList, parseSender } from "../lib/tenant/email-brand";
 import { landingBrand } from "../app/components/landing/landing-sections";
 import { CONSOLE_EMAIL_RE, escapeLike } from "../lib/console/email-match";
+import { iconLetter, letterTileSvg, partnerIcon, SQUARE_ENOUGH, tenantIcons } from "../lib/tenant/favicon.js";
 import {
   slugifyStage,
   validateStageLabel,
@@ -525,5 +527,100 @@ equal(escapeLike("a%b_c"), "a\\%b\\_c", "every wildcard in one string is escaped
 // The backslash must be escaped FIRST, or escaping % would emit a backslash
 // that the next replacement consumes, re-opening the hole.
 equal(escapeLike("a\\%b"), "a\\\\\\%b", "a literal backslash is escaped before the wildcards");
+
+// ---------------------------------------------------------------------------
+describe("partner tab icon: their mark, never Prime's cube");
+// ---------------------------------------------------------------------------
+// A favicon renders at 16-32px. A partner's uploaded logo is usually a wide
+// wordmark, which becomes an unreadable smudge in a square, so the shape
+// decides whether the artwork is usable or a letter tile is generated.
+
+{
+  // Square artwork was drawn to work as a mark; use it untouched.
+  const icon = partnerIcon({ logo: { path: "t/sq.png", width: 512, height: 512 } }, "Acme");
+  equal(icon.kind, "logo", "a square logo is used as the icon");
+  if (icon.kind === "logo") equal(icon.path, "t/sq.png", "the uploaded path is passed through");
+}
+
+{
+  // 4:1 is a typical horizontal lockup and is illegible at 16px.
+  const icon = partnerIcon({ logo: { path: "t/wide.png", width: 1200, height: 300 } }, "Acme");
+  equal(icon.kind, "letter", "a wide wordmark falls back to a letter tile");
+  if (icon.kind === "letter") equal(icon.letter, "A", "the tile carries the partner's initial");
+}
+
+{
+  // Tall artwork fails for the same reason as wide artwork.
+  const icon = partnerIcon({ logo: { path: "t/tall.png", width: 200, height: 900 } }, "Acme");
+  equal(icon.kind, "letter", "a tall logo also falls back");
+}
+
+{
+  // The boundary itself, so a future tweak to SQUARE_ENOUGH is deliberate.
+  const at = partnerIcon({ logo: { path: "t/a.png", width: 160 * SQUARE_ENOUGH, height: 160 } }, "Acme");
+  equal(at.kind, "logo", "artwork exactly at the ratio limit is still used");
+  const past = partnerIcon({ logo: { path: "t/b.png", width: 161 * SQUARE_ENOUGH, height: 160 } }, "Acme");
+  equal(past.kind, "letter", "one step past the limit falls back");
+}
+
+{
+  // The onboarding case: a partner with no artwork at all.
+  const icon = partnerIcon({ companyName: "Zenith Group" }, "zenith");
+  equal(icon.kind, "letter", "no logo means a letter tile");
+  if (icon.kind === "letter") {
+    equal(icon.letter, "Z", "the display name wins over the slug");
+    equal(icon.accent, "#ff2d00", "no accent set falls back to the house orange");
+  }
+}
+
+{
+  const icon = partnerIcon({ companyName: "Acme", colors: { accent: "#8535d4" } }, "acme");
+  if (icon.kind === "letter") equal(icon.accent, "#8535d4", "the partner's own accent tints the tile");
+}
+
+equal(iconLetter("  acme brokers"), "A", "leading whitespace is skipped");
+equal(iconLetter("3M Partners"), "3", "a digit is a valid initial");
+equal(iconLetter("!!!"), "?", "punctuation-only names still produce a tile");
+equal(iconLetter("\u00e9clair"), "\u00c9", "an accented initial is uppercased, not dropped");
+
+// The tile is markup, so a name that reaches it unescaped would be injection.
+ok(!letterTileSvg("<", "#ff2d00").includes("><"), "a bare < is escaped in the tile");
+ok(letterTileSvg("A", "#ff2d00").includes("#ff2d00"), "the accent reaches the tile fill");
+
+// The house must keep app/favicon.ico, which carries seven sizes. Returning
+// an explicit icon here would override it with a single one.
+equal(tenantIcons({ isHouse: true }), undefined, "the house keeps its own multi-size .ico");
+equal(tenantIcons(null), undefined, "an unresolved host does not get a partner icon");
+ok(tenantIcons({ isHouse: false })?.icon[0]?.url === "/partner-icon",
+   "a partner points at the per-tenant icon route");
+/*
+  Next injects app/favicon.ico into every route's head, first and tagged
+  256x256, and it cannot be suppressed per route. Without sizes="any" a
+  browser ranking by declared size would pick Prime's cube on a partner's own
+  domain. This assertion is the regression guard for that leak.
+*/
+equal(tenantIcons({ isHouse: false })?.icon[0]?.sizes, "any",
+      "the partner icon outranks the auto-injected house .ico");
+
+// ---------------------------------------------------------------------------
+describe("console navigation: no route lands on a frozen screen");
+// ---------------------------------------------------------------------------
+/*
+  Every console route is a server component that authenticates and queries
+  before it can render anything. Without a loading.tsx, Next blocks on that
+  work and the PREVIOUS page stays on screen, motionless, until it finishes.
+  That gap is what the client reported as the app feeling stuttery and laggy.
+
+  Partners was the route missing one, and it is the slowest of the three
+  because it issues a lead count per partner. This asserts the whole set, so
+  a new console route cannot ship without its skeleton.
+*/
+{
+  const routes = ["app/console", "app/console/team", "app/console/partners", "app/console/leads/[id]"];
+  for (const dir of routes) {
+    ok(existsSync(`${dir}/loading.tsx`),
+       `${dir} ships a loading.tsx (without one, navigating to it freezes the previous page)`);
+  }
+}
 
 done("test-unit");

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isCategory, sanitizeAnswers, type Answers } from "@/lib/discovery/schema";
+import { tenantIcons } from "@/lib/tenant/favicon";
 import { getTenant } from "@/lib/tenant/resolve";
 import { TenantTheme } from "@/app/components/tenant-theme";
 import type { DraftHandle } from "./actions";
@@ -20,6 +21,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const tenant = await getTenant();
   const name = tenant && !tenant.isHouse ? (tenant.branding.companyName ?? tenant.name) : null;
   return {
+    icons: tenantIcons(tenant),
     /*
       `absolute` so the root layout's title template does not append
       "· Prime PEO Brokers". This page is what a partner sends their own
