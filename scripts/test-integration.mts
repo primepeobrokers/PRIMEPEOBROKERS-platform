@@ -229,10 +229,22 @@ async function teardown() {
     first iteration (routing, and the second tenant's own teardown), which is
     why an earlier version still left nine behind.
 
-    Matched on the fixture name, which every one of these rows carries, so real
-    history is never touched.
+    Matched on the "ZZ " prefix, not on "ZZ Test".
+
+    The narrower pattern was wrong and the comment above it was wrong too: it
+    claimed every fixture row carries "ZZ Test", but this script also writes
+    "ZZ Lead", "ZZ Partner A", "ZZ Partner B" and "ZZ Uninvited". Those rows
+    were never cleaned up, and they accumulated in the client's own audit
+    feed until the Team page read as a broken system. Seven such rows were
+    deleted by hand from production on 2026-09-24.
+
+    "ZZ " is the convention the whole suite uses for throwaway data, so
+    matching it catches every fixture including ones added later. Real names
+    do not start with it: escaping the space keeps the pattern anchored to a
+    word rather than to any string containing z, z and a space.
   */
-  await admin.from("tenant_events").delete().ilike("detail", "%ZZ Test%");
+  await admin.from("tenant_events").delete().ilike("detail", "ZZ %");
+  await admin.from("tenant_events").delete().ilike("actor", "ZZ %");
 }
 
 // Handle a bare --cleanup run, for recovering from an interrupted --keep.
