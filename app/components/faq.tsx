@@ -23,7 +23,10 @@ export function Faq({ items }: { items: FaqItem[] }) {
               className="flex w-full cursor-pointer items-baseline justify-between gap-6 px-1 py-5 text-left text-[17px] font-medium transition-colors duration-150 hover:text-accent"
             >
               <span>{f.q}</span>
-              <span className="flex-none font-mono text-base text-accent">
+              {/* accent-press: these glyphs are 16px text, not a large
+                  numeral, and raw accent is 3.58:1 on the tinted ground.
+                  See AGENTS.md on where the orange is usable. */}
+              <span className="flex-none font-mono text-base text-accent-press">
                 {isOpen ? "−" : "+"}
               </span>
             </button>

@@ -360,7 +360,18 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
 
       {/* NAV */}
       <header className="sticky top-0 z-40 border-b border-line bg-[rgba(255,255,255,.92)] backdrop-blur-[8px]">
-        <div className="mx-auto flex h-[68px] max-w-[1240px] items-center justify-between gap-8 px-10 max-sm:gap-3 max-sm:px-5">
+        {/*
+          gap-6 until xl, not gap-8 everywhere.
+
+          The nav appears at lg (1024px) and at exactly that width the row
+          measured 13px too wide, so "Sign in" and "Start shopping" were
+          clipped at the right edge. The links fit and the buttons did not,
+          which is the worst version of the failure: the page looks fine
+          until you try to click the thing it wants you to click. Tightening
+          the row gap and the nav's own spacing between lg and xl buys the
+          room back without touching the comfortable wide layout.
+        */}
+        <div className="mx-auto flex h-[68px] max-w-[1240px] items-center justify-between gap-6 px-10 xl:gap-8 max-sm:gap-3 max-sm:px-5">
           <Link href="/" className="flex items-center" aria-label={`${brandName} home`}>
             {/*
               TenantMark falls back to the house lockup for the house tenant
@@ -383,7 +394,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
           */}
           <nav
             aria-label="Primary"
-            className="flex items-center gap-[30px] text-[14.5px] max-lg:hidden"
+            className="flex items-center gap-5 text-[14.5px] xl:gap-[30px] max-lg:hidden"
           >
             <a href="#how" className="text-ink-soft hover:text-accent-press">How it works</a>
             <a href="#compare" className="text-ink-soft hover:text-accent-press">What we compare</a>
@@ -595,7 +606,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               licensed brokerage promises on its homepage is the client's
               call, not a side effect of restyling a card.
             */}
-            <div className="font-mono text-[10.5px] uppercase tracking-[.14em] text-ink-muted">
+            <div className="font-mono text-[10.5px] uppercase tracking-[.14em] text-ink-soft">
               Modelled annual delta
             </div>
             {/*
@@ -607,7 +618,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             <div className="mt-2.5 font-display text-[clamp(38px,4.6vw,52px)] font-semibold leading-[1] tracking-[-.035em] text-accent [font-variant-numeric:tabular-nums]">
               −$52,900
             </div>
-            <div className="mt-2.5 text-[13.5px] leading-snug text-ink-muted">
+            <div className="mt-2.5 text-[13.5px] leading-snug text-ink-soft">
               Range across four provider models, against their current spend.
             </div>
           </div>
@@ -625,7 +636,9 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                 className="min-w-0"
                 style={{ animation: `pv-row 420ms var(--pv-ease) ${r.delay} both` }}
               >
-                <div className="font-mono text-[10.5px] uppercase tracking-[.1em] text-ink-faint">
+                {/* ink-muted, not ink-faint: 3.65:1 fails AA even for a
+                    label, and these name the figures beside them. */}
+                <div className="font-mono text-[10.5px] uppercase tracking-[.1em] text-ink-muted">
                   {r.label}
                 </div>
                 <div className="mt-[5px] truncate text-[15px] font-medium text-ink [font-variant-numeric:tabular-nums]">
@@ -698,9 +711,16 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
           </div>
           <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
             {PLATFORMS.map((name) => (
+              /*
+                ink-muted, not ink-faint. These are the platform names the
+                page compares, which is content a reader is meant to read,
+                and ink-faint measures 3.65:1 on white: under the 4.5:1 floor
+                for normal text. ink-muted is 5.48:1 and keeps the quiet
+                treatment the row wants.
+              */
               <span
                 key={name}
-                className="font-display text-[15px] font-semibold tracking-[-.01em] text-ink-faint"
+                className="font-display text-[15px] font-semibold tracking-[-.01em] text-ink-muted"
               >
                 {name}
               </span>
@@ -784,7 +804,9 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                 key={s.n}
                 className="bg-raised px-[26px] pb-7 pt-[26px] transition-colors duration-150 hover:bg-tint"
               >
-                <div className="font-mono text-xs tracking-[.08em] text-accent">
+                {/* accent-press: 12px is normal text, and raw accent is
+                    3.73:1 on white. See AGENTS.md on where orange is usable. */}
+                <div className="font-mono text-xs tracking-[.08em] text-accent-press">
                   STEP {s.n}
                 </div>
                 <h3 className="mt-4 font-display text-xl font-semibold tracking-[-.01em]">
@@ -911,7 +933,12 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               </div>
             ))}
           </div>
-          <div className="mt-5 font-mono text-xs text-ink-faint">
+          {/* dark-ink-muted: this line sits on the NAVY comparison panel, not
+              on white. An earlier pass moved it to ink-muted to fix a
+              contrast failure and made it worse (2.85:1), because ink-muted
+              is a light-ground token. The lesson is in the name: the tokens
+              say how loud, not which ground. */}
+          <div className="mt-5 font-mono text-xs text-dark-ink-muted">
             Quote counts reflect active agreements as of 2026-08-01.
           </div>
         </div>
@@ -1031,7 +1058,16 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
       <section id="brokers" className="border-b border-line bg-dark py-[76px] max-sm:py-14">
         <div className="mx-auto grid max-w-[1240px] grid-cols-[1.1fr_1fr] [&>*]:min-w-0 items-center gap-14 px-10 max-lg:grid-cols-1 max-lg:gap-8 max-sm:px-5">
           <div>
-            <div className="pv-label text-dark-ink-muted">For partners</div>
+            {/*
+              !text-dark-ink-muted, with the bang.
+
+              This eyebrow sits on the navy referral panel, and .pv-label sets
+              its own colour to --pv-ink-muted, a light-ground token. A plain
+              utility class loses to the component class on specificity, so
+              the override was written but never applied and the label sat at
+              2.85:1. The bang is what makes it win.
+            */}
+            <div className="pv-label !text-dark-ink-muted">For partners</div>
             <h2 className="mt-3.5 max-w-[22ch] font-display text-[clamp(26px,3.2vw,36px)] font-semibold leading-[1.1] tracking-[-.025em] text-dark-ink-bright">
               Refer a client, keep the relationship.
             </h2>
@@ -1097,7 +1133,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               Anything else, email{" "}
               <a
                 href={`mailto:${contactEmail}`}
-                className="border-b border-[color-mix(in oklab,var(--pv-accent) 30%,transparent)] text-accent hover:border-accent-press hover:text-accent-press"
+                className="border-b border-[color-mix(in oklab,var(--pv-accent) 30%,transparent)] text-accent-press hover:border-accent hover:text-accent"
               >
                 {contactEmail}
               </a>
@@ -1156,7 +1192,9 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-dark-line-soft bg-dark text-ink-faint">
+      {/* dark-ink-muted, not ink-faint: the faint token is tuned for light
+          grounds and only reaches 4.27:1 on this navy. */}
+      <footer className="border-t border-dark-line-soft bg-dark text-dark-ink-muted">
         <div className="mx-auto grid max-w-[1240px] grid-cols-[1.4fr_1fr_1fr_1fr] [&>*]:min-w-0 gap-12 px-10 pb-11 pt-[52px] max-lg:grid-cols-2 max-lg:gap-9 max-sm:grid-cols-1 max-sm:px-5">
           <div>
             <div className="flex items-center">
@@ -1187,7 +1225,10 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                 </>
               )}
             </p>
-            <div className="mt-[18px] font-mono text-[10.5px] text-ink-muted">
+            {/* Was ink-muted (#63697a), which is 2.85:1 on navy: the worst
+                contrast on the page. A credit line is small and quiet by
+                design, but it still has to be readable. */}
+            <div className="mt-[18px] font-mono text-[10.5px] text-dark-ink-muted">
               Photography: Adrian Sulyok, Lance Chang, Unsplash licence · Hero
               footage: Pressmaster, Pexels licence
             </div>
@@ -1197,12 +1238,22 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               <div className="font-mono text-[11px] uppercase tracking-[.13em] text-dark-ink">
                 {col.head}
               </div>
-              <div className="mt-4 flex flex-col gap-[11px]">
+              {/*
+                Padded to a tappable height, not just spaced.
+
+                These were 20px tall on a 31px pitch. The 44px minimum is not
+                a style guide nicety: at that spacing a thumb lands between
+                two links as often as on one, and every mis-tap on a footer
+                navigates somewhere wrong. Vertical padding on the anchor
+                grows the hit area without moving the text, and the negative
+                margin on the column keeps the visual rhythm the design had.
+              */}
+              <div className="mt-2.5 flex flex-col">
                 {col.links.map((l) => (
                   <a
                     key={l.label}
                     href={l.href}
-                    className="text-sm text-dark-ink-muted transition-colors duration-150 hover:text-dark-ink"
+                    className="rounded-sm py-2.5 text-sm text-dark-ink-muted transition-colors duration-150 hover:text-dark-ink"
                   >
                     {l.label}
                   </a>
@@ -1220,9 +1271,19 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             and the licensed party, which the footer line above says plainly.
           */}
           <div className="flex gap-6">
-            <Link href="/privacy" className="text-ink-faint hover:text-dark-ink">Privacy</Link>
-            <Link href="/terms" className="text-ink-faint hover:text-dark-ink">Terms</Link>
-            <Link href="/#trust" className="text-ink-faint hover:text-dark-ink">Data handling</Link>
+            {/*
+              dark-ink-muted, not ink-faint. ink-faint is tuned for light
+              grounds and measures 4.27:1 on this navy, just under the 4.5:1
+              floor; dark-ink-muted is the token meant for dark surfaces and
+              reaches 6.81:1. These are the legal links, so they are the last
+              text on the page that should be hard to read.
+
+              Padded for the same reason as the column links above: a 20px
+              target is not reliably tappable.
+            */}
+            <Link href="/privacy" className="-my-3 inline-flex min-h-11 items-center rounded-sm text-dark-ink-muted transition-colors duration-150 hover:text-dark-ink">Privacy</Link>
+            <Link href="/terms" className="-my-3 inline-flex min-h-11 items-center rounded-sm text-dark-ink-muted transition-colors duration-150 hover:text-dark-ink">Terms</Link>
+            <Link href="/#trust" className="-my-3 inline-flex min-h-11 items-center rounded-sm text-dark-ink-muted transition-colors duration-150 hover:text-dark-ink">Data handling</Link>
           </div>
         </div>
       </footer>

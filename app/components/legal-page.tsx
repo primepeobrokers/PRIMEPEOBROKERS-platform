@@ -46,7 +46,7 @@ export function LegalPage({
           Questions about this policy?{" "}
           <a
             href="mailto:admin@primepeobrokers.com"
-            className="border-b border-accent/35 text-accent hover:border-accent-press hover:text-accent-press"
+            className="border-b border-accent/35 text-accent-press hover:border-accent-press hover:text-accent"
           >
             admin@primepeobrokers.com
           </a>
@@ -70,7 +70,7 @@ export function Section({
       <h2 className="font-display text-[21px] font-semibold tracking-[-.015em]">
         {heading}
       </h2>
-      <div className="mt-3 flex flex-col gap-3 text-[16px] leading-relaxed text-ink-soft [&_a]:border-b [&_a]:border-accent/35 [&_a]:text-accent [&_li]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-ink [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:pl-5">
+      <div className="mt-3 flex flex-col gap-3 text-[16px] leading-relaxed text-ink-soft [&_a]:border-b [&_a]:border-accent/35 [&_a]:text-accent-press [&_li]:leading-relaxed [&_strong]:font-semibold [&_strong]:text-ink [&_ul]:flex [&_ul]:list-disc [&_ul]:flex-col [&_ul]:gap-2 [&_ul]:pl-5">
         {children}
       </div>
     </section>
