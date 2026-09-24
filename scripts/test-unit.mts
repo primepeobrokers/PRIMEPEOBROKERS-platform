@@ -30,7 +30,7 @@ import { imageInfo } from "../lib/tenant/image-size";
 import { brandFor, formatFrom, houseBrand, inboxList, parseSender } from "../lib/tenant/email-brand";
 import { landingBrand } from "../app/components/landing/landing-sections";
 import { CONSOLE_EMAIL_RE, escapeLike } from "../lib/console/email-match";
-import { iconLetter, letterTileSvg, partnerIcon, SQUARE_ENOUGH, tenantIcons } from "../lib/tenant/favicon.js";
+import { iconLetter, letterTileSvg, logoIconSvg, partnerIcon, tenantIcons } from "../lib/tenant/favicon.js";
 import {
   slugifyStage,
   validateStageLabel,
@@ -529,44 +529,52 @@ equal(escapeLike("a%b_c"), "a\\%b\\_c", "every wildcard in one string is escaped
 equal(escapeLike("a\\%b"), "a\\\\\\%b", "a literal backslash is escaped before the wildcards");
 
 // ---------------------------------------------------------------------------
-describe("partner tab icon: their mark, never Prime's cube");
+describe("partner tab icon: their own artwork, never Prime's cube");
 // ---------------------------------------------------------------------------
-// A favicon renders at 16-32px. A partner's uploaded logo is usually a wide
-// wordmark, which becomes an unreadable smudge in a square, so the shape
-// decides whether the artwork is usable or a letter tile is generated.
+/*
+  The client asked for a partner's own logo in the browser tab. An earlier
+  version discarded any logo wider than 1.6:1 and drew a coloured letter
+  instead, reasoning that a wide wordmark squashed into a square is
+  unreadable. The squashing is real; the conclusion was not. Fitting the image
+  to the square instead of stretching it keeps the logo intact.
+
+  Measured against the live tenants, EVERY partner holding a logo was past
+  that threshold, including one at 1.81 that is nearly square, so the feature
+  shipped as "every partner gets a letter" while their artwork went unused.
+  These assertions pin the corrected rule: artwork wins whenever it exists.
+*/
 
 {
-  // Square artwork was drawn to work as a mark; use it untouched.
+  // The shape that used to be rejected. 2890x358 is a real tenant's lockup.
+  const icon = partnerIcon({ logo: { path: "t/wide.png", width: 2890, height: 358 } }, "Acme");
+  equal(icon.kind, "logo", "a wide wordmark still uses the partner's own artwork");
+  if (icon.kind === "logo") {
+    equal(icon.path, "t/wide.png", "the uploaded path is passed through");
+    equal(icon.width, 2890, "intrinsic width travels with it, for letterboxing");
+  }
+}
+
+{
   const icon = partnerIcon({ logo: { path: "t/sq.png", width: 512, height: 512 } }, "Acme");
-  equal(icon.kind, "logo", "a square logo is used as the icon");
-  if (icon.kind === "logo") equal(icon.path, "t/sq.png", "the uploaded path is passed through");
+  equal(icon.kind, "logo", "square artwork is used, as before");
 }
 
 {
-  // 4:1 is a typical horizontal lockup and is illegible at 16px.
-  const icon = partnerIcon({ logo: { path: "t/wide.png", width: 1200, height: 300 } }, "Acme");
-  equal(icon.kind, "letter", "a wide wordmark falls back to a letter tile");
-  if (icon.kind === "letter") equal(icon.letter, "A", "the tile carries the partner's initial");
+  // 1.81, the near-square case the old threshold also threw away.
+  const icon = partnerIcon({ logo: { path: "t/abs.png", width: 2161, height: 1196 } }, "ABS");
+  equal(icon.kind, "logo", "a near-square logo is no longer discarded");
 }
 
 {
-  // Tall artwork fails for the same reason as wide artwork.
+  // Tall artwork is letterboxed on the other axis, not rejected.
   const icon = partnerIcon({ logo: { path: "t/tall.png", width: 200, height: 900 } }, "Acme");
-  equal(icon.kind, "letter", "a tall logo also falls back");
+  equal(icon.kind, "logo", "tall artwork is used too");
 }
 
 {
-  // The boundary itself, so a future tweak to SQUARE_ENOUGH is deliberate.
-  const at = partnerIcon({ logo: { path: "t/a.png", width: 160 * SQUARE_ENOUGH, height: 160 } }, "Acme");
-  equal(at.kind, "logo", "artwork exactly at the ratio limit is still used");
-  const past = partnerIcon({ logo: { path: "t/b.png", width: 161 * SQUARE_ENOUGH, height: 160 } }, "Acme");
-  equal(past.kind, "letter", "one step past the limit falls back");
-}
-
-{
-  // The onboarding case: a partner with no artwork at all.
+  // The genuine fallback: a partner who has uploaded nothing. Several are.
   const icon = partnerIcon({ companyName: "Zenith Group" }, "zenith");
-  equal(icon.kind, "letter", "no logo means a letter tile");
+  equal(icon.kind, "letter", "no logo at all still falls back to a tile");
   if (icon.kind === "letter") {
     equal(icon.letter, "Z", "the display name wins over the slug");
     equal(icon.accent, "#ff2d00", "no accent set falls back to the house orange");
@@ -574,18 +582,47 @@ describe("partner tab icon: their mark, never Prime's cube");
 }
 
 {
+  // Zero dimensions mean the record is unusable, so the tile is correct.
+  const icon = partnerIcon({ logo: { path: "t/x.png", width: 0, height: 0 } }, "Acme");
+  equal(icon.kind, "letter", "a logo with no dimensions cannot be letterboxed");
+}
+
+{
   const icon = partnerIcon({ companyName: "Acme", colors: { accent: "#8535d4" } }, "acme");
   if (icon.kind === "letter") equal(icon.accent, "#8535d4", "the partner's own accent tints the tile");
 }
+
+/*
+  "meet" is what letterboxes: it scales until the whole image fits and centres
+  it, leaving transparent bands. "slice" fills the square and crops. A
+  wordmark must never be sliced, because cropping cuts off half the name.
+*/
+const DATA_URI = "data:image/png;base64,iVBORw0KGgo=";
+ok(logoIconSvg(DATA_URI, 2890, 358).includes("xMidYMid meet"),
+   "a wide lockup is fitted whole, not cropped");
+ok(logoIconSvg(DATA_URI, 512, 512).includes("xMidYMid slice"),
+   "square artwork fills the square instead of shrinking inside it");
+ok(logoIconSvg(DATA_URI, 2890, 358).includes("viewBox=\"0 0 64 64\""),
+   "the wrapper is square whatever the source shape");
+/*
+  The bytes must be embedded, not linked. An SVG loaded as an image (which is
+  what a favicon is) runs in a restricted mode that refuses external
+  resources, so a wrapper pointing at the Storage URL rendered as Chrome's
+  broken-image glyph. Verified in a browser before this was changed.
+*/
+ok(logoIconSvg(DATA_URI, 100, 100).includes("data:image/png;base64,"),
+   "the logo is inlined, because a referenced SVG cannot load external images");
 
 equal(iconLetter("  acme brokers"), "A", "leading whitespace is skipped");
 equal(iconLetter("3M Partners"), "3", "a digit is a valid initial");
 equal(iconLetter("!!!"), "?", "punctuation-only names still produce a tile");
 equal(iconLetter("\u00e9clair"), "\u00c9", "an accented initial is uppercased, not dropped");
 
-// The tile is markup, so a name that reaches it unescaped would be injection.
+// Both builders interpolate into markup, so both escape their inputs.
 ok(!letterTileSvg("<", "#ff2d00").includes("><"), "a bare < is escaped in the tile");
 ok(letterTileSvg("A", "#ff2d00").includes("#ff2d00"), "the accent reaches the tile fill");
+ok(!logoIconSvg('x"onload="alert(1)', 10, 10).includes('"onload="'),
+   "a quote in the data URI cannot break out of the attribute");
 
 // The house must keep app/favicon.ico, which carries seven sizes. Returning
 // an explicit icon here would override it with a single one.

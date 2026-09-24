@@ -127,16 +127,35 @@ test.describe("layout: nothing overlaps or spills", () => {
         min-width:auto), so the row set the column's width and pushed its own
         help text past the edge.
       */
-      const firstRow = page.getByRole("button", { name: /expand|collapse/i }).first();
-      if ((await firstRow.count()) === 0) test.skip(true, "no partners to expand");
+      /*
+        "Show settings", which is what the button actually says. An earlier
+        version of this test looked for /expand|collapse/i, matched nothing,
+        and silently skipped itself through the entire episode this file
+        exists to guard: the overlap was reported twice by the client while
+        this assertion never ran once. A skip is not a pass, and a selector
+        guessed from the behaviour rather than read from the markup is how a
+        test quietly stops testing.
+      */
+      const firstRow = page
+        .getByRole("button", { name: /show settings/i })
+        .first();
+      await expect(
+        firstRow,
+        "no partner rows to expand: the fixture project has no partners",
+      ).toBeVisible();
       await firstRow.click();
 
       const branding = page.getByRole("tab", { name: /branding/i }).first();
-      if ((await branding.count()) === 0) test.skip(true, "no branding tab");
+      await expect(branding, "the branding tab did not render").toBeVisible();
       await branding.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(400);
 
-      const panel = '[role="tabpanel"]';
+      /*
+        The visible panel only. Radix keeps the inactive tab panels mounted
+        but hidden, and a hidden panel has zero-size boxes that would report
+        as neither overflowing nor overlapping, diluting the check.
+      */
+      const panel = '[data-slot="tabs-content"]:not([hidden])';
       expect(await overflowing(page, panel), "branding fields spill out").toEqual([]);
       expect(await overlappingText(page, panel), "branding text overlaps").toEqual([]);
     });

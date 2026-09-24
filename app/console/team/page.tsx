@@ -138,8 +138,23 @@ export default async function TeamPage() {
           sticky (app/console/layout.tsx), so there is nothing to clear and a
           small top gap is all this needs. Released below lg, where the column
           stacks and sticking it would pin a card over the content.
+
+          THE HEIGHT CAP IS WHAT MAKES THE STICKING WORK, and it is not
+          obvious. position:sticky only engages while the element is SHORTER
+          than its containing block: it slides within the leftover room, and
+          with no leftover room it simply scrolls away like any static box.
+          This sidebar was the taller of the two columns (past 1300px against
+          the left column's ~1000px), so it filled the grid row exactly, had
+          zero slack, and never stuck despite reading position:sticky in the
+          computed style. Verified in a browser: it moved the full 400px of a
+          400px scroll.
+
+          max-h plus overflow-y-auto bounds it to the viewport, which
+          guarantees slack whenever the page is taller than one screen. The
+          activity feed inside has its own cap, so in practice only an unusual
+          member roster reaches this outer scroll.
         */}
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-6 max-lg:order-first">
+        <aside className="flex flex-col gap-6 lg:sticky lg:top-6 lg:max-h-[calc(100dvh-3rem)] lg:overflow-y-auto lg:overscroll-contain max-lg:order-first">
           <InviteCard />
 
           <section>

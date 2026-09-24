@@ -83,5 +83,59 @@ test.describe("brand mark", () => {
       const type = res?.headers()["content-type"] ?? "";
       expect(type).toMatch(/image\/(svg\+xml|png|webp)/);
     });
+
+    test("the partner's own logo is what renders, and it actually paints", async ({
+      page,
+    }) => {
+      /*
+        THE TEST THAT WAS MISSING, AND THE BUG IT WOULD HAVE CAUGHT.
+
+        Two defects shipped here in sequence, and unit assertions passed
+        through both because neither is visible in the markup.
+
+        First, the icon discarded any logo wider than 1.6:1 and drew a
+        coloured letter instead. Every real partner was past that threshold,
+        so the feature showed a letter for everyone while their artwork sat
+        unused.
+
+        Second, the fix wrapped the logo in an SVG that REFERENCED the Storage
+        URL. That markup looks correct and asserts correct. But an SVG loaded
+        as an image (which is exactly what a favicon is) refuses external
+        resources, so it painted Chrome's broken-image glyph.
+
+        Loading it through an <img> and checking that it decodes is what
+        separates "the response looks right" from "a person sees their logo".
+      */
+      const url = `http://${partnerHost(PARTNER_SLUG)}/partner-icon`;
+
+      await page.setContent(
+        `<img id="icon" src="${url}" width="64" height="64">`,
+      );
+
+      const img = page.locator("#icon");
+      // decode() rejects when the image cannot be rendered, which is the
+      // failure a status check and a content-type check both sail past.
+      const decoded = await img.evaluate(async (el: HTMLImageElement) => {
+        try {
+          await el.decode();
+          return el.naturalWidth > 0;
+        } catch {
+          return false;
+        }
+      });
+
+      expect(decoded, "the partner icon did not render as an image").toBe(true);
+
+      // And it must be the artwork, not the letter-tile fallback: this
+      // partner has a logo on file.
+      const body = await (await page.request.get(url)).text();
+      expect(body, "a partner with a logo got a letter tile instead").toContain(
+        "<image",
+      );
+      expect(
+        body,
+        "the logo is linked rather than inlined, so it will not paint",
+      ).toContain("data:image/");
+    });
   });
 });

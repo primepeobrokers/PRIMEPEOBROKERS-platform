@@ -115,3 +115,35 @@ export async function topAfterScroll(page: Page, selector: string, by: number) {
   const after = await page.locator(selector).boundingBox();
   return { before: before?.y ?? 0, after: after?.y ?? 0 };
 }
+
+/**
+ * Whether an element pins in place once it reaches its sticky offset.
+ *
+ * Comparing a single before and after position is not a test for stickiness,
+ * and the naive version of this produced a confident false failure. A sticky
+ * element legitimately TRAVELS first: it scrolls with the page until its top
+ * reaches the offset, and only then pins. Measure start against end and you
+ * record that legitimate travel as "it scrolled away".
+ *
+ * Sampling the whole scroll instead asks the question that actually matters:
+ * does its viewport position stop changing? A static element's top decreases
+ * by every pixel scrolled, all the way; a sticky one flattens out and holds.
+ * This returns the samples so a failure can show the shape, not just a number.
+ */
+export async function stickySamples(
+  page: Page,
+  selector: string,
+  offsets: number[],
+) {
+  const tops: { scrollY: number; top: number }[] = [];
+  for (const y of offsets) {
+    await page.evaluate((v) => window.scrollTo(0, v), y);
+    await page.waitForTimeout(150);
+    const top = await page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      return el ? Math.round(el.getBoundingClientRect().top) : NaN;
+    }, selector);
+    tops.push({ scrollY: y, top });
+  }
+  return tops;
+}

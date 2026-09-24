@@ -1,4 +1,4 @@
-import { apexUrl, expect, hasCreds, signIn, test, topAfterScroll } from "./helpers";
+import { apexUrl, expect, hasCreds, signIn, stickySamples, test } from "./helpers";
 
 /**
  * Signed-in console coverage: the UI work the client reacted to.
@@ -110,23 +110,57 @@ test.describe("console", () => {
       await signIn(page, "/console/team");
       await page.goto(apexUrl("/console/team"));
 
+      /*
+        A short viewport, not a skip.
+
+        This used to bail out when the page was not tall enough to scroll,
+        and after the density work landed the Team page became short enough
+        that it skipped every run: the assertion stopped existing exactly
+        when the layout it guards changed. Shrinking the viewport forces the
+        scroll instead, so the test keeps its meaning at any content volume.
+      */
+      await page.setViewportSize({ width: 1440, height: 560 });
+      await page.waitForTimeout(200);
+
       const scrollable = await page.evaluate(
-        () => document.documentElement.scrollHeight > window.innerHeight + 400,
+        () => document.documentElement.scrollHeight > window.innerHeight + 200,
       );
-      if (!scrollable) test.skip(true, "page too short to scroll meaningfully");
+      expect(
+        scrollable,
+        "team page will not scroll even at 560px, so stickiness is untestable",
+      ).toBe(true);
 
       /*
         position:sticky cannot be tested from computed style: the property
-        reads "sticky" whether or not it has an offset that makes it hold. A
-        sticky box keeps its viewport position while a static one moves up by
-        the scroll distance, so compare the box before and after.
-      */
-      const { before, after } = await topAfterScroll(page, "aside", 400);
+        reads "sticky" whether or not the element has room to hold.
 
+        Nor can it be tested by comparing one before and one after position,
+        which is what this did and why it reported a false failure. A sticky
+        element legitimately travels first, scrolling with the page until its
+        top reaches the offset, and only then pins. Start-versus-end records
+        that travel as "it scrolled away".
+
+        So sample across the scroll and assert the shape: the top decreases
+        while it is travelling, then STOPS changing once pinned. A static
+        element never stops.
+      */
+      const samples = await stickySamples(page, "aside", [0, 200, 400, 600]);
+      const shape = samples.map((s) => `${s.scrollY}:${s.top}`).join(" ");
+
+      const pinned = samples.slice(1);
+      const spread =
+        Math.max(...pinned.map((s) => s.top)) -
+        Math.min(...pinned.map((s) => s.top));
+
+      /*
+        Once past the offset the top should be effectively constant. A couple
+        of pixels of slack absorbs sub-pixel layout; a static sidebar would
+        show a spread of 400 here.
+      */
       expect(
-        Math.abs(after - before),
-        "sidebar scrolled away instead of sticking",
-      ).toBeLessThan(120);
+        spread,
+        `sidebar never pinned, it kept moving (scrollY:top = ${shape})`,
+      ).toBeLessThan(40);
     });
   });
 });
