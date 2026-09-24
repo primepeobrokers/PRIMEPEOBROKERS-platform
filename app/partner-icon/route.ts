@@ -34,8 +34,23 @@ import { getTenant } from "@/lib/tenant/resolve";
  */
 const MAX_INLINE_BYTES = 300_000;
 
-/** How long to wait on Storage before giving up and drawing the tile. */
-const FETCH_TIMEOUT_MS = 2_500;
+/**
+ * How long to wait on Storage before giving up and drawing the tile.
+ *
+ * THIS WAS 2.5s AND THAT WAS THE BUG. Measured against the production bucket,
+ * a single logo fetch takes between 2.2s and 9.1s: the function runs in
+ * Singapore (x-vercel-id: sin1) while Storage answers from elsewhere, and a
+ * cold connection alone cost 1.3s. So the fetch aborted on almost every
+ * request and every partner silently got a letter tile, which is exactly what
+ * the client reported seeing after deploy. One partner appeared to work only
+ * because a single request happened to land under the limit.
+ *
+ * 10s leaves headroom over the slowest measured fetch. The cost of waiting is
+ * paid once per hour per partner (see the cache-control below), and only on a
+ * favicon request, which no user is blocked on. The cost of giving up too
+ * early is the feature not working at all.
+ */
+const FETCH_TIMEOUT_MS = 10_000;
 
 export async function GET() {
   const tenant = await getTenant();
@@ -116,32 +131,73 @@ export async function GET() {
  * important thing on the page, and a partner whose Storage object has gone
  * missing should still get their letter tile rather than a 500 or a blank
  * square.
+ *
+ * EVERY null IS LOGGED, and that matters more than it looks. The first
+ * version failed silently, so a timeout that was firing on nearly every
+ * request in production was indistinguishable from a partner who had simply
+ * not uploaded artwork. The feature appeared to work (a tile is a valid
+ * outcome) while never once doing its job. A fallback that hides its own
+ * reason is how that ships twice.
  */
 async function inlineLogo(
   url: string,
   width: number,
   height: number,
 ): Promise<string | null> {
+  const started = Date.now();
+  /** One line, one reason, with the timing that makes a slow fetch obvious. */
+  const giveUp = (why: string) => {
+    console.warn(
+      `[partner-icon] falling back to letter tile: ${why} (${Date.now() - started}ms, ${url})`,
+    );
+    return null;
+  };
+
   try {
     const res = await fetch(url, {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      // Storage serves this with its own long cache; no need to bypass it.
-      cache: "force-cache",
+      /*
+        An explicit revalidate window, not `cache: "force-cache"`.
+
+        force-cache was the original setting and it bought nothing: Supabase
+        Storage answers with `cache-control: no-cache`, so there was no
+        freshness to honour and the 2 to 9 second fetch ran on every single
+        request. `next.revalidate` overrides the origin's headers and puts
+        the bytes in Next's Data Cache for an hour, which is what actually
+        keeps the slow fetch off the common path.
+
+        An hour matches the cache-control this route sends downstream, so a
+        partner replacing their logo sees the tab follow within the same
+        window either way.
+      */
+      next: { revalidate: 3600 },
     });
-    if (!res.ok) return null;
+    if (!res.ok) return giveUp(`storage returned ${res.status}`);
 
     const type = res.headers.get("content-type") ?? "";
     // The upload path admits PNG and WebP only. Anything else here means the
     // object is not what the branding record claims, so do not embed it.
-    if (!/^image\/(png|webp)$/.test(type)) return null;
+    if (!/^image\/(png|webp)$/.test(type)) {
+      return giveUp(`unexpected content-type ${type || "(none)"}`);
+    }
 
     const buf = await res.arrayBuffer();
-    if (buf.byteLength === 0 || buf.byteLength > MAX_INLINE_BYTES) return null;
+    if (buf.byteLength === 0) return giveUp("storage returned an empty body");
+    if (buf.byteLength > MAX_INLINE_BYTES) {
+      return giveUp(`logo is ${buf.byteLength} bytes, over the inline cap`);
+    }
 
     const base64 = Buffer.from(buf).toString("base64");
     return logoIconSvg(`data:${type};base64,${base64}`, width, height);
-  } catch {
-    // Timeout, DNS, TLS, abort: all the same answer, draw the tile instead.
-    return null;
+  } catch (err) {
+    /*
+      Timeout, DNS, TLS, abort: all the same answer, draw the tile instead.
+      But NAME the error, because this is the branch that was firing in
+      production. An AbortError here means FETCH_TIMEOUT_MS is too tight for
+      wherever the function is running, which is not something a tile on the
+      screen can tell you.
+    */
+    const name = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    return giveUp(name);
   }
 }
