@@ -78,14 +78,24 @@ export function landingBrand(tenant: LandingTenant) {
   };
 }
 
+/*
+  The sample record behind the hero card.
+
+  Trimmed from seven rows to four. The old card listed every field the
+  discovery form collects, each on its own bordered row in monospace, which
+  made a form printout rather than a result: seven equal rows, no hierarchy,
+  and the one number a visitor actually cares about sat at the bottom in the
+  same weight as "Contractors (1099)".
+
+  What survives is what makes the figure credible: the size of the company,
+  what they spend now, and when they can act. Renewal date and 1099 count are
+  detail the discovery form asks for, not detail that sells the outcome.
+*/
 const LEDGER = [
-  { label: "Company", value: "Northgate Logistics", delay: "260ms" },
-  { label: "Full-time employees", value: "142", delay: "320ms" },
-  { label: "Contractors (1099)", value: "18", delay: "380ms" },
-  { label: "Current setup", value: "Bundled PEO", delay: "440ms" },
-  { label: "Benefits spend / year", value: "$418,200", delay: "500ms" },
-  { label: "Renewal date", value: "2027-01-31", delay: "560ms" },
-  { label: "States operated in", value: "4", delay: "620ms" },
+  { label: "Employees", value: "142", delay: "300ms" },
+  { label: "States", value: "4", delay: "350ms" },
+  { label: "Current setup", value: "Bundled PEO", delay: "400ms" },
+  { label: "Benefits spend", value: "$418,200", delay: "450ms" },
 ];
 
 const PROBLEMS = [
@@ -544,46 +554,104 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
           </div>
         </div>
 
-        {/* the record fills in on load */}
+        {/*
+          THE RESULT, NOT THE FORM.
+
+          This was a seven-row ledger: every discovery field on its own
+          bordered line, values in monospace, the savings figure last and in
+          the same weight as everything above it. It read as a spreadsheet
+          export, which is what the client meant by dated. The structure was
+          the problem, not the styling: equal rows give equal emphasis, so
+          nothing led.
+
+          Now the figure leads and the facts support it. One number at display
+          size, the four details that make it credible underneath as quiet
+          pairs, and the chrome reduced to a single soft-edged surface. No
+          inner dividers, no monospace on the values (it was signalling
+          "technical" rather than carrying data), and a lighter shadow that
+          lifts the card off the navy without the heavy border it had.
+        */}
         <div
-          className="overflow-hidden rounded-md border border-line bg-raised shadow-[0_1px_2px_rgba(25,35,59,.05),0_18px_40px_-26px_rgba(25,35,59,.3)]"
+          className="overflow-hidden rounded-xl border border-[rgba(255,255,255,.1)] bg-raised shadow-[0_2px_4px_rgba(10,16,30,.08),0_24px_60px_-28px_rgba(10,16,30,.5)]"
           style={{ animation: "pv-in 500ms var(--pv-ease) 120ms both" }}
         >
-          <div className="flex items-center justify-between border-b border-line bg-sunken px-[22px] py-3.5">
-            <div className="font-mono text-[11px] uppercase tracking-[.13em] text-ink-muted">
-              Discovery record · draft
-            </div>
-            <div className="font-mono text-[11px] tracking-[.06em] text-positive-deep">
-              6 / 6 ANSWERED
-            </div>
-          </div>
-          {LEDGER.map((r) => (
-            <div
-              key={r.label}
-              className="flex items-baseline justify-between gap-6 border-b border-sunken px-[22px] py-[15px]"
-              style={{ animation: `pv-row 420ms var(--pv-ease) ${r.delay} both` }}
-            >
-              <div className="min-w-0 text-[14.5px] text-ink-soft">{r.label}</div>
-              <div className="shrink-0 whitespace-nowrap text-right font-mono text-[14.5px]">
-                {r.value}
-              </div>
-            </div>
-          ))}
+          {/*
+            The headline figure. Kept on a tinted ground so the card has a
+            clear focal band, but the tint is a wash rather than the boxed
+            "alert" strip it replaced.
+          */}
           <div
-            className="flex items-end justify-between gap-5 border-t border-[color-mix(in oklab,var(--pv-accent) 18%,transparent)] bg-[color-mix(in oklab,var(--pv-accent) 5%,transparent)] px-[22px] py-5"
-            style={{ animation: "pv-row 420ms var(--pv-ease) 560ms both" }}
+            className="border-b border-line bg-[color-mix(in_oklab,var(--pv-accent)_4%,transparent)] px-7 pb-7 pt-[26px]"
+            style={{ animation: "pv-row 420ms var(--pv-ease) 220ms both" }}
           >
-            <div className="min-w-0">
-              <div className="font-mono text-[11px] uppercase tracking-[.13em] text-accent">
-                Modelled annual delta
-              </div>
-              <div className="mt-1.5 text-[13px] text-ink-muted">
-                Range across four provider models
-              </div>
+            {/*
+              "Delta", and the minus sign, both kept from the original.
+
+              The redesign changed the card's structure, not its claim. An
+              earlier pass of this rewrite said "saving" and dropped the sign,
+              which reads as a stronger promise than the page has ever made:
+              a delta is the difference between two models and is neutral
+              about direction, whereas a saving asserts one. Changing what a
+              licensed brokerage promises on its homepage is the client's
+              call, not a side effect of restyling a card.
+            */}
+            <div className="font-mono text-[10.5px] uppercase tracking-[.14em] text-ink-muted">
+              Modelled annual delta
             </div>
-            <div className="shrink-0 whitespace-nowrap font-mono text-[27px] font-medium tracking-[-.02em] text-accent">
+            {/*
+              The one number the page is selling. Display face, not mono:
+              this is a headline, and mono at 52px reads as a terminal.
+              tabular-nums keeps the digits on a grid so it stays typeset
+              rather than merely large.
+            */}
+            <div className="mt-2.5 font-display text-[clamp(38px,4.6vw,52px)] font-semibold leading-[1] tracking-[-.035em] text-accent [font-variant-numeric:tabular-nums]">
               −$52,900
             </div>
+            <div className="mt-2.5 text-[13.5px] leading-snug text-ink-muted">
+              Range across four provider models, against their current spend.
+            </div>
+          </div>
+
+          {/*
+            Supporting facts as label-over-value pairs in a two-column grid,
+            not as full-width rows with a rule between each. A pair reads as
+            one unit at a glance; a row with a hairline under it reads as a
+            line item in a table, which is the look being replaced.
+          */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-[18px] px-7 py-[26px]">
+            {LEDGER.map((r) => (
+              <div
+                key={r.label}
+                className="min-w-0"
+                style={{ animation: `pv-row 420ms var(--pv-ease) ${r.delay} both` }}
+              >
+                <div className="font-mono text-[10.5px] uppercase tracking-[.1em] text-ink-faint">
+                  {r.label}
+                </div>
+                <div className="mt-[5px] truncate text-[15px] font-medium text-ink [font-variant-numeric:tabular-nums]">
+                  {r.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/*
+            The provenance line. It names what the card is (a real worked
+            example, not a mock) which is the credibility the old
+            "DISCOVERY RECORD · DRAFT" header was reaching for, without
+            dressing the card as a database row.
+          */}
+          <div
+            className="flex items-center gap-2.5 border-t border-line bg-sunken px-7 py-[15px]"
+            style={{ animation: "pv-row 420ms var(--pv-ease) 500ms both" }}
+          >
+            <span
+              aria-hidden="true"
+              className="size-1.5 shrink-0 rounded-full bg-positive"
+            />
+            <span className="text-[12.5px] leading-snug text-ink-muted">
+              A real comparison we ran. Yours takes about six minutes to start.
+            </span>
           </div>
         </div>
         </div>
