@@ -244,6 +244,35 @@ export async function savePartnerBranding(input: {
       };
     }
   }
+  /*
+    `dark` is the ground for the compare table, the closing panel and the
+    footer, all of which set white text. The check is the reverse of the
+    others: it must be dark ENOUGH, not light enough.
+
+    Contrast alone does not catch the failure this guards against. A partner
+    once stored #19191a, a flat near-black, which scores 17.6:1 and passes
+    every readability rule while looking nothing like their navy. The result
+    read as a broken black band. So warn on a colour with almost no hue,
+    where the three channels sit within a few points of each other: that is
+    a neutral grey or black rather than a brand colour, and is far more often
+    an eyedropper mistake than a deliberate choice.
+  */
+  if (colors.dark) {
+    const ratio = contrastRatio(colors.dark, "#ffffff");
+    if (ratio < 7) {
+      return {
+        error: `White text scores ${ratio.toFixed(1)}:1 on that dark colour. It needs 7:1, so choose something deeper.`,
+      };
+    }
+    const [r, g, b] = [1, 3, 5].map((i) =>
+      parseInt(colors.dark.slice(i, i + 2), 16),
+    );
+    if (Math.max(r, g, b) - Math.min(r, g, b) < 12) {
+      warnings.push(
+        "the dark colour is a flat neutral rather than a brand shade, so those sections will read as plain black",
+      );
+    }
+  }
 
   const branding: Branding = {};
   if (companyName) branding.companyName = companyName;
