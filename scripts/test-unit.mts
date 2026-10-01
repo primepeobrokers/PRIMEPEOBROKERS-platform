@@ -503,6 +503,7 @@ describe("landing page: what a partner's own marketing page must not say");
   ok(!b.showPartnerSection, "an unbranded partner still does not recruit partners");
 }
 
+
 // ---------------------------------------------------------------------------
 describe("console email matching: no LIKE wildcards reach a query");
 // ---------------------------------------------------------------------------

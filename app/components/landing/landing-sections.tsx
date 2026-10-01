@@ -92,10 +92,9 @@ export function landingBrand(tenant: LandingTenant) {
   detail the discovery form asks for, not detail that sells the outcome.
 */
 const LEDGER = [
-  { label: "Employees", value: "142", delay: "300ms" },
-  { label: "States", value: "4", delay: "350ms" },
-  { label: "Current setup", value: "Bundled PEO", delay: "400ms" },
-  { label: "Benefits spend", value: "$418,200", delay: "450ms" },
+  { label: "Company size", value: "38 employees", delay: "300ms" },
+  { label: "Sector", value: "Technology", delay: "350ms" },
+  { label: "Client name", value: "Withheld", delay: "400ms" },
 ];
 
 const PROBLEMS = [
@@ -103,22 +102,16 @@ const PROBLEMS = [
     n: "01",
     title: "Pricing you cannot compare",
     body: "One provider quotes per employee per month, the next quotes a percentage of payroll, the third bundles admin into the benefits load. The same company gets three numbers that do not sit on the same axis.",
-    stat: "3 bases",
-    statNote: "Typical number of incompatible pricing structures in one shortlist",
   },
   {
     n: "02",
     title: "Mismatched to your stage",
     body: "A 30-person company gets sold the enterprise service model. A 200-person company gets a platform built for 15. Providers rarely disqualify themselves.",
-    stat: "10–250",
-    statNote: "Employee band where model fit changes three times",
   },
   {
     n: "03",
     title: "Renewal traps",
     body: "Rate increases land 45 days before renewal, past the window to run a real comparison. Termination clauses and payroll cutovers do the rest.",
-    stat: "45 days",
-    statNote: "Common notice window on a renewal increase",
   },
 ];
 
@@ -165,37 +158,17 @@ const MODELS = [
   {
     name: "Full-service PEO",
     fit: "10–150",
-    basis: "% of gross payroll",
-    breaks: "Cost scales with raises, not service used",
-    quotes: "14",
+    basis: "% of payroll, per employee per month, or per check",
   },
   {
-    name: "ASO / unbundled admin",
+    name: "ASO (Managed HR)",
     fit: "25–250",
     basis: "Per employee, per month",
-    breaks: "You retain plan liability and filings",
-    quotes: "9",
   },
   {
-    name: "Payroll bureau only",
-    fit: "5–80",
-    basis: "Per run + per payslip",
-    breaks: "No benefits leverage, no HR cover",
-    quotes: "11",
-  },
-  {
-    name: "HRIS + external broker",
-    fit: "50–250+",
-    basis: "Licence + commission",
-    breaks: "Two vendors, one blames the other",
-    quotes: "7",
-  },
-  {
-    name: "Industry captive",
-    fit: "40–250",
-    basis: "Pooled loss-rated",
-    breaks: "Exit is slow and rate-sensitive",
-    quotes: "4",
+    name: "Payroll Only (Plus Light HR)",
+    fit: "5–150",
+    basis: "Per employee, per month",
   },
 ];
 
@@ -244,19 +217,19 @@ const TRUST = [
   {
     tag: "Access",
     title: "Named staff only",
-    body: "Your assigned broker and their team. Access is authenticated and scoped at the data layer, not just the interface.",
+    body: "Your assigned advisor and their team. Access is authenticated and scoped at the data layer, not just the interface.",
   },
   {
     tag: "Retention",
     title: "Deleted on request, in 30 days",
-    body: "If we do not place you, ask and we delete the record and the partial drafts within 30 days. Placement records are held for six years, as licensing requires.",
+    body: "Ask and we delete the record and the partial drafts within 30 days. Records for clients we place are retained as long as required by law.",
   },
 ];
 
 const FAQS = [
   {
     q: "Is this actually free?",
-    a: "Yes. We are paid a commission by the provider you choose, at the same rate whether you come through us or not. If you pick nobody, we are paid nothing.",
+    a: "Yes. There is no fee to you. Advisory compensation is paid by the provider you select, and only if you select one.",
   },
   {
     q: "Why do you need headcount and compensation ranges?",
@@ -264,23 +237,23 @@ const FAQS = [
   },
   {
     q: "Do providers see my submission?",
-    a: "Not until you approve it. Your broker reviews the record first and tells you which providers they intend to quote. You confirm the list.",
+    a: "Not until you approve it. Your advisor reviews the record first and tells you which providers they intend to quote. You confirm the list.",
   },
   {
     q: "What happens after I submit?",
-    a: "A broker reads your record within one business day and sends a written comparison of the models that fit. If something in your record is ambiguous, they ask before quoting.",
+    a: "An advisor reads your record within one business day and sends a written comparison of the models that fit. If something in your record is ambiguous, they ask before quoting.",
   },
   {
     q: "Can I stop halfway?",
-    a: "Yes. Each answered step is saved. We email you a link that returns you to the step you left, and the partial record stays private to your broker.",
+    a: "Yes. Each answered step is saved. We email you a link that returns you to the step you left, and the partial record stays private to your advisor.",
   },
   {
-    q: "We already have a broker of record. Can you still help?",
-    a: "We can model your current arrangement against the market for comparison, but we cannot quote a provider where another broker holds the appointment for your plan year.",
+    q: "Does this affect my current advisors or providers?",
+    a: "Nothing changes unless you decide to move forward. Your current advisors are welcome to be part of the review, and we will show you exactly how any option would affect your existing benefits and insurance.",
   },
   {
     q: "Do you work outside the US?",
-    a: "No. US-domiciled employers only. For overseas headcount we can point you to an EOR, which we do not broker.",
+    a: "No. US-domiciled employers only. For overseas headcount we can point you to an EOR, which is outside what we advise on.",
   },
 ];
 
@@ -472,7 +445,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             className="absolute inset-0 h-full w-full object-cover [filter:grayscale(1)_contrast(1.22)_brightness(.5)] motion-reduce:hidden"
           >
             <source
-              src="https://videos.pexels.com/video-files/3130284/3130284-sd_640_360_30fps.mp4"
+              src="https://videos.pexels.com/video-files/3254006/3254006-sd_640_360_25fps.mp4"
               type="video/mp4"
             />
           </video>
@@ -520,7 +493,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             Research, evaluate, and choose the right PEO, payroll, and HR
             software for free. Answer a structured set of questions once; an
             expert on our team does the legwork and delivers your tailored
-            proposal. No pushy vendor reps. You never pay us.
+            proposal. One advisor, every option. You never pay a fee.
           </p>
           <div
             className="mt-[34px] flex flex-wrap gap-3.5"
@@ -543,8 +516,8 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             className="mt-4 text-[13.5px] text-dark-ink-muted"
             style={{ animation: "pv-in 500ms var(--pv-ease) 175ms both" }}
           >
-            Free to start · No sales calls · Renewing? We will benchmark your
-            deal
+            Free to start · Save and finish later · Renewing? We will
+            benchmark your deal
           </div>
           <div
             className="mt-9 flex gap-[34px] border-t border-dark-line pt-[26px] max-sm:flex-wrap max-sm:gap-[22px]"
@@ -552,7 +525,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
           >
             {[
               ["6 min", "Median time to complete"],
-              ["1 day", "Broker reads your record within"],
+              ["1 business day", "Your advisor reviews your submission within"],
               ["$0", "Cost to you, ever"],
             ].map(([fig, note]) => (
               <div key={fig}>
@@ -596,18 +569,23 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             style={{ animation: "pv-row 420ms var(--pv-ease) 220ms both" }}
           >
             {/*
-              "Delta", and the minus sign, both kept from the original.
+              "Saved", not "delta", and no minus sign. Both changed on the
+              client's instruction (update list item 5, 2026-09-29).
 
-              The redesign changed the card's structure, not its claim. An
-              earlier pass of this rewrite said "saving" and dropped the sign,
-              which reads as a stronger promise than the page has ever made:
+              The distinction still matters and is worth keeping written down:
               a delta is the difference between two models and is neutral
-              about direction, whereas a saving asserts one. Changing what a
-              licensed brokerage promises on its homepage is the client's
-              call, not a side effect of restyling a card.
+              about direction, whereas a saving asserts one. The card used to
+              show a modelled comparison, so it could only claim a delta. It
+              now shows a real placement, which did save the money, so the
+              stronger word is the accurate one rather than a louder one.
+
+              The client confirmed on 2026-10-01 that $170,000 is annual, so
+              the label says so. A savings figure that reads as yearly but is
+              actually cumulative is the kind of claim that causes trouble
+              later, which is why it was left vague until confirmed.
             */}
             <div className="font-mono text-[10.5px] uppercase tracking-[.14em] text-ink-soft">
-              Modelled annual delta
+              Saved a year
             </div>
             {/*
               The one number the page is selling. Display face, not mono:
@@ -616,10 +594,11 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               rather than merely large.
             */}
             <div className="mt-2.5 font-display text-[clamp(38px,4.6vw,52px)] font-semibold leading-[1] tracking-[-.035em] text-accent [font-variant-numeric:tabular-nums]">
-              −$52,900
+              $170,000
             </div>
             <div className="mt-2.5 text-[13.5px] leading-snug text-ink-soft">
-              Range across four provider models, against their current spend.
+              Annual, across admin, medical, and workers&rsquo; comp, against
+              what they paid before.
             </div>
           </div>
 
@@ -663,7 +642,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               className="size-1.5 shrink-0 rounded-full bg-positive"
             />
             <span className="text-[12.5px] leading-snug text-ink-muted">
-              A real comparison we ran. Yours takes about six minutes to start.
+              A real placement. Yours takes about six minutes to start.
             </span>
           </div>
         </div>
@@ -734,14 +713,14 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
         <div className="mx-auto max-w-[1240px] px-10 pb-[84px] pt-[76px] max-sm:px-5">
           <div className="grid grid-cols-[340px_1fr] [&>*]:min-w-0 items-start gap-16 max-lg:grid-cols-1 max-lg:gap-10">
             <div>
-              <div className="pv-label !text-[11.5px]">Why direct goes badly</div>
+              <div className="pv-label !text-[11.5px]">Why shopping alone is hard</div>
               <h2 className="mt-4 font-display text-[clamp(27px,3.6vw,36px)] font-semibold leading-[1.06] tracking-[-.025em] [text-wrap:balance]">
-                Three ways this market takes money from you.
+                Why comparing PEOs on your own is hard.
               </h2>
               <figure className="mb-0 ml-0 mr-0 mt-[26px] overflow-hidden border border-line bg-dark">
                 <Image
-                  src="/photography/paperwork.jpg"
-                  alt="Rows of high racking in a storage facility"
+                  src="/photography/advisors.jpg"
+                  alt="Two colleagues reviewing figures together at a desk"
                   width={1200}
                   height={800}
                   quality={70}
@@ -749,15 +728,12 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                   className="block h-[200px] w-full object-cover [filter:grayscale(.6)_contrast(1.05)_brightness(.9)]"
                 />
               </figure>
-              <div className="mt-2.5 font-mono text-[11px] uppercase tracking-[.1em] text-ink-muted">
-                Typical client · 38–217 employees
-              </div>
             </div>
             <div className="flex flex-col">
               {PROBLEMS.map((p) => (
                 <div
                   key={p.n}
-                  className="grid grid-cols-[44px_1fr_1fr] [&>*]:min-w-0 items-start gap-8 border-t border-line py-[26px] max-md:grid-cols-1 max-md:gap-3.5"
+                  className="grid grid-cols-[44px_1fr] [&>*]:min-w-0 items-start gap-8 border-t border-line py-[26px] max-md:grid-cols-1 max-md:gap-3.5"
                 >
                   <div className="font-mono text-[13px] text-danger">{p.n}</div>
                   <div>
@@ -767,14 +743,6 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                     <p className="mt-2.5 text-[15px] leading-normal text-ink-soft [text-wrap:pretty]">
                       {p.body}
                     </p>
-                  </div>
-                  <div className="border-l border-line pl-6 max-md:border-l-0 max-md:border-t max-md:pl-0 max-md:pt-3.5">
-                    <div className="font-mono text-[22px] font-medium tracking-[-.02em]">
-                      {p.stat}
-                    </div>
-                    <div className="mt-[7px] text-[13px] leading-snug text-ink-muted">
-                      {p.statNote}
-                    </div>
                   </div>
                 </div>
               ))}
@@ -837,6 +805,11 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
           <h2 className="mt-3.5 max-w-[20ch] font-display text-[clamp(27px,3.5vw,40px)] font-semibold leading-[1.08] tracking-[-.025em]">
             Shop fresh, or let us benchmark what you have.
           </h2>
+          <p className="mt-4 max-w-[62ch] text-[16.5px] leading-relaxed text-ink-soft [text-wrap:pretty]">
+            We compare every option&rsquo;s total cost against what you pay
+            today, including admin fees, benefits, workers&rsquo; comp, and
+            payroll taxes.
+          </p>
           <div className="mt-9 grid grid-cols-2 gap-5 max-lg:grid-cols-1">
             {[
               {
@@ -893,7 +866,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                 The landscape
               </div>
               <h2 className="mt-4 font-display text-[clamp(27px,3.6vw,36px)] font-semibold leading-[1.06] tracking-[-.025em] text-dark-ink-bright">
-                Five models, priced on five different bases.
+                Three models, compared side by side.
               </h2>
             </div>
             <p className="max-w-[36ch] text-[15px] leading-relaxed text-dark-ink-muted">
@@ -903,17 +876,15 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             </p>
           </div>
           <div data-sequence className="mt-10 border border-dark-line">
-            <div className="grid grid-cols-[1.1fr_1fr_1fr_1.2fr_92px] gap-6 [&>*]:min-w-0 border-b border-dark-line bg-dark-raised px-6 py-3.5 font-mono text-[11px] uppercase tracking-[.11em] text-dark-ink-muted max-md:hidden">
+            <div className="grid grid-cols-[1fr_120px_1.5fr] gap-6 [&>*]:min-w-0 border-b border-dark-line bg-dark-raised px-6 py-3.5 font-mono text-[11px] uppercase tracking-[.11em] text-dark-ink-muted max-md:hidden">
               <div>Model</div>
               <div>Typical fit</div>
               <div>Pricing basis</div>
-              <div>Where it breaks</div>
-              <div className="text-right">Quotes</div>
             </div>
             {MODELS.map((m) => (
               <div
                 key={m.name}
-                className="grid grid-cols-[1.1fr_1fr_1fr_1.2fr_92px] items-baseline gap-6 [&>*]:min-w-0 border-b border-dark-line-soft px-6 py-[19px] transition-colors duration-150 last:border-b-0 hover:bg-dark-raised max-md:grid-cols-1 max-md:gap-[11px] max-md:px-[18px] max-md:py-5"
+                className="grid grid-cols-[1fr_120px_1.5fr] items-baseline gap-6 [&>*]:min-w-0 border-b border-dark-line-soft px-6 py-[19px] transition-colors duration-150 last:border-b-0 hover:bg-dark-raised max-md:grid-cols-1 max-md:gap-[11px] max-md:px-[18px] max-md:py-5"
               >
                 <div className="font-display text-[16.5px] font-semibold text-dark-ink-bright">
                   {m.name}
@@ -924,22 +895,8 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                 <MRow label="Pricing basis">
                   <span className="text-sm text-dark-ink-soft">{m.basis}</span>
                 </MRow>
-                <MRow label="Where it breaks">
-                  <span className="text-sm leading-snug text-dark-ink-muted">{m.breaks}</span>
-                </MRow>
-                <MRow label="Quotes" right>
-                  <span className="font-mono text-sm text-positive-bright">{m.quotes}</span>
-                </MRow>
               </div>
             ))}
-          </div>
-          {/* dark-ink-muted: this line sits on the NAVY comparison panel, not
-              on white. An earlier pass moved it to ink-muted to fix a
-              contrast failure and made it worse (2.85:1), because ink-muted
-              is a light-ground token. The lesson is in the name: the tokens
-              say how loud, not which ground. */}
-          <div className="mt-5 font-mono text-xs text-dark-ink-muted">
-            Quote counts reflect active agreements as of 2026-08-01.
           </div>
         </div>
       </section>
@@ -948,8 +905,8 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
       <section data-reveal className="relative border-t border-line">
         <figure className="relative m-0 h-[clamp(220px,32vw,380px)] overflow-hidden bg-dark">
           <Image
-            src="/photography/warehouse-aisle.jpg"
-            alt="Two workers walking an aisle of racking in a distribution warehouse"
+            src="/photography/team-meeting.jpg"
+            alt="A small team working together around a table"
             fill
             sizes="100vw"
             quality={70}
@@ -962,11 +919,12 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                 "linear-gradient(to top,rgba(25,35,59,.82),rgba(25,35,59,0))",
             }}
           >
-            <div className="max-w-[22ch] font-display text-[clamp(19px,2.4vw,26px)] font-semibold leading-[1.15] tracking-[-.02em] text-dark-ink-bright [text-wrap:balance]">
-              142 employees across four states. Three incompatible quotes.
+            <div className="max-w-[28ch] font-display text-[clamp(19px,2.4vw,26px)] font-semibold leading-[1.15] tracking-[-.02em] text-dark-ink-bright [text-wrap:balance]">
+              A 38-employee technology company, $170,000 saved a year across
+              admin, medical, and workers&rsquo; comp.
             </div>
             <div className="font-mono text-[11px] uppercase tracking-[.12em] text-dark-ink-muted">
-              Ref 4821 · placed 2026-02-11
+              Client name withheld
             </div>
           </figcaption>
         </figure>
@@ -1163,25 +1121,31 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               >
                 Start shopping
               </Link>
+              {/* Into the flow, not to a call form. The client's instruction
+                  was that "Talk to an advisor" is wording, not a different
+                  destination: an advisor reads the record either way, and the
+                  record is what makes that conversation useful. */}
               <Link
-                href="/talk"
+                href="/discovery"
                 className="rounded-md border border-ink-soft px-6 py-[15px] text-base font-semibold text-dark-ink transition-colors duration-150 hover:border-dark-ink-muted"
               >
-                Talk to a broker first
+                Talk to an advisor
               </Link>
             </div>
           </div>
           <div data-sequence className="rounded-md border border-dark-line">
             {[
-              ["Now", "You pick a category and answer five short steps. Each one is saved as you go."],
-              ["< 1 day", "A broker reads the record and confirms which providers fit it."],
+              ["Now", "You pick a category and work through six short steps. Each one is saved as you go."],
+              ["1 business day", "An advisor reads the record and confirms which providers fit it."],
               ["3–5 days", "A written comparison, one axis, with the assumptions stated."],
             ].map(([when, what]) => (
               <div
                 key={when}
-                className="grid grid-cols-[52px_1fr] [&>*]:min-w-0 items-start gap-[18px] border-b border-dark-line-soft px-[22px] py-5 last:border-b-0"
+                className="grid grid-cols-[116px_1fr] [&>*]:min-w-0 items-start gap-[18px] border-b border-dark-line-soft px-[22px] py-5 last:border-b-0 max-sm:grid-cols-1 max-sm:gap-1.5"
               >
-                <div className="font-mono text-xs text-positive-bright">{when}</div>
+                <div className="font-mono text-xs leading-snug text-positive-bright">
+                  {when}
+                </div>
                 <div className="text-[14.5px] leading-normal text-dark-ink-soft">
                   {what}
                 </div>
@@ -1205,33 +1169,21 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               )}
             </div>
             {/*
-              The licensing claim is Prime's to make, not a partner's. A
-              partner may hold no insurance licence at all, so on their site
-              this names Prime as the brokerage doing the work rather than
-              implying the partner is licensed. It also tells a visitor whose
-              terms and privacy policy the links below lead to.
+              One line, identical on every tenant. It names Prime outright, so
+              it is already accurate on a partner site: a partner may hold no
+              insurance licence at all, and this tells a visitor whose terms
+              and privacy policy the links below lead to.
             */}
-            <p className="mt-4 max-w-[34ch] text-[13.5px] leading-relaxed">
-              {partner ? (
-                <>
-                  Brokerage services provided by {HOUSE_NAME}, a licensed
-                  insurance and PEO brokerage. Paid by the provider you select,
-                  never by you.
-                </>
-              ) : (
-                <>
-                  Licensed insurance and PEO brokerage. We are paid by the
-                  provider you select, never by you.
-                </>
-              )}
+            {/*
+              The trading name, on its own. The client asked for the DBA here
+              (2026-10-01) rather than a registered entity, which settles the
+              open question about the legal name: there is no "LLC" line to
+              add, and "Prime PEO Brokers, DBA" would read as an abbreviation
+              hanging off the name rather than as the name itself.
+            */}
+            <p className="mt-4 max-w-[34ch] text-[13px] leading-relaxed">
+              PEO and HCM advisory services provided by {HOUSE_NAME}.
             </p>
-            {/* Was ink-muted (#63697a), which is 2.85:1 on navy: the worst
-                contrast on the page. A credit line is small and quiet by
-                design, but it still has to be readable. */}
-            <div className="mt-[18px] font-mono text-[10.5px] text-dark-ink-muted">
-              Photography: Adrian Sulyok, Lance Chang, Unsplash licence · Hero
-              footage: Pressmaster, Pexels licence
-            </div>
           </div>
           {footerCols.map((col) => (
             <div key={col.head}>

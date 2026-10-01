@@ -5,7 +5,7 @@ import { TenantTheme } from "@/app/components/tenant-theme";
 import { TalkForm } from "./talk-form";
 
 /**
- * "Talk to a broker first." The homepage used to point this at a mailto:
+ * "Talk to an advisor." The homepage used to point this at a mailto:
  * link, which does nothing on a machine with no mail app configured, so the
  * button read as broken. This is the same promise as a real page: five
  * fields, one submit, and the request lands in the console as a lead.
@@ -25,9 +25,9 @@ export async function generateMetadata(): Promise<Metadata> {
       client to, so the house name in the browser tab is a white-label leak in
       front of the partner's prospect.
     */
-    title: name ? { absolute: `Talk to a broker · ${name}` } : "Talk to a broker",
+    title: name ? { absolute: `Talk to an advisor · ${name}` } : "Talk to an advisor",
     description:
-      "Leave a name, a work email, and what is on your mind. A licensed broker calls you back within one business day.",
+      "Leave a name, a work email, and what is on your mind. An advisor calls you back within one business day.",
     alternates: { canonical: "/talk" },
   };
 }

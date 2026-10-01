@@ -712,18 +712,20 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                 </div>
               ))}
             </div>
-            {/* A partner host has no homepage to go back to: "/" is their
-                sign-in portal, which is not for the lead. */}
-            {!isPartner && (
-              <div className="mt-7 flex flex-wrap gap-3.5">
-                <Link
-                  href="/"
-                  className="rounded-md bg-accent px-[22px] py-3.5 text-[15.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
-                >
-                  Back to the homepage
-                </Link>
-              </div>
-            )}
+            {/* homeHref, not "/": both resolve to the same path today, but
+                the constant above is where the partner-host reasoning lives,
+                so the two cannot drift apart again. This used to be gated
+                behind !isPartner, back when "/" on a partner host rewrote to
+                their sign-in portal. It no longer does, and the stale guard
+                left every partner lead on a dead end. */}
+            <div className="mt-7 flex flex-wrap gap-3.5">
+              <Link
+                href={homeHref}
+                className="rounded-md bg-accent px-[22px] py-3.5 text-[15.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press"
+              >
+                Back to {brandName}
+              </Link>
+            </div>
             <p className="mt-6 text-sm leading-normal text-ink-muted">
               Something wrong in the record? Reply to the confirmation email and
               it is corrected before quoting starts.

@@ -2,7 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { claimRequest, clientIp } from "@/lib/auth/throttle";
-import { currentTenantIdForWrite, getTenant } from "@/lib/tenant/resolve";
+import { currentTenantIdForWrite, leadAttribution, getTenant } from "@/lib/tenant/resolve";
 import { brandFor } from "@/lib/tenant/email-brand";
 import {
   TOTAL_STEPS,
@@ -139,6 +139,10 @@ export async function saveDraft(input: {
         answers,
         steps_completed: stepsCompleted,
         intent: input.intent === "renewal" ? "renewal" : "shop",
+        // Stamped once, on the insert. A draft that is later resumed keeps
+        // the partner that captured it even if the visitor comes back on a
+        // different host from the emailed link.
+        ...(await leadAttribution()),
         ...denormalize(answers),
       })
       .select("id, resume_token")

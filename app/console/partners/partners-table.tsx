@@ -313,6 +313,7 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
   const [companyName, setCompanyName] = useState(b.companyName ?? "");
   const [shortName, setShortName] = useState(b.shortName ?? "");
   const [supportEmail, setSupportEmail] = useState(b.supportEmail ?? "");
+  const [crmPartnerName, setCrmPartnerName] = useState(b.crmPartnerName ?? "");
   const [accent, setAccent] = useState(b.colors?.accent ?? "#ff2d00");
   const [ink, setInk] = useState(b.colors?.ink ?? "#19233b");
   const [dark, setDark] = useState(b.colors?.dark ?? "#19233b");
@@ -337,6 +338,7 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
         companyName,
         shortName,
         supportEmail,
+        crmPartnerName,
         accent,
         ink,
         dark,
@@ -385,6 +387,54 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
           <p className="mt-1.5 text-[12.5px] text-ink-muted">
             Their work address. Gets an alert for every new lead, and replies
             to their leads&rsquo; emails land here.
+          </p>
+        </div>
+
+        <Field
+          id={`cn-${partner.id}`}
+          label="Display name"
+          value={companyName}
+          onChange={setCompanyName}
+          placeholder={partner.name}
+          disabled={pending}
+        />
+        <Field
+          id={`sn-${partner.id}`}
+          label="Short name"
+          value={shortName}
+          onChange={setShortName}
+          placeholder="For tight spaces"
+          disabled={pending}
+        />
+        <div>
+          <Field
+            id={`se-${partner.id}`}
+            label="Partner email"
+            value={supportEmail}
+            onChange={setSupportEmail}
+            placeholder="ops@partner.com"
+            disabled={pending}
+          />
+          <p className="mt-1.5 text-[12.5px] text-ink-muted">
+            Their work address. Gets an alert for every new lead, and replies
+            to their leads&rsquo; emails land here.
+          </p>
+        </div>
+
+        {/* Attribution. Stamped onto every lead this partner captures, so
+            whoever works the export knows who to credit. */}
+        <div>
+          <Field
+            id={`cn-${partner.id}`}
+            label="CRM partner name"
+            value={crmPartnerName}
+            onChange={setCrmPartnerName}
+            placeholder="Defaults to the display name"
+            disabled={pending}
+          />
+          <p className="mt-1.5 text-[12.5px] text-ink-muted">
+            How this partner appears on their leads in the export. Existing
+            leads keep whatever they were stamped with.
           </p>
         </div>
 

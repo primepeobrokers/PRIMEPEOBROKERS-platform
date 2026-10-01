@@ -40,6 +40,8 @@ export interface Branding {
   colors?: BrandingColors;
   /** Reply-to / footer address on partner-facing email. */
   supportEmail?: string;
+  /** The partner's name as the CRM knows it, which is not always our own. */
+  crmPartnerName?: string;
 }
 
 /**
@@ -128,6 +130,8 @@ export function parseBranding(raw: unknown, tenantName: string): Branding {
 
   const email = safeText(src.supportEmail, 200);
   if (email && EMAIL_RE.test(email)) out.supportEmail = email;
+
+  out.crmPartnerName = safeText(src.crmPartnerName, 120);
 
   const logo =
     src.logo && typeof src.logo === "object" && !Array.isArray(src.logo)

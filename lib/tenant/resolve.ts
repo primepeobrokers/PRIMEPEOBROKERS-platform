@@ -210,6 +210,29 @@ export async function currentTenantIdForWrite(): Promise<string> {
 }
 
 /**
+ * The partner to credit for a lead, stamped at the moment it is created.
+ *
+ * Read at submission and stored on the row rather than joined later: the
+ * question a commission run asks is "who was credited when this came in", not
+ * "who owns this partner now". See 0014 for the full argument.
+ *
+ * getTenant is request-cached, so this costs nothing beyond the resolve the
+ * insert already does. The house tenant has no partner to credit, and a
+ * partner that has not been given ids yet yields nulls, which is the honest
+ * answer in both cases.
+ */
+export async function leadAttribution(): Promise<{
+  crm_partner_name: string | null;
+}> {
+  const tenant = await getTenant();
+  if (!tenant || tenant.isHouse) return { crm_partner_name: null };
+  return {
+    crm_partner_name:
+      tenant.branding.crmPartnerName ?? tenant.branding.companyName ?? tenant.name,
+  };
+}
+
+/**
  * Portal context: the signed-in user AND the tenant whose host they are on,
  * asserted to be the same tenant.
  *

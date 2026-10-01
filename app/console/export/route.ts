@@ -26,6 +26,7 @@ type ExportRow = {
   status: string;
   steps_completed: number;
   intent: string | null;
+  crm_partner_name: string | null;
   lead_stage: string;
   assigned_to: string | null;
   closed_at: string | null;
@@ -62,7 +63,7 @@ async function fetchAllForExport(
     const { data, error } = await supabase
       .from("submissions")
       .select(
-        "ref, status, steps_completed, intent, lead_stage, assigned_to, closed_at, created_at, submitted_at, answers",
+        "ref, status, steps_completed, intent, crm_partner_name, lead_stage, assigned_to, closed_at, created_at, submitted_at, answers",
       )
       .order("created_at", { ascending: false })
       .order("ref", { ascending: false })
@@ -113,6 +114,9 @@ export async function GET() {
     "status",
     "steps_completed",
     "intent",
+    // Which partner captured this lead, so a commission run does not
+    // need a second lookup.
+    "crm_partner_name",
     "lead_stage",
     "owner",
     "closed_at",
@@ -131,6 +135,7 @@ export async function GET() {
         row.status,
         String(row.steps_completed),
         row.intent ?? "shop",
+        row.crm_partner_name ?? "",
         // The label, not the slug: a CSV is read by people.
         stageLabel(row.lead_stage, stages),
         row.assigned_to ? memberName(ownerById.get(row.assigned_to)) : "",

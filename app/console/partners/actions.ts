@@ -178,6 +178,7 @@ export async function savePartnerBranding(input: {
   companyName: string;
   shortName: string;
   supportEmail: string;
+  crmPartnerName: string;
   accent: string;
   ink: string;
   dark: string;
@@ -200,6 +201,11 @@ export async function savePartnerBranding(input: {
   }
   if (supportEmail && !EMAIL_RE.test(supportEmail)) {
     return { error: "That partner email is not a valid address." };
+  }
+
+  const crmPartnerName = String(input.crmPartnerName ?? "").trim();
+  if (crmPartnerName.length > 120) {
+    return { error: "That CRM name is too long. Keep it under 120 characters." };
   }
 
   const colors: Record<string, string> = {};
@@ -278,6 +284,7 @@ export async function savePartnerBranding(input: {
   if (companyName) branding.companyName = companyName;
   if (shortName) branding.shortName = shortName;
   if (supportEmail) branding.supportEmail = supportEmail;
+  if (crmPartnerName) branding.crmPartnerName = crmPartnerName;
   if (Object.keys(colors).length) branding.colors = colors;
 
   // The existing logo survives a colour-only save: the form does not carry it.

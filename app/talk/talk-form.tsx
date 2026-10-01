@@ -99,11 +99,11 @@ export function TalkForm({ tenant }: Props) {
                 Talk first
               </div>
               <h1 className="mt-3 font-display text-[clamp(25px,3.4vw,32px)] font-semibold leading-[1.08] tracking-[-.022em]">
-                Talk to a broker before you fill anything in.
+                Talk to an advisor before you fill anything in.
               </h1>
               <p className="mt-3 max-w-[56ch] text-[15.5px] leading-normal text-ink-soft [text-wrap:pretty]">
                 Leave a name, a work email, and what is on your mind. A licensed
-                broker calls you back within one business day. Nothing here is
+                advisor calls you back within one business day. Nothing here is
                 shared with a provider.
               </p>
 
@@ -121,7 +121,7 @@ export function TalkForm({ tenant }: Props) {
                   <Field
                     id="email"
                     label="Work email"
-                    help="Where the broker confirms the call."
+                    help="Where the advisor confirms the call."
                     placeholder="jane@acme.com"
                     type="email"
                     value={v.email}
@@ -214,7 +214,7 @@ export function TalkForm({ tenant }: Props) {
               Received · ref {doneRef}
             </div>
             <h1 className="mt-4 font-display text-[clamp(28px,4vw,38px)] font-semibold leading-[1.05] tracking-[-.028em] [text-wrap:balance]">
-              A broker will call you.
+              An advisor will call you.
             </h1>
             <p className="mt-4 max-w-[54ch] text-[17px] leading-normal text-ink-soft">
               Within one business day, from {brandName}. If you gave a phone
@@ -222,7 +222,7 @@ export function TalkForm({ tenant }: Props) {
             </p>
             <p className="mt-4 max-w-[54ch] text-[15.5px] leading-normal text-ink-muted">
               Want the call to be more useful? Start the six steps now. Anything
-              you answer is in front of the broker before they dial.
+              you answer is in front of the advisor before they dial.
             </p>
             <div className="mt-7 flex flex-wrap gap-3.5">
               <Link
