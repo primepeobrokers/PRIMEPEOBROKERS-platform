@@ -16,7 +16,7 @@
  *
  * Run: npx tsx scripts/test-unit.mts
  */
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, ok, equal, done } from "./lib/harness";
 import { classifyHost, APEX_HOST } from "../lib/tenant/host";
 import {
@@ -659,6 +659,29 @@ describe("console navigation: no route lands on a frozen screen");
     ok(existsSync(`${dir}/loading.tsx`),
        `${dir} ships a loading.tsx (without one, navigating to it freezes the previous page)`);
   }
+}
+
+// ---------------------------------------------------------------------------
+describe("select menus open below their trigger");
+// ---------------------------------------------------------------------------
+/*
+  Radix defaults Select to position="item-aligned", which slides the list so
+  the SELECTED item lands on top of the trigger. On a filter whose current
+  value sits near the end of the list, that puts the menu above the control
+  and covers it: the thing you just clicked disappears.
+
+  shadcn ships that default, so a future `shadcn add select` would quietly
+  reintroduce it. This asserts the source, because the behaviour is a prop
+  value rather than anything a unit test can render.
+*/
+{
+  const src = readFileSync("app/components/ui/select.tsx", "utf8");
+  ok(src.includes('position = "popper"'),
+     'SelectContent defaults to popper, not item-aligned (item-aligned covers the trigger)');
+  ok(src.includes('side = "bottom"'),
+     "SelectContent asks for below the trigger (Radix still flips up when there is no room)");
+  ok(!/h-\[var\(--radix-select-trigger-height\)\]/.test(src),
+     "the viewport is not pinned to one row's height, which would make a long list a single-line scroller");
 }
 
 done("test-unit");

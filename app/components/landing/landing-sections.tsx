@@ -94,7 +94,7 @@ export function landingBrand(tenant: LandingTenant) {
 const LEDGER = [
   { label: "Company size", value: "38 employees", delay: "300ms" },
   { label: "Sector", value: "Technology", delay: "350ms" },
-  { label: "Client name", value: "Withheld", delay: "400ms" },
+  { label: "PEOs marketed", value: "6", delay: "400ms" },
 ];
 
 const PROBLEMS = [
@@ -579,13 +579,15 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               now shows a real placement, which did save the money, so the
               stronger word is the accurate one rather than a louder one.
 
-              The client confirmed on 2026-10-01 that $170,000 is annual, so
-              the label says so. A savings figure that reads as yearly but is
-              actually cumulative is the kind of claim that causes trouble
-              later, which is why it was left vague until confirmed.
+              The client confirmed on 2026-10-01 that $170,000 is annual, and
+              on 2026-10-05 asked for the label to name the client rather than
+              the period: "Last client we helped saved $170,000 annually". A
+              savings figure that reads as yearly but is actually cumulative is
+              the kind of claim that causes trouble later, which is why it was
+              left vague until confirmed.
             */}
             <div className="font-mono text-[10.5px] uppercase tracking-[.14em] text-ink-soft">
-              Saved a year
+              Last client we helped saved
             </div>
             {/*
               The one number the page is selling. Display face, not mono:
@@ -593,12 +595,23 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               tabular-nums keeps the digits on a grid so it stays typeset
               rather than merely large.
             */}
-            <div className="mt-2.5 font-display text-[clamp(38px,4.6vw,52px)] font-semibold leading-[1] tracking-[-.035em] text-accent [font-variant-numeric:tabular-nums]">
-              $170,000
+            {/*
+              "annually" rides with the figure rather than sitting in the line
+              below, so the label and the number read as one sentence: "Last
+              client we helped saved $170,000 annually." Set smaller than the
+              figure and in the body face, because it is the unit on the
+              number, not a second headline competing with it.
+            */}
+            <div className="mt-2.5 flex flex-wrap items-baseline gap-x-2.5">
+              <span className="font-display text-[clamp(38px,4.6vw,52px)] font-semibold leading-[1] tracking-[-.035em] text-accent [font-variant-numeric:tabular-nums]">
+                $170,000
+              </span>
+              <span className="font-display text-[clamp(17px,1.7vw,20px)] font-semibold leading-[1.1] tracking-[-.015em] text-accent">
+                annually
+              </span>
             </div>
             <div className="mt-2.5 text-[13.5px] leading-snug text-ink-soft">
-              Annual, across admin, medical, and workers&rsquo; comp, against
-              what they paid before.
+              Annual savings, across admin, medical, and workers&rsquo; comp.
             </div>
           </div>
 
@@ -913,18 +926,15 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             className="object-cover [filter:grayscale(.55)_contrast(1.04)_brightness(.86)]"
           />
           <figcaption
-            className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-5 px-10 pb-6 pt-[26px] max-sm:px-5"
+            className="absolute inset-x-0 bottom-0 px-10 pb-6 pt-[26px] max-sm:px-5"
             style={{
               background:
                 "linear-gradient(to top,rgba(25,35,59,.82),rgba(25,35,59,0))",
             }}
           >
             <div className="max-w-[28ch] font-display text-[clamp(19px,2.4vw,26px)] font-semibold leading-[1.15] tracking-[-.02em] text-dark-ink-bright [text-wrap:balance]">
-              A 38-employee technology company, $170,000 saved a year across
+              A 38-employee technology company saved $170,000 annually across
               admin, medical, and workers&rsquo; comp.
-            </div>
-            <div className="font-mono text-[11px] uppercase tracking-[.12em] text-dark-ink-muted">
-              Client name withheld
             </div>
           </figcaption>
         </figure>

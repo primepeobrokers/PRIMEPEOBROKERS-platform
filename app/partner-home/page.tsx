@@ -38,7 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
       absolute: `${name}: the easiest way to shop for PEO, Payroll & HR tech`,
     },
     description:
-      "Research, evaluate, and choose the right PEO, payroll, and HR software for free. Answer a structured set of questions once; an expert on our team does the legwork and delivers your tailored proposal. No pushy vendor reps. You never pay us.",
+      "Research, evaluate, and choose the right PEO, payroll, and HR software for free. Answer a structured set of questions once; an expert on our team does the legwork and delivers your tailored proposal. One advisor, every option. You never pay a fee.",
     alternates: { canonical: "/" },
     openGraph: { siteName: name, type: "website", url: tenantOrigin(tenant.slug, false) },
   };

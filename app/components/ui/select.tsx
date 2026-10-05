@@ -50,11 +50,29 @@ function SelectTrigger({
   )
 }
 
+/**
+ * The menu opens below the trigger, like every other dropdown on the site.
+ *
+ * Radix defaults to position="item-aligned", which slides the list so the
+ * SELECTED item lands on top of the trigger. On a filter whose value is near
+ * the end of the list that puts the menu above the control and hides it, so
+ * the thing you just clicked disappears and the list appears to open upwards
+ * from nowhere. shadcn ships that default; this project does not want it.
+ *
+ * "popper" anchors to the trigger instead, and side="bottom" asks for below.
+ * Radix still flips upward when there is genuinely no room beneath, which is
+ * correct: a menu running off the viewport is worse than one opening up.
+ *
+ * align="start" so the menu's left edge lines up with the trigger's, matching
+ * dropdown-menu.tsx. sideOffset 4 is the same gap that component uses.
+ */
 function SelectContent({
   className,
   children,
-  position = "item-aligned",
-  align = "center",
+  position = "popper",
+  align = "start",
+  side = "bottom",
+  sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof SelectPrimitive.Content>) {
   return (
@@ -69,6 +87,8 @@ function SelectContent({
         )}
         position={position}
         align={align}
+        side={side}
+        sideOffset={sideOffset}
         {...props}
       >
         <SelectScrollUpButton />
@@ -76,7 +96,7 @@ function SelectContent({
           className={cn(
  "p-1",
             position === "popper" &&
- "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
+ "w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1"
           )}
         >
           {children}
