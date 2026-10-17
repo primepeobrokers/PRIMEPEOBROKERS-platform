@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Logo, TenantMark } from "@/app/components/logo";
+import { LegalDisclosure } from "@/app/components/legal-disclosure";
+import { partnerLegalName } from "@/lib/tenant/partner";
 import type { Branding } from "@/lib/tenant/branding";
 
 /** The tenant whose brand the sign-in screen wears. null means the house. */
@@ -79,13 +81,12 @@ export function AuthShell({
           .
         </p>
 
-        {/* Both of these pointed at /#trust, so TERMS never reached the terms
-            page. Same bug as the marketing footer had. */}
-        <div className="flex justify-center gap-6 font-mono text-[11px] tracking-[.06em] text-ink-faint">
-          <Link href="/privacy" className="hover:text-ink">PRIVACY</Link>
-          <Link href="/terms" className="hover:text-ink">TERMS</Link>
-          <Link href="/" className="hover:text-ink">SITE</Link>
-        </div>
+        {/* Counsel's disclosure, which carries the Terms and Privacy links
+            this row used to hold. The mark above is the link home. */}
+        <LegalDisclosure
+          partnerLegalName={partnerLegalName(tenant)}
+          className="max-w-[62ch] items-center text-center"
+        />
       </div>
     </div>
   );

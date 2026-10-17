@@ -3,6 +3,8 @@ import { tenantIcons } from "@/lib/tenant/favicon";
 import { getTenant } from "@/lib/tenant/resolve";
 import { TenantTheme } from "@/app/components/tenant-theme";
 import { TalkForm } from "./talk-form";
+import { LegalDisclosure } from "@/app/components/legal-disclosure";
+import { partnerLegalName } from "@/lib/tenant/partner";
 
 /**
  * "Talk to an advisor." The homepage used to point this at a mailto:
@@ -43,6 +45,7 @@ export default async function TalkPage() {
             ? { isHouse: tenant.isHouse, name: tenant.name, branding: tenant.branding }
             : null
         }
+        footer={<LegalDisclosure partnerLegalName={partnerLegalName(tenant)} />}
       />
     </>
   );

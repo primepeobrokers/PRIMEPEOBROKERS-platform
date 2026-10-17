@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { PlugZapIcon } from "lucide-react";
 
 import { Button } from "@/app/components/ui/button";
+import { LegalDisclosure } from "@/app/components/legal-disclosure";
 import {
   Empty,
   EmptyContent,
@@ -70,6 +71,15 @@ export default function ErrorBoundary({
           ) : null}
         </Empty>
       </main>
+
+      {/* No partner named: the tenant is not read here (see above), and the
+          sentence that remains is accurate on every host. */}
+      <footer className="border-t border-line">
+        <LegalDisclosure
+          partnerLegalName={null}
+          className="mx-auto max-w-[820px] px-10 py-7 max-sm:px-5"
+        />
+      </footer>
     </div>
   );
 }

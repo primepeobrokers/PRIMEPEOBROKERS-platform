@@ -27,6 +27,7 @@ import { EmailClientButton } from "./email-client-button";
 import { NotesCard } from "./notes-card";
 import { PipelineCard } from "./pipeline-card";
 import { RouteCard, type RouteTarget } from "./route-card";
+import { ConsentCard, type ConsentView } from "./consent-card";
 import type { NoteView } from "@/lib/console/notes";
 import { Badge } from "@/app/components/ui/badge";
 import { Card, CardContent } from "@/app/components/ui/card";
@@ -69,7 +70,7 @@ export default async function LeadDetailPage(
   if (!lead) notFound();
 
   // Independent of each other, so they overlap rather than queue.
-  const [ctx, stages, members, { data: events }, { data: noteRows }, { data: tenantRows }, { data: owner }] =
+  const [ctx, stages, members, { data: events }, { data: noteRows }, { data: tenantRows }, { data: owner }, { data: consentRow }] =
     await Promise.all([
       requireUser(`/console/leads/${id}`),
       fetchStages(),
@@ -105,7 +106,31 @@ export default async function LeadDetailPage(
         the row type by parsing it at the type level.
       */
       supabase.from("submissions").select("tenant_id").eq("id", id).maybeSingle(),
+      /*
+        The latest consent for this lead. RLS limits consent_records to
+        Prime's own team (0015). An error, including the table not existing
+        before 0015 is applied, reads as "no consent on file", which is the
+        safe answer: it tells the advisor not to text.
+      */
+      supabase
+        .from("consent_records")
+        .select("consented_at, terms_version, privacy_version, sms_consented, sms_phone, sms_opted_out_at")
+        .eq("submission_id", id)
+        .order("consented_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
+
+  const consent: ConsentView | null = consentRow
+    ? {
+        consentedAt: consentRow.consented_at,
+        termsVersion: consentRow.terms_version,
+        privacyVersion: consentRow.privacy_version,
+        smsConsented: consentRow.sms_consented === true,
+        smsPhone: consentRow.sms_phone,
+        smsOptedOutAt: consentRow.sms_opted_out_at,
+      }
+    : null;
 
   const notes = (noteRows ?? []) as NoteView[];
 
@@ -325,6 +350,15 @@ export default async function LeadDetailPage(
             stages={stages}
             members={members}
             viewerId={ctx.userId}
+          />
+
+          <ConsentCard
+            submissionId={lead.id}
+            consent={consent}
+            when={{
+              consentedAt: consent ? formatWhen(consent.consentedAt) : "",
+              optedOutAt: consent?.smsOptedOutAt ? formatWhen(consent.smsOptedOutAt) : null,
+            }}
           />
 
           {ctx.isPlatformStaff && (

@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { claimRequest, clientIp } from "@/lib/auth/throttle";
 import { currentTenantIdForWrite, leadAttribution, getTenant } from "@/lib/tenant/resolve";
@@ -13,6 +14,13 @@ import {
   answeredCategory,
   type Answers,
 } from "@/lib/discovery/schema";
+import {
+  CONSENT_SMS_TEXT,
+  CONSENT_TERMS_TEXT,
+  PRIVACY_VERSION,
+  SUBMIT_NOTICE_TEXT,
+  TERMS_VERSION,
+} from "@/lib/legal";
 import {
   sendResumeLink,
   sendSubmissionConfirmation,
@@ -183,14 +191,27 @@ export async function saveDraft(input: {
 /**
  * Final submission. Re-validates every step server-side; the client's
  * validation is a convenience, not the guard.
+ *
+ * The consent is re-checked here too: the Submit button is disabled until the
+ * Terms box is ticked, but this action is an addressable endpoint and the
+ * button is not.
  */
 export async function submitRecord(input: {
   handle: DraftHandle | null;
   answers: unknown;
+  /** The two step 6 checkboxes. Booleans only: the wording is the server's own. */
+  consent?: { terms?: unknown; sms?: unknown };
 }): Promise<
   | { ok: true; ref: number }
   | { ok: false; error: string; fieldErrors?: Record<string, string> }
 > {
+  if (input.consent?.terms !== true) {
+    return {
+      ok: false,
+      error: "Tick the box agreeing to the Terms and Privacy Policy to submit.",
+    };
+  }
+
   const answers = visibleAnswers(sanitizeAnswers(input.answers));
 
   for (let i = 0; i < TOTAL_STEPS; i++) {
@@ -213,6 +234,19 @@ export async function submitRecord(input: {
   if (!saved.ok) return saved;
 
   const supabase = createAdminClient();
+
+  /*
+    The consent record goes in BEFORE the submission is marked complete, and
+    a failure stops the submit. Counsel requires a record with every
+    submission; doing it in this order means the worst case is a draft the
+    visitor can retry, never a submitted lead with no proof of consent
+    behind it. Requires migration 0015.
+  */
+  const consentError = await recordConsent(saved.handle, answers, input.consent.sms === true);
+  if (consentError) {
+    return { ok: false, error: "Submitting failed. Nothing was lost. Try again." };
+  }
+
   const { data, error } = await supabase
     .from("submissions")
     .update({
@@ -275,6 +309,59 @@ export async function submitRecord(input: {
   }
 
   return { ok: true, ref: data.ref };
+}
+
+/**
+ * Writes the consent record for a submission. Returns true on failure.
+ *
+ * Everything recorded is decided here, not by the browser: the wording comes
+ * from lib/legal.ts (the same constants the form rendered), the timestamp
+ * from the database clock, the IP from the infrastructure's own header. The
+ * client contributes two booleans.
+ */
+async function recordConsent(
+  handle: DraftHandle,
+  answers: ReturnType<typeof visibleAnswers>,
+  smsTicked: boolean,
+): Promise<boolean> {
+  const supabase = createAdminClient();
+  const tenantId = await currentTenantIdForWrite();
+
+  // The ref, read through the same tenant-guarded predicate as every write.
+  const { data: row } = await supabase
+    .from("submissions")
+    .select("ref")
+    .eq("id", handle.draftId)
+    .eq("resume_token", handle.token)
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  const phone = typeof answers["phone"] === "string" ? answers["phone"].trim() : "";
+  // Consent to calls and texts with no number covers nothing, so it is not
+  // recorded as given. The database enforces the same rule.
+  const sms = smsTicked && phone !== "";
+
+  const { error } = await supabase.from("consent_records").insert({
+    submission_id: handle.draftId,
+    submission_ref: row?.ref ?? null,
+    ip_address: await clientIp(),
+    user_agent: (await headers()).get("user-agent")?.slice(0, 1000) ?? null,
+    tenant_id: tenantId,
+    partner_name: (await leadAttribution()).crm_partner_name,
+    terms_version: TERMS_VERSION,
+    privacy_version: PRIVACY_VERSION,
+    terms_text: CONSENT_TERMS_TEXT,
+    terms_accepted: true,
+    sms_text: CONSENT_SMS_TEXT,
+    sms_consented: sms,
+    sms_phone: sms ? phone.slice(0, 60) : null,
+    submit_notice_text: SUBMIT_NOTICE_TEXT,
+  });
+  if (error) {
+    console.error("[discovery] consent record insert failed", error);
+    return true;
+  }
+  return false;
 }
 
 /** Emails the visitor a link back to their draft. */

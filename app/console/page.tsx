@@ -92,6 +92,9 @@ export default async function LeadsPage(props: PageProps<"/console">) {
         </div>
         <div className="flex gap-2.5">
           <ExportCsvButton />
+          {/* Counsel's consent record, exportable on request. RLS limits it
+              to Prime's own team. */}
+          <ExportCsvButton href="/console/consent/export" label="Export consent" />
           <CopyDiscoveryLink className="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-accent-press" />
         </div>
       </div>

@@ -16,7 +16,14 @@ import { Button } from "@/app/components/ui/button";
  *
  * Up to 10,000 rows, so the wait is real and needs to be shown.
  */
-export function ExportCsvButton() {
+export function ExportCsvButton({
+  href = "/console/export",
+  label = "Export CSV",
+}: {
+  /** The route that answers with the CSV. The consent export reuses this button. */
+  href?: string;
+  label?: string;
+} = {}) {
   const [pending, setPending] = useState(false);
 
   return (
@@ -28,7 +35,7 @@ export function ExportCsvButton() {
         setPending(true);
         const toastId = toast.loading("Preparing your export…");
         try {
-          const res = await fetch("/console/export");
+          const res = await fetch(href);
           if (!res.ok) {
             const msg =
               res.status === 401
@@ -83,7 +90,7 @@ export function ExportCsvButton() {
       ) : (
         <DownloadIcon className="size-4" />
       )}
-      {pending ? "Exporting" : "Export CSV"}
+      {pending ? "Exporting" : label}
     </Button>
   );
 }

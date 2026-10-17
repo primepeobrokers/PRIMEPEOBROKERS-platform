@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 
 import { tenantIcons } from "@/lib/tenant/favicon";
 import { getTenant, requireTenantUser } from "@/lib/tenant/resolve";
+import { partnerLegalName } from "@/lib/tenant/partner";
+import { LegalDisclosure } from "@/app/components/legal-disclosure";
 import { tenantOrigin } from "@/lib/tenant/urls";
 import { TenantTheme } from "@/app/components/tenant-theme";
 import { TenantMark } from "@/app/components/logo";
@@ -75,6 +77,13 @@ export default async function PortalLayout({
       </header>
 
       {children}
+
+      <footer className="border-t border-line">
+        <LegalDisclosure
+          partnerLegalName={partnerLegalName(tenant)}
+          className="mx-auto max-w-[1100px] px-7 py-7 max-sm:px-[18px]"
+        />
+      </footer>
       <Toaster />
     </div>
   );

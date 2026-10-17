@@ -29,6 +29,16 @@ import {
 import { imageInfo } from "../lib/tenant/image-size";
 import { brandFor, formatFrom, houseBrand, inboxList, parseSender } from "../lib/tenant/email-brand";
 import { landingBrand } from "../app/components/landing/landing-sections";
+import { partnerContact, partnerLegalName, partnerVoice, voiceFor } from "../lib/tenant/partner";
+import {
+  CONSENT_SMS_TEXT,
+  CONSENT_TERMS_TEXT,
+  PRIVACY_VERSION,
+  SUBMIT_NOTICE_TEXT,
+  TERMS_VERSION,
+  splitConsentLinks,
+} from "../lib/legal";
+import { STEPS } from "../lib/discovery/schema";
 import { CONSOLE_EMAIL_RE, escapeLike } from "../lib/console/email-match";
 import { iconLetter, letterTileSvg, logoIconSvg, partnerIcon, tenantIcons } from "../lib/tenant/favicon.js";
 import {
@@ -42,7 +52,7 @@ import {
   type Stage,
 } from "../lib/console/stages";
 
-const { safeColor, safePath, safeText, safeInt } = __testables;
+const { safeColor, safePath, safeText, safeInt, safeContact } = __testables;
 const apex = APEX_HOST.split(":")[0]!;
 
 // ===========================================================================
@@ -470,7 +480,9 @@ describe("landing page: what a partner's own marketing page must not say");
 {
   const house = landingBrand(null);
   equal(house.brandName, "Prime PEO Brokers", "the house route keeps the house name");
-  equal(house.contactEmail, "admin@primepeobrokers.com", "the house route keeps the house inbox");
+  equal(house.contact.href, "mailto:admin@primepeobrokers.com", "the house route keeps the house inbox");
+  equal(house.legalName, null, "the house route names no referral partner in its footer");
+  equal(house.voice("our team"), "our team", "the house route keeps its own first-person copy");
   ok(house.showPartnerSection, "the house site still recruits partners");
   ok(!house.isPartner, "a null tenant is not a partner");
 }
@@ -489,7 +501,9 @@ describe("landing page: what a partner's own marketing page must not say");
     branding: { companyName: "Acme Benefits", supportEmail: "hello@acme.com" },
   });
   equal(b.brandName, "Acme Benefits", "a partner is named by branding.companyName");
-  equal(b.contactEmail, "hello@acme.com", "a partner's visitors reach the PARTNER, not Prime");
+  equal(b.contact.href, "mailto:hello@acme.com", "a partner's visitors reach the PARTNER, not Prime");
+  equal(b.legalName, "Acme Benefits", "no legal name set: the footer names the display name");
+  equal(b.voice("our team"), "Prime\u2019s advisory team", "a partner page names Prime's team");
   ok(!b.showPartnerSection, "a partner site does not recruit partners for Prime");
   ok(b.isPartner, "a non-house tenant is a partner");
 }
@@ -498,9 +512,140 @@ describe("landing page: what a partner's own marketing page must not say");
   // The onboarding case: a partner created minutes ago, nothing filled in.
   const b = landingBrand({ isHouse: false, name: "Acme Advisors", branding: {} });
   equal(b.brandName, "Acme Advisors", "an unbranded partner falls back to its tenant name");
-  equal(b.contactEmail, "admin@primepeobrokers.com",
-        "no supportEmail means Prime's inbox, never a dead mailto");
+  equal(b.contact.href, "mailto:admin@primepeobrokers.com",
+        "no contact and no supportEmail means Prime's inbox, never a dead mailto");
   ok(!b.showPartnerSection, "an unbranded partner still does not recruit partners");
+}
+
+
+// ---------------------------------------------------------------------------
+describe("partner tenants: counsel's copy, contact and disclosure rules");
+// ---------------------------------------------------------------------------
+// Counsel, October 2026: on a partner's site the visitor must be able to tell
+// that Prime provides the service. First-person copy written for Prime's own
+// site reads as the partner's there, so it is rewritten to name Prime.
+
+equal(partnerVoice("an expert on our team does the legwork"),
+      "an expert on Prime’s advisory team does the legwork", "our team -> Prime's advisory team");
+equal(partnerVoice("Our team benchmarks your terms"),
+      "Prime’s advisory team benchmarks your terms", "Our team (sentence start)");
+equal(partnerVoice("Your advisor reviews the record"),
+      "Your Prime advisor reviews the record", "Your advisor -> Your Prime advisor");
+equal(partnerVoice("anything else your advisor should know"),
+      "anything else your Prime advisor should know", "your advisor -> your Prime advisor");
+equal(partnerVoice("We hold agreements across the market"),
+      "Prime holds agreements across the market", "We hold agreements -> Prime holds agreements");
+equal(partnerVoice("Your assigned advisor and their team."),
+      "Your assigned Prime advisor and their team.", "the longer phrase wins over 'your advisor'");
+equal(partnerVoice("Visible to your broker’s team only"),
+      "Visible to Prime’s advisory team only",
+      "the sensitive-data notice does not tell a partner's visitor the partner sees their payroll");
+{
+  const once = partnerVoice("Your advisor and our team. We hold agreements.");
+  equal(partnerVoice(once), once, "partnerVoice is idempotent (no 'Prime Prime advisor')");
+}
+equal(voiceFor(null)("your advisor"), "your advisor", "voiceFor(null) is the identity");
+
+// Every step string the flow renders through the voice still reads correctly.
+for (const step of STEPS) {
+  for (const text of [step.intro, ...step.fields.flatMap((f) => [f.label, f.help ?? "", f.placeholder ?? ""])]) {
+    ok(!/\bPrime Prime\b/.test(partnerVoice(text)), `no doubled "Prime" in: ${text.slice(0, 50)}`);
+  }
+}
+
+{
+  const acme = { isHouse: false, name: "Acme Advisors", branding: {} as Record<string, unknown> };
+  const c1 = partnerContact({ ...acme, branding: { contactUrl: "https://acme.com/contact", supportEmail: "ops@acme.com", companyName: "Acme" } });
+  equal(c1.href, "https://acme.com/contact", "the contact setting wins over the work email");
+  ok(!c1.isEmail, "a URL contact is not printed as an address");
+  equal(c1.label, "Acme", "a URL contact is labelled with the partner's name");
+  const c2 = partnerContact({ ...acme, branding: { contactUrl: "talk@acme.com", supportEmail: "ops@acme.com" } });
+  equal(c2.href, "mailto:talk@acme.com", "an email contact becomes a mailto");
+  equal(partnerLegalName({ ...acme, branding: { legalName: "Acme Advisors LLC", companyName: "Acme" } }),
+        "Acme Advisors LLC", "the legal name is named in the disclosure when set");
+  equal(partnerLegalName({ isHouse: true, name: "Prime PEO Brokers", branding: {} }), null,
+        "the house tenant names no referral partner");
+}
+
+// ---------------------------------------------------------------------------
+describe("partner contact: an href on a public page, so an injection boundary");
+// ---------------------------------------------------------------------------
+equal(safeContact("https://acme.com/contact"), "https://acme.com/contact", "https URL accepted");
+equal(safeContact("ops@acme.com"), "ops@acme.com", "email accepted");
+for (const bad of [
+  "javascript:alert(1)",
+  "JAVASCRIPT:alert(1)",
+  "javascript:alert(1)//@x.com",
+  "data:text/html,<script>alert(1)</script>",
+  "http://acme.com",
+  "//evil.com",
+  "acme.com/contact",
+  "",
+]) {
+  equal(safeContact(bad), undefined, `rejected: ${JSON.stringify(bad)}`);
+}
+equal(parseBranding({ contactUrl: "javascript:alert(1)" }, "Acme").contactUrl, undefined,
+      "parseBranding drops a hostile contact rather than rendering it");
+
+// Counsel: partners cannot add scripts, pixels or content. Branding is a
+// closed shape; an unknown key never reaches a page.
+{
+  const parsed = parseBranding(
+    { script: "<script>", pixel: "https://t.co/p.gif", footerDisclosure: "x", consentText: "x", companyName: "Acme" },
+    "Acme",
+  ) as Record<string, unknown>;
+  for (const k of ["script", "pixel", "footerDisclosure", "consentText"]) {
+    ok(!(k in parsed), `parseBranding never carries "${k}"`);
+  }
+  const sql = readFileSync("supabase/migrations/0015_partner_compliance_and_consent.sql", "utf8");
+  const allow = sql.match(/if v_key not in \(([\s\S]*?)\) then/)?.[1] ?? "";
+  const keys = [...allow.matchAll(/'([A-Za-z]+)'/g)].map((m) => m[1]).sort();
+  equal(keys.join(","),
+        "colors,companyName,contactUrl,crmPartnerName,legalName,logo,shortName,supportEmail",
+        "the database allowlist admits exactly the branding keys and nothing that could carry content");
+}
+
+// ---------------------------------------------------------------------------
+describe("consent: what is shown is what is stored");
+// ---------------------------------------------------------------------------
+{
+  const parts = splitConsentLinks(CONSENT_TERMS_TEXT);
+  equal(parts.map((p) => p.text).join(""), CONSENT_TERMS_TEXT,
+        "the rendered consent, links included, is byte for byte the stored sentence");
+  equal(parts.filter((p) => p.href).map((p) => p.href).join(","), "/terms,/privacy",
+        "both Terms and Privacy are linked, in that order");
+  ok(CONSENT_TERMS_TEXT.includes("Section 14 of the Terms"), "the consent cites Section 14 for arbitration");
+  ok(/^\d{4}-\d{2}-\d{2}$/.test(TERMS_VERSION) && /^\d{4}-\d{2}-\d{2}$/.test(PRIVACY_VERSION),
+     "version dates are ISO, since they are written to a date column");
+  ok(CONSENT_SMS_TEXT.includes("Reply STOP to opt out"), "the call/text consent carries STOP");
+  ok(SUBMIT_NOTICE_TEXT.startsWith("By clicking Submit"), "the notice under Submit is counsel's");
+  for (const t of [CONSENT_TERMS_TEXT, CONSENT_SMS_TEXT, SUBMIT_NOTICE_TEXT]) {
+    ok(!t.includes("\u2014"), "no em dash in the legal copy");
+  }
+}
+{
+  // Section 14 must still BE arbitration, and 2A must not shift numbering.
+  const terms = readFileSync("app/terms/page.tsx", "utf8");
+  ok(/heading="14\. Dispute resolution and arbitration"/.test(terms),
+     "Terms section 14 is still arbitration, which the consent text cites by number");
+  ok(/heading="3\. Compensation disclosure"/.test(terms),
+     "Terms section 3 is still compensation, which section 2A cites by number");
+  ok(terms.includes('heading="2A. Partner-branded Sites"'), "the partner section is numbered 2A");
+}
+{
+  // Phone sits on the step that renders the call/text consent beside it.
+  const last = STEPS[STEPS.length - 1]!;
+  ok(last.fields.some((f) => f.id === "phone"), "phone is on step 6, beside its consent");
+  ok(STEPS.slice(0, -1).every((s) => !s.fields.some((f) => f.id === "phone")),
+     "phone appears on no other step");
+  const flow = readFileSync("app/discovery/discovery-flow.tsx", "utf8");
+  ok(!/localStorage[\s\S]{0,200}termsAccepted|termsAccepted[\s\S]{0,40}localStorage/.test(flow),
+     "consent is never persisted to the browser draft");
+  ok(/disabled=\{busy \|\| !termsAccepted\}/.test(flow), "Submit stays disabled until the Terms box is ticked");
+  const actions = readFileSync("app/discovery/actions.ts", "utf8");
+  ok(/consent\?\.terms !== true/.test(actions), "the server refuses a submission without the Terms consent");
+  ok(actions.indexOf("recordConsent(saved.handle") < actions.indexOf('status: "complete"'),
+     "the consent record is written before the lead is marked complete");
 }
 
 

@@ -23,7 +23,15 @@ import { Input } from "@/app/components/ui/input";
 import { Textarea } from "@/app/components/ui/textarea";
 import { Label } from "@/app/components/ui/label";
 import { TenantMark } from "@/app/components/logo";
+import { Checkbox } from "@/app/components/ui/checkbox";
 import type { Branding } from "@/lib/tenant/branding";
+import { voiceFor } from "@/lib/tenant/partner";
+import {
+  CONSENT_SMS_TEXT,
+  CONSENT_TERMS_TEXT,
+  SUBMIT_NOTICE_TEXT,
+  splitConsentLinks,
+} from "@/lib/legal";
 import {
   saveDraft,
   submitRecord,
@@ -64,6 +72,12 @@ interface Props {
    * Null renders the house identity (unknown host, or a lookup failure).
    */
   tenant: { isHouse: boolean; name: string; branding: Branding } | null;
+  /**
+   * The provider disclosure, rendered by the server page. A slot rather than
+   * a prop of the partner's legal name, so this client component does not
+   * have to know the disclosure's wording.
+   */
+  footer?: React.ReactNode;
 }
 
 interface Toast {
@@ -71,8 +85,10 @@ interface Toast {
   body: string;
 }
 
-export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props) {
+export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer }: Props) {
   const isPartner = tenant !== null && !tenant.isHouse;
+  // Names Prime in "our team" / "your advisor" copy on a partner's host.
+  const v = voiceFor(tenant);
   const brandName = isPartner
     ? (tenant.branding.companyName ?? tenant.name)
     : "Prime PEO Brokers";
@@ -117,6 +133,15 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
   const [resumeEmail, setResumeEmail] = useState("");
   const [resumeError, setResumeError] = useState("");
   const [hydrated, setHydrated] = useState(false);
+  /*
+    The two consents. Deliberately plain state, never written to answers,
+    localStorage or the draft row: counsel requires both to be shown again,
+    unticked, whenever a saved draft is resumed, and a consent that silently
+    reappeared ticked would be a consent nobody gave in this session. The
+    server records them at submission, against the text in lib/legal.ts.
+  */
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [smsConsent, setSmsConsent] = useState(false);
 
   const handleRef = useRef<DraftHandle | null>(resumed?.handle ?? null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -316,8 +341,12 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
     );
   }
 
+  const phone = answers["phone"];
+  const hasPhone = typeof phone === "string" && phone.trim() !== "";
+
   async function submit() {
-    if (busy) return;
+    // The button is disabled until this is ticked; the server refuses it too.
+    if (busy || !termsAccepted) return;
     setBusy(true);
     try {
       // Let any in-flight draft save finish first, so handleRef points at the
@@ -326,6 +355,8 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
       const res = await submitRecord({
         handle: handleRef.current,
         answers,
+        // Consent to calls and texts means nothing without a number to cover.
+        consent: { terms: termsAccepted, sms: smsConsent && hasPhone },
       });
       if (res.ok) {
         const d = new Date();
@@ -391,13 +422,34 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
   const stepDef = STEPS[step];
 
   return (
-    <div className="min-h-screen bg-surface flex flex-col">
+    <div
+      className={cn(
+        "min-h-screen bg-surface flex flex-col",
+        // Reserved on the page, not on <main>, so the footer below main also
+        // scrolls clear of the fixed resume bar while it is open.
+        abandon && view !== "done" && "pb-[260px] sm:pb-[200px]",
+      )}
+    >
       {/* header */}
       <header className="sticky top-0 z-30 border-b border-line bg-surface">
         <div className="mx-auto flex h-16 w-full max-w-[1120px] items-center justify-between gap-6 px-8 max-sm:px-[18px]">
-          <Link href={homeHref} aria-label={`${brandName} home`} className="flex min-h-11 items-center">
-            <TenantMark tenant={tenant ?? HOUSE_TENANT} size={30} />
-          </Link>
+          {/*
+            "Powered by" on a partner's host, in every step's header: counsel
+            requires the visitor to be able to see who provides the service
+            while they are filling the form in, not only in the footer.
+            Stacked under the mark on a phone, where the row has no room for
+            it beside the mark and the save controls.
+          */}
+          <div className="flex min-w-0 items-center gap-3.5 max-sm:flex-col max-sm:items-start max-sm:gap-0">
+            <Link href={homeHref} aria-label={`${brandName} home`} className="flex min-h-11 items-center max-sm:min-h-0">
+              <TenantMark tenant={tenant ?? HOUSE_TENANT} size={30} />
+            </Link>
+            {isPartner && (
+              <span className="whitespace-nowrap border-l border-line pl-3.5 text-[12px] leading-tight text-ink-soft max-sm:border-l-0 max-sm:pl-0 max-sm:pt-1">
+                Powered by Prime PEO Brokers
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-5">
             <div
               aria-live="polite"
@@ -419,13 +471,9 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
       </header>
 
       {/* The resume bar is fixed to the bottom edge; while it is open the
-          page reserves its height so Back / Continue always scroll clear. */}
-      <main
-        className={cn(
-          "mx-auto w-full max-w-[1120px] flex-1 px-8 pt-11 max-sm:px-[18px]",
-          abandon && view !== "done" ? "pb-[260px] sm:pb-[200px]" : "pb-24",
-        )}
-      >
+          page (the wrapper above) reserves its height so Back / Continue and
+          the footer always scroll clear. */}
+      <main className="mx-auto w-full max-w-[1120px] flex-1 px-8 pb-24 pt-11 max-sm:px-[18px]">
         {view === "flow" && (
           <div className="grid grid-cols-[312px_1fr] items-start gap-14 [&>*]:min-w-0 max-lg:grid-cols-1 max-lg:gap-7">
             {/* the record, doubling as progress */}
@@ -501,7 +549,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                   {stepDef.title}
                 </h1>
                 <p className="mt-3 max-w-[56ch] text-[15.5px] leading-normal text-ink-soft [text-wrap:pretty]">
-                  {stepDef.intro}
+                  {v(stepDef.intro)}
                 </p>
 
                 {stepDef.sensitive && (
@@ -510,9 +558,9 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                       Sensitive
                     </span>
                     <span className="text-[13.5px] leading-normal text-ink-soft">
-                      Stored with encryption at rest and never exposed through a
-                      public endpoint. Visible to your broker&apos;s team only,
-                      never to a provider without your approval.
+                      {v(
+                        "Stored with encryption at rest and never exposed through a public endpoint. Visible to your broker\u2019s team only, never to a provider without your approval.",
+                      )}
                     </span>
                   </div>
                 )}
@@ -522,7 +570,12 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                     const cells = row.map((f) => (
                       <Field
                         key={f.id}
-                        field={f}
+                        field={{
+                          ...f,
+                          label: v(f.label),
+                          help: f.help && v(f.help),
+                          placeholder: f.placeholder && v(f.placeholder),
+                        }}
                         answers={answers}
                         error={errors[f.id] ?? ""}
                         onKey={onKey}
@@ -533,6 +586,24 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                         }}
                       />
                     ));
+                    // Counsel: the call and text consent sits right beside
+                    // the number it covers.
+                    if (row.length === 1 && row[0].id === "phone") {
+                      return (
+                        <div key="phone+consent" className="flex flex-col gap-3.5">
+                          {cells}
+                          <ConsentCheck
+                            id="pv-consent-sms"
+                            checked={smsConsent && hasPhone}
+                            onChange={setSmsConsent}
+                            disabled={!hasPhone}
+                            note={hasPhone ? undefined : "Add a phone number above to choose this. It is optional."}
+                          >
+                            {CONSENT_SMS_TEXT}
+                          </ConsentCheck>
+                        </div>
+                      );
+                    }
                     if (row.length === 1) return cells;
                     return (
                       <div
@@ -624,7 +695,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                       key={f.id}
                       className="grid grid-cols-[240px_1fr] items-baseline gap-6 border-b border-surface px-[22px] py-[13px] max-sm:grid-cols-1 max-sm:gap-1.5"
                     >
-                      <div className="text-[14.5px] text-ink-muted">{f.label}</div>
+                      <div className="text-[14.5px] text-ink-muted">{v(f.label)}</div>
                       <div className="font-mono text-[14.5px]">
                         {formatAnswer(f.id, answers)}
                       </div>
@@ -633,7 +704,37 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                 </div>
               ))}
             </div>
-            <div className="mt-7 flex items-center justify-between gap-4 max-sm:flex-col-reverse max-sm:items-stretch max-sm:[&>*]:text-center">
+            {/*
+              The agreement, directly above Submit. Counsel's wording, from
+              lib/legal.ts, so what is shown here is byte for byte what the
+              consent record stores. Unticked on every visit to this screen,
+              including after a resumed draft: see the consent state above.
+            */}
+            <div className="mt-7 rounded-md border border-line bg-raised px-[22px] py-5">
+              <ConsentCheck
+                id="pv-consent-terms"
+                checked={termsAccepted}
+                onChange={setTermsAccepted}
+              >
+                {splitConsentLinks(CONSENT_TERMS_TEXT).map((part) =>
+                  part.href ? (
+                    <a
+                      key={part.text}
+                      href={part.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-ink underline decoration-ink/30 underline-offset-[3px] hover:decoration-ink"
+                    >
+                      {part.text}
+                      <span className="sr-only"> (opens in a new tab)</span>
+                    </a>
+                  ) : (
+                    <span key={part.text}>{part.text}</span>
+                  ),
+                )}
+              </ConsentCheck>
+            </div>
+            <div className="mt-6 flex items-start justify-between gap-4 max-sm:flex-col-reverse max-sm:items-stretch max-sm:[&>*]:text-center">
               <button
                 type="button"
                 onClick={() => goTo(TOTAL_STEPS - 1)}
@@ -641,14 +742,24 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
               >
                 Back to step 6
               </button>
-              <button
-                type="button"
-                onClick={submit}
-                disabled={busy}
-                className="cursor-pointer rounded-md border border-accent bg-accent px-[26px] py-3.5 text-[15.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press disabled:cursor-wait disabled:opacity-70"
-              >
-                {busy ? "Submitting…" : "Submit the record"}
-              </button>
+              <div className="flex max-w-[46ch] flex-col items-end gap-3 max-sm:max-w-none max-sm:items-stretch">
+                <button
+                  type="button"
+                  onClick={submit}
+                  disabled={busy || !termsAccepted}
+                  aria-describedby="pv-submit-notice"
+                  className="cursor-pointer rounded-md border border-accent bg-accent px-[26px] py-3.5 text-[15.5px] font-semibold text-white transition-colors duration-150 hover:bg-accent-press disabled:cursor-not-allowed disabled:opacity-50 aria-busy:cursor-wait"
+                  aria-busy={busy || undefined}
+                >
+                  {busy ? "Submitting…" : "Submit"}
+                </button>
+                <p
+                  id="pv-submit-notice"
+                  className="text-right text-[13px] leading-normal text-ink-soft max-sm:text-left"
+                >
+                  {SUBMIT_NOTICE_TEXT}
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -681,7 +792,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
                   when: "Days 1–2",
                   what: "You approve the shortlist",
                   detail:
-                    "They name the providers they intend to quote. Nothing leaves our team until you confirm that list.",
+                    v("They name the providers they intend to quote. Nothing leaves our team until you confirm that list."),
                 },
                 {
                   when: "Days 3–5",
@@ -733,6 +844,12 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
           </div>
         )}
       </main>
+
+      {footer && (
+        <footer className="border-t border-line">
+          <div className="mx-auto w-full max-w-[1120px] px-8 py-7 max-sm:px-[18px]">{footer}</div>
+        </footer>
+      )}
 
       {/* save-and-finish-later bar */}
       {abandon && view !== "done" && (
@@ -821,6 +938,62 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant }: Props
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------- consent ---------- */
+
+/**
+ * A consent checkbox with its full wording as the label.
+ *
+ * The whole sentence is the label, so the click target is the paragraph and
+ * not an 18px box, and a screen reader announces exactly what is being agreed
+ * to. Unchecked by default; the caller owns the state.
+ */
+function ConsentCheck({
+  id,
+  checked,
+  onChange,
+  disabled,
+  note,
+  children,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  /** Why the box is disabled, shown under it and announced with it. */
+  note?: string;
+  children: React.ReactNode;
+}) {
+  const noteId = note ? `${id}-note` : undefined;
+  return (
+    <div className="flex items-start gap-3">
+      <Checkbox
+        id={id}
+        checked={checked}
+        onCheckedChange={(c) => onChange(c === true)}
+        disabled={disabled}
+        aria-describedby={noteId}
+        className="mt-[3px] size-[18px] cursor-pointer border-line-strong bg-raised data-[state=checked]:border-ink data-[state=checked]:bg-ink data-[state=checked]:text-white"
+      />
+      <div className="min-w-0">
+        <label
+          htmlFor={id}
+          className={cn(
+            "block text-[13.5px] leading-relaxed text-ink-soft [text-wrap:pretty]",
+            disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+          )}
+        >
+          {children}
+        </label>
+        {note && (
+          <p id={noteId} className="mt-1 text-[12.5px] text-ink-muted">
+            {note}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

@@ -314,6 +314,8 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
   const [shortName, setShortName] = useState(b.shortName ?? "");
   const [supportEmail, setSupportEmail] = useState(b.supportEmail ?? "");
   const [crmPartnerName, setCrmPartnerName] = useState(b.crmPartnerName ?? "");
+  const [legalName, setLegalName] = useState(b.legalName ?? "");
+  const [contactUrl, setContactUrl] = useState(b.contactUrl ?? "");
   const [accent, setAccent] = useState(b.colors?.accent ?? "#ff2d00");
   const [ink, setInk] = useState(b.colors?.ink ?? "#19233b");
   const [dark, setDark] = useState(b.colors?.dark ?? "#19233b");
@@ -339,6 +341,8 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
         shortName,
         supportEmail,
         crmPartnerName,
+        legalName,
+        contactUrl,
         accent,
         ink,
         dark,
@@ -377,35 +381,18 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
         />
         <div>
           <Field
-            id={`se-${partner.id}`}
-            label="Partner email"
-            value={supportEmail}
-            onChange={setSupportEmail}
-            placeholder="ops@partner.com"
+            id={`ln-${partner.id}`}
+            label="Legal name"
+            value={legalName}
+            onChange={setLegalName}
+            placeholder="Defaults to the display name"
             disabled={pending}
           />
           <p className="mt-1.5 text-[12.5px] text-ink-muted">
-            Their work address. Gets an alert for every new lead, and replies
-            to their leads&rsquo; emails land here.
+            Their registered entity. The footer of every page on their site
+            names them as the referral partner.
           </p>
         </div>
-
-        <Field
-          id={`cn-${partner.id}`}
-          label="Display name"
-          value={companyName}
-          onChange={setCompanyName}
-          placeholder={partner.name}
-          disabled={pending}
-        />
-        <Field
-          id={`sn-${partner.id}`}
-          label="Short name"
-          value={shortName}
-          onChange={setShortName}
-          placeholder="For tight spaces"
-          disabled={pending}
-        />
         <div>
           <Field
             id={`se-${partner.id}`}
@@ -418,6 +405,21 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
           <p className="mt-1.5 text-[12.5px] text-ink-muted">
             Their work address. Gets an alert for every new lead, and replies
             to their leads&rsquo; emails land here.
+          </p>
+        </div>
+        <div>
+          <Field
+            id={`cu-${partner.id}`}
+            label="Contact link"
+            value={contactUrl}
+            onChange={setContactUrl}
+            placeholder="https://partner.com/contact or an email"
+            disabled={pending}
+          />
+          <p className="mt-1.5 text-[12.5px] text-ink-muted">
+            Where Contact and Talk to an advisor go on their site. Falls back
+            to the partner email. Privacy, terms and data requests always go to
+            Prime.
           </p>
         </div>
 
@@ -425,7 +427,7 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
             whoever works the export knows who to credit. */}
         <div>
           <Field
-            id={`cn-${partner.id}`}
+            id={`crm-${partner.id}`}
             label="CRM partner name"
             value={crmPartnerName}
             onChange={setCrmPartnerName}
@@ -437,7 +439,6 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
             leads keep whatever they were stamped with.
           </p>
         </div>
-
       </div>
 
       {/* Second column: the visual assets. Grouping the three colour pickers

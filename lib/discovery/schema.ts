@@ -168,19 +168,10 @@ export const STEPS: StepDef[] = [
         email: true,
       },
       {
-        id: "phone",
-        type: "text",
-        label: "Phone",
-        help: "Optional. Only used if the record is ambiguous.",
-        placeholder: "(555) 123-4567",
-        half: true,
-      },
-      {
         id: "jobTitle",
         type: "text",
         label: "Job title",
         placeholder: "VP of HR",
-        half: true,
       },
       {
         id: "decisionRole",
@@ -658,6 +649,20 @@ export const STEPS: StepDef[] = [
           ["email", "Email me the proposal", ""],
         ],
         required: true,
+      },
+      /*
+        Phone lives on this step, not step 2, because counsel requires the
+        call and text consent to sit beside the number it covers, and both
+        consents to be shown again whenever a saved draft is resumed. The
+        flow renders that checkbox directly under this field. It is never
+        stored in answers: see the consent state in discovery-flow.tsx.
+      */
+      {
+        id: "phone",
+        type: "text",
+        label: "Phone",
+        help: "Optional. Used to reach you about this record.",
+        placeholder: "(555) 123-4567",
       },
       {
         id: "bestTime",

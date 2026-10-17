@@ -14,6 +14,8 @@ const HOUSE_TENANT = { isHouse: true, name: "Prime PEO Brokers", branding: {} as
 
 interface Props {
   tenant: { isHouse: boolean; name: string; branding: Branding } | null;
+  /** The provider disclosure, rendered by the server page. */
+  footer?: React.ReactNode;
 }
 
 type Values = {
@@ -34,7 +36,7 @@ const EMPTY: Values = {
   bestTime: "",
 };
 
-export function TalkForm({ tenant }: Props) {
+export function TalkForm({ tenant, footer }: Props) {
   const isPartner = tenant !== null && !tenant.isHouse;
   const brandName = isPartner
     ? (tenant.branding.companyName ?? tenant.name)
@@ -243,6 +245,12 @@ export function TalkForm({ tenant }: Props) {
           </div>
         )}
       </main>
+
+      {footer && (
+        <footer className="border-t border-line">
+          <div className="mx-auto w-full max-w-[1120px] px-8 py-7 max-sm:px-[18px]">{footer}</div>
+        </footer>
+      )}
     </div>
   );
 }

@@ -71,8 +71,10 @@ test.describe("partner branded homepage", () => {
       Stripping these would be a compliance failure, not a branding win.
     */
     await expect(
-      page.getByText(/brokerage services provided by/i).first(),
+      page.getByText(/services provided by A&G Advisors, LLC d\/b\/a Prime PEO Brokers/i).first(),
     ).toBeVisible();
+    await expect(page.getByText(/is a referral partner; the PEO and HCM evaluation is performed by Prime/).first()).toBeVisible();
+    await expect(page.getByText("© A&G Advisors, LLC d/b/a Prime PEO Brokers")).toBeVisible();
 
     await expect(page.locator('a[href="/privacy"]').first()).toBeVisible();
     await expect(page.locator('a[href="/terms"]').first()).toBeVisible();

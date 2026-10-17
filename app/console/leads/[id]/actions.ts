@@ -293,3 +293,49 @@ export async function logRecordOpen(submissionId: string): Promise<void> {
     detail: "Record opened",
   });
 }
+
+/**
+ * Records a STOP (or any "do not call or text me") against this lead's
+ * consent record, and against every other lead that consented with the same
+ * number.
+ *
+ * The RPC (migration 0015) is the boundary: it re-checks that the caller is on
+ * Prime's team and can see this lead, and it is the one write path into
+ * consent_records after submission. It returns how many records changed, so
+ * a second click reads as "already recorded" rather than a false success.
+ */
+export async function recordSmsOptOut(input: {
+  submissionId: string;
+}): Promise<{ error: string } | { ok: true; message: string }> {
+  const guard = await guardAction();
+  if (!guard.ok) return { error: guard.error };
+
+  const submissionId = String(input.submissionId ?? "");
+  if (!UUID_RE.test(submissionId)) return { error: "That record is not valid." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("record_sms_opt_out", {
+    p_submission_id: submissionId,
+    p_source: "console",
+  });
+  if (error) {
+    console.error("[lead] opt-out failed", error);
+    if (error.code === "42501") {
+      return { error: "Only the Prime PEO Brokers team can record an opt-out." };
+    }
+    if (error.code === "P0002") return { error: "There is no consent record for this lead." };
+    return { error: "The opt-out was not saved. Try again." };
+  }
+
+  revalidateLead();
+  const n = typeof data === "number" ? data : 0;
+  return {
+    ok: true,
+    message:
+      n === 0
+        ? "Already opted out. Nothing changed."
+        : n === 1
+          ? "Opt-out recorded. Do not call or text this number."
+          : `Opt-out recorded on ${n} records with this number. Do not call or text it.`,
+  };
+}

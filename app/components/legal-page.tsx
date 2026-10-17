@@ -1,13 +1,21 @@
 import Link from "next/link";
 import { Logo } from "@/app/components/logo";
+import { LegalDisclosure } from "@/app/components/legal-disclosure";
+import { getTenant } from "@/lib/tenant/resolve";
+import { partnerLegalName } from "@/lib/tenant/partner";
 
 /**
  * Shared frame for the privacy policy and terms. Both now carry the
  * client-supplied legal copy, so the draft banner that flagged them as
  * unreviewed is gone. Outstanding placeholder values are tracked in a
  * TODO(client) comment at the top of each page.
+ *
+ * Reads the tenant only to name the partner in the footer disclosure. The
+ * documents themselves are Prime's and identical on every host. That read
+ * makes /terms and /privacy dynamic rather than prerendered, which is cheap
+ * for two text pages and is the price of the disclosure being on every page.
  */
-export function LegalPage({
+export async function LegalPage({
   title,
   lastUpdated,
   children,
@@ -16,6 +24,7 @@ export function LegalPage({
   lastUpdated: string;
   children: React.ReactNode;
 }) {
+  const tenant = await getTenant();
   return (
     <>
       <header className="sticky top-0 z-40 border-b border-line bg-[rgba(255,255,255,.92)] backdrop-blur-[8px]">
@@ -52,6 +61,13 @@ export function LegalPage({
           </a>
         </div>
       </main>
+
+      <footer className="border-t border-line">
+        <LegalDisclosure
+          partnerLegalName={partnerLegalName(tenant)}
+          className="mx-auto max-w-[820px] px-10 py-8 max-sm:px-5"
+        />
+      </footer>
     </>
   );
 }

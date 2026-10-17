@@ -27,6 +27,14 @@ import { Faq } from "@/app/components/faq";
 import { PROOF_READY, OUTCOMES, QUOTES } from "@/lib/content/proof";
 import { STEPS } from "@/lib/discovery/schema";
 import type { Branding } from "@/lib/tenant/branding";
+import { LegalDisclosure } from "@/app/components/legal-disclosure";
+import {
+  HOUSE_EMAIL,
+  HOUSE_NAME,
+  partnerContact,
+  partnerLegalName,
+  voiceFor,
+} from "@/lib/tenant/partner";
 
 /** The tenant whose brand this page wears. null means the house site. */
 export type LandingTenant = {
@@ -35,17 +43,16 @@ export type LandingTenant = {
   branding: Branding;
 } | null;
 
-/**
- * The house identity, named once.
- *
- * These stay on a partner's page in exactly two places, both deliberate: the
- * legal links in the footer, and the line naming who is licensed and who is
- * paid. Terms and privacy name Prime because Prime is the data controller and
- * holds the brokerage licence, so a partner's visitor must be able to see
- * whose terms they are agreeing to.
+/*
+ * The house identity is named once, in lib/tenant/partner.ts. It stays on a
+ * partner's page wherever counsel requires Prime to be named: the footer
+ * disclosure and copyright, the legal links, and the copy that says who does
+ * the work ("Prime's advisory team", "Prime holds agreements"). Terms and
+ * privacy name Prime because Prime is the data controller and holds the
+ * brokerage licence, so a partner's visitor must be able to see whose terms
+ * they are agreeing to.
  */
-export const HOUSE_NAME = "Prime PEO Brokers";
-export const HOUSE_EMAIL = "admin@primepeobrokers.com";
+export { HOUSE_EMAIL, HOUSE_NAME };
 
 /**
  * What the page says, per tenant.
@@ -62,13 +69,17 @@ export function landingBrand(tenant: LandingTenant) {
       ? (tenant.branding.companyName ?? tenant.name)
       : HOUSE_NAME,
     /*
-      Falls back to Prime's inbox rather than rendering a dead mailto: a
-      partner whose branding carries no supportEmail still gets a working
-      contact link, and Prime's team works these leads either way.
+      "Contact", "Talk to an advisor" and the FAQ's "Anything else" line reach
+      the partner on a partner tenant: their contact setting, then their work
+      email, then Prime's inbox rather than a dead link. Privacy, terms, data
+      requests and compensation questions are NOT routed through this; they
+      always reach Prime. See partnerContact().
     */
-    contactEmail: isPartner
-      ? (tenant.branding.supportEmail ?? HOUSE_EMAIL)
-      : HOUSE_EMAIL,
+    contact: partnerContact(tenant),
+    /* Rewrites "our team" / "your advisor" / "we hold agreements" to name Prime. */
+    voice: voiceFor(tenant),
+    /* Named in the footer disclosure as the referral partner. */
+    legalName: partnerLegalName(tenant),
     /*
       The referral section pitches becoming a partner OF PRIME. On a partner's
       own site that is off-message, so it comes out, and with it the nav and
@@ -309,7 +320,8 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
     `null` (the house route, which resolves no tenant at all) and the house
     tenant itself both render exactly what shipped before.
   */
-  const { brandName, contactEmail, showPartnerSection } = landingBrand(tenant);
+  const { brandName, contact, voice: v, legalName, showPartnerSection } =
+    landingBrand(tenant);
 
   // The narrowed tenant, not a boolean: TypeScript cannot carry `isPartner`
   // back to `tenant`, and TenantMark needs a non-null one. Null here means
@@ -320,11 +332,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
     ...col,
     links: col.links
       .filter((l) => showPartnerSection || l.href !== "/#brokers")
-      .map((l) =>
-        l.href.startsWith("mailto:")
-          ? { ...l, href: `mailto:${contactEmail}` }
-          : l,
-      ),
+      .map((l) => (l.href.startsWith("mailto:") ? { ...l, href: contact.href } : l)),
   }));
 
   return (
@@ -372,8 +380,13 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             <a href="#how" className="text-ink-soft hover:text-accent-press">How it works</a>
             <a href="#compare" className="text-ink-soft hover:text-accent-press">What we compare</a>
             <a href="#renewals" className="text-ink-soft hover:text-accent-press">Renewals</a>
-            {showPartnerSection && (
+            {/* One slot, two uses: Prime's own site recruits partners here,
+                and a partner's site sends its visitors to the partner. Sharing
+                the slot keeps the row the width layout-overflow.spec.ts measures. */}
+            {showPartnerSection ? (
               <a href="#brokers" className="text-ink-soft hover:text-accent-press">For partners</a>
+            ) : (
+              <a href={contact.href} className="text-ink-soft hover:text-accent-press">Contact</a>
             )}
             <a href="#trust" className="text-ink-soft hover:text-accent-press">Data handling</a>
             <a href="#faq" className="text-ink-soft hover:text-accent-press">FAQ</a>
@@ -490,10 +503,9 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             className="mt-6 max-w-[50ch] text-[19px] leading-normal text-line-strong [text-wrap:pretty]"
             style={{ animation: "pv-in 500ms var(--pv-ease) 100ms both" }}
           >
-            Research, evaluate, and choose the right PEO, payroll, and HR
-            software for free. Answer a structured set of questions once; an
-            expert on our team does the legwork and delivers your tailored
-            proposal. One advisor, every option. You never pay a fee.
+            {v(
+              "Research, evaluate, and choose the right PEO, payroll, and HR software for free. Answer a structured set of questions once; an expert on our team does the legwork and delivers your tailored proposal. One advisor, every option that fits. You never pay a fee.",
+            )}
           </p>
           <div
             className="mt-[34px] flex flex-wrap gap-3.5"
@@ -525,7 +537,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
           >
             {[
               ["6 min", "Median time to complete"],
-              ["1 business day", "Your advisor reviews your submission within"],
+              ["1 business day", v("Your advisor reviews your submission within")],
               ["$0", "Cost to you, ever"],
             ].map(([fig, note]) => (
               <div key={fig}>
@@ -586,8 +598,13 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               the kind of claim that causes trouble later, which is why it was
               left vague until confirmed.
             */}
+            {/*
+              On a partner's site, counsel requires the figure to be credited
+              to Prime and qualified: "Last client we helped" would read as
+              the partner's own client there.
+            */}
             <div className="font-mono text-[10.5px] uppercase tracking-[.14em] text-ink-soft">
-              Last client we helped saved
+              {legalName ? "A recent Prime placement saved" : "Last client we helped saved"}
             </div>
             {/*
               The one number the page is selling. Display face, not mono:
@@ -612,6 +629,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             </div>
             <div className="mt-2.5 text-[13.5px] leading-snug text-ink-soft">
               Annual savings, across admin, medical, and workers&rsquo; comp.
+              {legalName && " Results vary."}
             </div>
           </div>
 
@@ -794,7 +812,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                   {s.title}
                 </h3>
                 <p className="mt-[9px] text-[14.5px] leading-normal text-ink-soft [text-wrap:pretty]">
-                  {s.body}
+                  {v(s.body)}
                 </p>
               </div>
             ))}
@@ -836,7 +854,9 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               {
                 eyebrow: "Already have a quote?",
                 title: "Renewing? We will benchmark your deal",
-                body: "Renewing or holding a competing bid? Run the same discovery and tell us who you are with. Our team benchmarks your current terms against the market and shops your options, so you know if you are getting a fair deal. Your advisor will ask for the paperwork if seeing it would help.",
+                body: v(
+                  "Renewing or holding a competing bid? Run the same discovery and tell us who you are with. Our team benchmarks your current terms against the market and shops your options, so you know if you are getting a fair deal. Your advisor will ask for the paperwork if seeing it would help.",
+                ),
                 cta: "Benchmark my renewal",
                 href: "/discovery?intent=renewal",
                 primary: false,
@@ -883,9 +903,9 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               </h2>
             </div>
             <p className="max-w-[36ch] text-[15px] leading-relaxed text-dark-ink-muted">
-              We hold agreements across the market and quote your record against
-              every model that fits it. Provider names appear once you are in
-              the flow.
+              {v(
+                "We hold agreements across the market and quote your record against every model that fits it. Provider names appear once you are in the flow.",
+              )}
             </p>
           </div>
           <div data-sequence className="mt-10 border border-dark-line">
@@ -1081,7 +1101,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                   {t.title}
                 </h3>
                 <p className="mt-[9px] text-[14.5px] leading-normal text-ink-soft [text-wrap:pretty]">
-                  {t.body}
+                  {v(t.body)}
                 </p>
               </div>
             ))}
@@ -1098,17 +1118,17 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               Questions people actually ask.
             </h2>
             <p className="mt-[18px] text-[14.5px] leading-relaxed text-ink-soft">
-              Anything else, email{" "}
+              Anything else, {contact.isEmail ? "email" : "contact"}{" "}
               <a
-                href={`mailto:${contactEmail}`}
+                href={contact.href}
                 className="border-b border-[color-mix(in oklab,var(--pv-accent) 30%,transparent)] text-accent-press hover:border-accent hover:text-accent"
               >
-                {contactEmail}
+                {contact.label}
               </a>
               .
             </p>
           </div>
-          <Faq items={FAQS} />
+          <Faq items={FAQS.map((f) => ({ q: f.q, a: v(f.a) }))} />
         </div>
       </section>
 
@@ -1131,16 +1151,17 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               >
                 Start shopping
               </Link>
-              {/* Into the flow, not to a call form. The client's instruction
-                  was that "Talk to an advisor" is wording, not a different
-                  destination: an advisor reads the record either way, and the
-                  record is what makes that conversation useful. */}
-              <Link
-                href="/discovery"
+              {/* On Prime's own site, into the flow rather than a call form:
+                  the client's instruction was that "Talk to an advisor" is
+                  wording, not a different destination, since an advisor reads
+                  the record either way. On a partner's site counsel routes it
+                  to the partner instead. */}
+              <a
+                href={legalName ? contact.href : "/discovery"}
                 className="rounded-md border border-ink-soft px-6 py-[15px] text-base font-semibold text-dark-ink transition-colors duration-150 hover:border-dark-ink-muted"
               >
                 Talk to an advisor
-              </Link>
+              </a>
             </div>
           </div>
           <div data-sequence className="rounded-md border border-dark-line">
@@ -1178,22 +1199,6 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                 <Logo size={32} variant="inverted" />
               )}
             </div>
-            {/*
-              One line, identical on every tenant. It names Prime outright, so
-              it is already accurate on a partner site: a partner may hold no
-              insurance licence at all, and this tells a visitor whose terms
-              and privacy policy the links below lead to.
-            */}
-            {/*
-              The trading name, on its own. The client asked for the DBA here
-              (2026-10-01) rather than a registered entity, which settles the
-              open question about the legal name: there is no "LLC" line to
-              add, and "Prime PEO Brokers, DBA" would read as an abbreviation
-              hanging off the name rather than as the name itself.
-            */}
-            <p className="mt-4 max-w-[34ch] text-[13px] leading-relaxed">
-              PEO and HCM advisory services provided by {HOUSE_NAME}.
-            </p>
           </div>
           {footerCols.map((col) => (
             <div key={col.head}>
@@ -1224,29 +1229,16 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             </div>
           ))}
         </div>
-        <div className="mx-auto flex max-w-[1240px] flex-wrap justify-between gap-6 border-t border-dark-line-soft px-10 pb-12 pt-5 font-mono text-[11.5px] max-sm:px-5">
-          <div>© 2026 {brandName}</div>
-          {/*
-            These pointed at /#trust twice and listed "Privacy" twice, so the
-            "Terms" link never reached the terms page on any site. The legal
-            pages stay Prime's on a partner host: Prime is the data controller
-            and the licensed party, which the footer line above says plainly.
-          */}
-          <div className="flex gap-6">
-            {/*
-              dark-ink-muted, not ink-faint. ink-faint is tuned for light
-              grounds and measures 4.27:1 on this navy, just under the 4.5:1
-              floor; dark-ink-muted is the token meant for dark surfaces and
-              reaches 6.81:1. These are the legal links, so they are the last
-              text on the page that should be hard to read.
-
-              Padded for the same reason as the column links above: a 20px
-              target is not reliably tappable.
-            */}
-            <Link href="/privacy" className="-my-3 inline-flex min-h-11 items-center rounded-sm text-dark-ink-muted transition-colors duration-150 hover:text-dark-ink">Privacy</Link>
-            <Link href="/terms" className="-my-3 inline-flex min-h-11 items-center rounded-sm text-dark-ink-muted transition-colors duration-150 hover:text-dark-ink">Terms</Link>
-            <Link href="/#trust" className="-my-3 inline-flex min-h-11 items-center rounded-sm text-dark-ink-muted transition-colors duration-150 hover:text-dark-ink">Data handling</Link>
-          </div>
+        {/*
+          Counsel's disclosure, full width in the footer's last band. It
+          replaced three things: a DBA-only line under the logo, a
+          "© [partner]" copyright (the copyright is always Prime's legal
+          entity now, on every tenant), and a row of Privacy / Terms / Data
+          handling links that would have repeated the disclosure's own links
+          directly beneath them. Data handling is still in the Legal column.
+        */}
+        <div className="mx-auto max-w-[1240px] border-t border-dark-line-soft px-10 pb-12 pt-6 max-sm:px-5">
+          <LegalDisclosure partnerLegalName={legalName} tone="dark" />
         </div>
       </footer>
     </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage, Section } from "@/app/components/legal-page";
+import { TERMS_VERSION } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Terms and conditions",
@@ -9,30 +10,31 @@ export const metadata: Metadata = {
 };
 
 /*
- * Client-supplied legal copy, adapted from the white-label template. Phase 1
- * runs a single tenant and Prime operates its own site, so the template's
- * two-party framing ({{PARTNER_*}} plus Prime as platform provider) collapses
- * into one: A&G Advisors, LLC d/b/a Prime PEO Brokers is both. If Phase 3
- * introduces partner tenants, these documents need the split restored and the
- * partner details resolved per tenant alongside lib/tenant.ts.
+ * Client-supplied legal copy, adapted from the white-label template, with
+ * counsel's October 2026 amendments for partner-branded Sites: the Site
+ * definition in the opening paragraph, section 2A, and the referral-partner
+ * paragraph closing section 3. Prime provides the Services on every tenant,
+ * so these are one document served unchanged on every host.
  *
- * TODO(client): the supplied text left an effective date placeholder we still
- * do not have. `lastUpdated` below is the ship date, which is not necessarily
- * the date the client intends these to take effect. Retention periods appear in
- * the privacy policy and carry their own TODO.
+ * The version date lives in lib/legal.ts, because it is also stamped onto
+ * every consent record. Bump it there when this text changes.
  */
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms and conditions" lastUpdated="2026-08-29">
+    <LegalPage title="Terms and conditions" lastUpdated={TERMS_VERSION}>
       <Section heading="Before you begin">
         <p>
           These Terms and Conditions (&ldquo;Terms&rdquo;) govern your access
-          to and use of primepeobrokers.com (the &ldquo;Site&rdquo;) and the
-          PEO, payroll, and employer services evaluation offered through it
-          (the &ldquo;Services&rdquo;), provided by A&amp;G Advisors, LLC d/b/a
-          Prime PEO Brokers (&ldquo;Prime,&rdquo; &ldquo;we,&rdquo;
-          &ldquo;us,&rdquo; or &ldquo;our&rdquo;), a licensed insurance
-          producer and PEO/HCM advisory firm.
+          to and use of primepeobrokers.com, primevantagehcm.com, and any
+          website, page, or embedded tool that displays the Prime platform,
+          including versions branded with the name or logo of a referral
+          partner (each, a &ldquo;Site&rdquo;), and the PEO, payroll, and
+          employer services evaluation offered through them (the
+          &ldquo;Services&rdquo;). The Services are provided by A&amp;G
+          Advisors, LLC d/b/a Prime PEO Brokers (&ldquo;Prime,&rdquo;
+          &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), a licensed
+          insurance producer and PEO/HCM advisory firm, regardless of the
+          branding shown on the Site.
         </p>
         <p>
           By accessing the Site, submitting information, or requesting an
@@ -106,6 +108,28 @@ export default function TermsPage() {
         </p>
       </Section>
 
+      {/*
+        2A, not 3. Counsel's text cross-references sections by number: this
+        section points at Section 3 for compensation, and the step 6 consent
+        (lib/legal.ts) points at Section 14 for arbitration. Renumbering
+        everything after 2 would make both point at the wrong section.
+      */}
+      <Section id="partner-sites" heading="2A. Partner-branded Sites">
+        <p>
+          You may access the Services through a Site that displays the name or
+          logo of a referral partner, such as your insurance broker,
+          accountant, financial advisor, or HR consultant. The Services on any
+          such Site are provided by Prime, not by the partner. Unless the
+          partner separately agrees in writing, the partner is not a party to
+          these Terms, does not provide the Services, and does not prepare the
+          evaluation or proposals. The partner may receive compensation from
+          Prime as described in Section 3. Information you submit is received
+          by Prime and handled under Prime&rsquo;s privacy policy. Where Prime
+          shares your information with the partner, it is limited to what is
+          described in the privacy policy.
+        </p>
+      </Section>
+
       <Section id="compensation" heading="3. Compensation disclosure">
         <p>
           We are compensated by the vendors we place business with. If you
@@ -131,6 +155,14 @@ export default function TermsPage() {
             admin@primepeobrokers.com
           </a>
           .
+        </p>
+        <p>
+          <strong>Referral partners.</strong> If you reached us through a
+          referral partner, such as your insurance broker, accountant,
+          financial advisor, or HR consultant, Prime may pay that partner a
+          referral fee or share of Prime&rsquo;s compensation. Referral
+          compensation is paid by Prime and does not increase the price you
+          pay any provider.
         </p>
       </Section>
 

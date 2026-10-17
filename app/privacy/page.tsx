@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage, Section } from "@/app/components/legal-page";
+import { PRIVACY_VERSION } from "@/lib/legal";
 
 export const metadata: Metadata = {
   title: "Privacy policy",
@@ -22,24 +23,30 @@ export const metadata: Metadata = {
  * so five is the safe number to publish. The 90-day SSN window and 12-month
  * log/draft windows are ordinary practice, not statute.
  *
+ * Counsel's October 2026 amendments: the Site definition in the opening
+ * paragraph (shared with the Terms) and the referral-partner paragraph that
+ * closes section 1. The version date lives in lib/legal.ts because it is also
+ * stamped onto every consent record.
+ *
  * TODO: these are promises the code does not yet keep. Nothing deletes drafts,
  * expires census data, or rotates logs on a schedule, so the periods are
  * enforced manually today. A scheduled cleanup job should back them before
- * this sees real volume. The effective date is also still the ship date rather
- * than a date the client has confirmed.
+ * this sees real volume.
  */
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" lastUpdated="2026-08-29">
+    <LegalPage title="Privacy policy" lastUpdated={PRIVACY_VERSION}>
       <Section heading="Before you begin">
         <p>
           This privacy policy describes how A&amp;G Advisors, LLC d/b/a Prime
           PEO Brokers (&ldquo;Prime,&rdquo; &ldquo;we,&rdquo;
           &ldquo;us,&rdquo; or &ldquo;our&rdquo;) collects, uses, discloses,
           and protects personal information in connection with
-          primepeobrokers.com (the &ldquo;Site&rdquo;) and the PEO, payroll,
-          and employer services evaluation offered through it (the
-          &ldquo;Services&rdquo;).
+          primepeobrokers.com, primevantagehcm.com, and any website, page, or
+          embedded tool that displays the Prime platform, including versions
+          branded with the name or logo of a referral partner (each, a
+          &ldquo;Site&rdquo;), and the PEO, payroll, and employer services
+          evaluation offered through them (the &ldquo;Services&rdquo;).
         </p>
         <p>
           By using the Site or submitting information through it, you
@@ -89,6 +96,16 @@ export default function PrivacyPage() {
           Organizations that receive your information to produce quotes are
           independent controllers and handle it under their own privacy
           policies, which we do not control.
+        </p>
+        <p>
+          <strong>Referral partners.</strong> If you reach the Site through a
+          referral partner&rsquo;s website or branding, Prime is still the
+          party that receives and handles your information. The partner who
+          referred you may receive your name, company name, contact details,
+          and the status of your evaluation so it can support you. Partners do
+          not receive employee census data, Social Security numbers, or
+          benefits claims information unless you direct us in writing to share
+          it.
         </p>
       </Section>
 

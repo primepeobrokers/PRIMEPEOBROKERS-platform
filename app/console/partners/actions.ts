@@ -7,7 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendTeamInvite } from "@/lib/email";
 import { confirmUrl, tenantOrigin } from "@/lib/tenant/urls";
-import { contrastRatio, parseBranding, type Branding } from "@/lib/tenant/branding";
+import {
+  __testables as brandingRules,
+  contrastRatio,
+  parseBranding,
+  type Branding,
+} from "@/lib/tenant/branding";
 import { brandFor } from "@/lib/tenant/email-brand";
 import { imageInfo } from "@/lib/tenant/image-size";
 import type { SessionContext } from "@/lib/auth/session";
@@ -179,6 +184,10 @@ export async function savePartnerBranding(input: {
   shortName: string;
   supportEmail: string;
   crmPartnerName: string;
+  /** Named in the footer disclosure as the referral partner. */
+  legalName: string;
+  /** Where "Contact" and "Talk to an advisor" go: an https URL or an email. */
+  contactUrl: string;
   accent: string;
   ink: string;
   dark: string;
@@ -206,6 +215,25 @@ export async function savePartnerBranding(input: {
   const crmPartnerName = String(input.crmPartnerName ?? "").trim();
   if (crmPartnerName.length > 120) {
     return { error: "That CRM name is too long. Keep it under 120 characters." };
+  }
+
+  const legalName = String(input.legalName ?? "").trim();
+  if (legalName.length > 200) {
+    return { error: "That legal name is too long. Keep it under 200 characters." };
+  }
+
+  /*
+    The same rule parseBranding applies on read, run here so staff get a
+    sentence instead of a value that silently vanishes on save. It is rendered
+    as an href on a public page, so https and email only: no javascript:, no
+    plain http.
+  */
+  const rawContact = String(input.contactUrl ?? "").trim();
+  const contactUrl = rawContact ? brandingRules.safeContact(rawContact) : undefined;
+  if (rawContact && !contactUrl) {
+    return {
+      error: "The contact must be an https:// link or an email address.",
+    };
   }
 
   const colors: Record<string, string> = {};
@@ -285,6 +313,8 @@ export async function savePartnerBranding(input: {
   if (shortName) branding.shortName = shortName;
   if (supportEmail) branding.supportEmail = supportEmail;
   if (crmPartnerName) branding.crmPartnerName = crmPartnerName;
+  if (legalName) branding.legalName = legalName;
+  if (contactUrl) branding.contactUrl = contactUrl;
   if (Object.keys(colors).length) branding.colors = colors;
 
   // The existing logo survives a colour-only save: the form does not carry it.
@@ -325,6 +355,14 @@ async function currentBranding(tenantId: string): Promise<Branding> {
   if (typeof raw.companyName === "string" && parsed.companyName) out.companyName = parsed.companyName;
   if (parsed.shortName) out.shortName = parsed.shortName;
   if (parsed.supportEmail) out.supportEmail = parsed.supportEmail;
+  /*
+    crmPartnerName was missing here, so uploading or removing a logo wrote
+    the branding back without it and silently dropped the partner's CRM
+    attribution: every lead after that was credited to the display name.
+  */
+  if (parsed.crmPartnerName) out.crmPartnerName = parsed.crmPartnerName;
+  if (parsed.legalName) out.legalName = parsed.legalName;
+  if (parsed.contactUrl) out.contactUrl = parsed.contactUrl;
   if (parsed.colors) out.colors = parsed.colors;
   if (parsed.logo) out.logo = parsed.logo;
   return out;

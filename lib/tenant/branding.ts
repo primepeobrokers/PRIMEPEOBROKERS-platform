@@ -42,6 +42,16 @@ export interface Branding {
   supportEmail?: string;
   /** The partner's name as the CRM knows it, which is not always our own. */
   crmPartnerName?: string;
+  /**
+   * The partner's registered legal name, for the footer disclosure ("[name]
+   * is a referral partner"). Falls back to the display name when unset.
+   */
+  legalName?: string;
+  /**
+   * Where "Contact" and "Talk to an advisor" go on this partner's pages: an
+   * https URL or an email address. Falls back to supportEmail when unset.
+   */
+  contactUrl?: string;
 }
 
 /**
@@ -103,6 +113,33 @@ function safePath(value: unknown): string | undefined {
 const EMAIL_RE = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/;
 
 /**
+ * A partner contact: an https URL or an email address, nothing else.
+ *
+ * This value is rendered as an href on a public page, so it is the other
+ * injection boundary in this file. `javascript:` and `data:` are the obvious
+ * payloads; plain http is refused too, since a contact link that downgrades
+ * the visitor off an https page is not one we should publish.
+ */
+function safeContact(value: unknown): string | undefined {
+  const v = safeText(value, 400);
+  if (!v) return undefined;
+  if (EMAIL_RE.test(v) && !v.includes(":") && !v.includes("/")) return v;
+  try {
+    const url = new URL(v);
+    return url.protocol === "https:" && url.hostname ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** mailto: for an address, the URL itself otherwise. Input must have passed safeContact. */
+export function contactHref(contact: string): string {
+  return EMAIL_RE.test(contact) && !contact.includes("/")
+    ? `mailto:${contact}`
+    : contact;
+}
+
+/**
  * Coerces whatever is in the jsonb column into a Branding.
  *
  * Coercion with fallback, never throw. A thrown error here would 500 a
@@ -132,6 +169,8 @@ export function parseBranding(raw: unknown, tenantName: string): Branding {
   if (email && EMAIL_RE.test(email)) out.supportEmail = email;
 
   out.crmPartnerName = safeText(src.crmPartnerName, 120);
+  out.legalName = safeText(src.legalName, 200);
+  out.contactUrl = safeContact(src.contactUrl);
 
   const logo =
     src.logo && typeof src.logo === "object" && !Array.isArray(src.logo)
@@ -265,4 +304,4 @@ export function logoUrl(path: string): string {
 }
 
 /** Exported for the check script, which asserts the injection cases directly. */
-export const __testables = { safeColor, safePath, safeText, safeInt };
+export const __testables = { safeColor, safePath, safeText, safeInt, safeContact };

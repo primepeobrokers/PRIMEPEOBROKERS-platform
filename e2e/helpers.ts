@@ -49,10 +49,12 @@ export function apexUrl(path = "/"): string {
  *
  * Two things make the naive version wrong.
  *
- * First, a partner page is REQUIRED to name Prime once, in the footer
- * attribution ("Brokerage services provided by Prime PEO Brokers") and in the
- * legal links, which stay Prime's because Prime is the data controller. A
- * test that forbids the string outright fails on correct behaviour.
+ * First, a partner page is REQUIRED to name Prime, by counsel's rules
+ * (October 2026): the footer disclosure and copyright ("Services provided by
+ * A&G Advisors, LLC d/b/a Prime PEO Brokers", "© A&G Advisors, ..."), the
+ * "Powered by Prime PEO Brokers" line in the discovery header, and the step 6
+ * consent wording. A test that forbids the string outright fails on correct
+ * behaviour.
  *
  * Second, textContent() would include text inside `display:none` elements and
  * `<script>` payloads. Next inlines the RSC flight data into the document, and
@@ -67,8 +69,14 @@ export async function expectNoHouseBrand(page: Page) {
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l.includes(HOUSE_NAME))
-    // The one line that must name Prime: the attribution.
-    .filter((l) => !/brokerage services provided by/i.test(l));
+    // The lines counsel requires to name Prime.
+    .filter(
+      (l) =>
+        !/^services provided by A&G Advisors/i.test(l) &&
+        !/^© A&G Advisors/.test(l) &&
+        !/^powered by prime peo brokers$/i.test(l) &&
+        !/^I agree (to the Terms|that Prime PEO Brokers may contact)/.test(l),
+    );
 
   expect(
     offending,

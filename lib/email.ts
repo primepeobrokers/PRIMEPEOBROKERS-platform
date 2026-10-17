@@ -3,6 +3,7 @@ import "server-only";
 import { Resend } from "resend";
 import { STEPS, formatAnswer, type Answers } from "@/lib/discovery/schema";
 import {
+  HOUSE_NAME,
   formatFrom,
   houseBrand,
   parseSender,
@@ -592,12 +593,19 @@ export function composeSubmissionConfirmation(input: {
 }): ComposedEmail {
   if (input.kind === "call") {
     const greeting = input.name ? `${input.name},` : "Hello,";
+    /*
+      The licensed party is always Prime. On a partner's mail this used to
+      read "a licensed broker at <partner>", claiming a licence the partner
+      may not hold; counsel's partner-site rules require Prime to be named as
+      the one doing the work.
+    */
+    const licensed = input.brand.isHouse ? input.brand.name : HOUSE_NAME;
     return {
       subject: `A broker will call you · REF ${input.ref}`,
       text: [
         greeting,
         ``,
-        `Your request is with a licensed broker at ${input.brand.name}. They call within one business day, or email first to set a time if you left no number.`,
+        `Your request is with a licensed broker at ${licensed}. They call within one business day, or email first to set a time if you left no number.`,
         ``,
         `Want the call to be more useful? Start the six steps at ${input.brand.origin}/discovery and anything you answer is in front of them before they dial.`,
         ``,
@@ -611,7 +619,7 @@ export function composeSubmissionConfirmation(input: {
         bodyHtml:
           para(escapeHtml(greeting)) +
           para(
-            `Your request is with a licensed broker at ${escapeHtml(input.brand.name)}. They call within one business day, or email first to set a time if you left no number.`,
+            `Your request is with a licensed broker at ${escapeHtml(licensed)}. They call within one business day, or email first to set a time if you left no number.`,
           ) +
           para(
             "Want the call to be more useful? Start the six steps now and anything you answer is in front of them before they dial.",
