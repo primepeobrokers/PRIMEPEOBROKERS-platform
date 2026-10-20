@@ -92,7 +92,7 @@ export default async function PortalPage() {
           Your leads
         </h1>
         <p className="mt-1.5 text-[14px] text-ink-muted">
-          Every enquiry captured through {company}. Prime PEO Brokers works
+          Every inquiry captured through {company}. Prime PEO Brokers works
           each one and keeps its status up to date here.
         </p>
       </header>
@@ -105,7 +105,7 @@ export default async function PortalPage() {
             </EmptyMedia>
             <EmptyTitle>No leads yet</EmptyTitle>
             <EmptyDescription>
-              Enquiries completed on your site will appear here, newest first.
+              Inquiries completed on your site will appear here, newest first.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

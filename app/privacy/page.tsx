@@ -25,7 +25,10 @@ export const metadata: Metadata = {
  *
  * Counsel's October 2026 amendments: the Site definition in the opening
  * paragraph (shared with the Terms) and the referral-partner paragraph that
- * closes section 1. The version date lives in lib/legal.ts because it is also
+ * closes section 1. The client's 20 Oct 2026 corrections: that paragraph
+ * rewritten (partners see the full submitted record), the referral-partner
+ * bullet in section 5, and the calls-only paragraph in section 7 (Prime does
+ * not text clients). The version date lives in lib/legal.ts because it is also
  * stamped onto every consent record.
  *
  * TODO: these are promises the code does not yet keep. Nothing deletes drafts,
@@ -101,11 +104,10 @@ export default function PrivacyPage() {
           <strong>Referral partners.</strong> If you reach the Site through a
           referral partner&rsquo;s website or branding, Prime is still the
           party that receives and handles your information. The partner who
-          referred you may receive your name, company name, contact details,
-          and the status of your evaluation so it can support you. Partners do
-          not receive employee census data, Social Security numbers, or
-          benefits claims information unless you direct us in writing to share
-          it.
+          referred you can see the information you submit and the status of
+          your evaluation so it can support you. Partners do not receive
+          Social Security numbers, employee census files, or benefits claims
+          information unless you direct us in writing to share it.
         </p>
       </Section>
 
@@ -243,6 +245,10 @@ export default function PrivacyPage() {
             relevant to your request.
           </li>
           <li>
+            To the referral partner who introduced you, as described in
+            Section 1.
+          </li>
+          <li>
             <strong>To service providers.</strong> Hosting, form processing,
             email delivery, CRM, e-signature, document storage, analytics, and
             telephony vendors, under contractual confidentiality obligations.
@@ -304,15 +310,15 @@ export default function PrivacyPage() {
           active evaluation or engagement will continue.
         </p>
         <p>
-          <strong>Calls and texts.</strong> By providing a phone number and
-          affirmatively consenting at submission, you agree that Prime PEO
-          Brokers may contact you at that number by phone call and text
-          message, including via automated dialing systems and prerecorded or
-          artificial voice messages, regarding PEO, payroll, and employer
-          services. Consent is not a condition of purchase. Message and data
-          rates may apply. Reply STOP to opt out, HELP for help. Message
-          frequency varies. This consent permits contact notwithstanding any Do
-          Not Call registration, until revoked.
+          <strong>Calls.</strong> If you provide a phone number and consent at
+          submission, Prime PEO Brokers may call you at that number about PEO,
+          payroll, and employer services. Consent is not a condition of
+          purchase. You may withdraw consent at any time by telling your
+          advisor or emailing{" "}
+          <a href="mailto:admin@primepeobrokers.com">
+            admin@primepeobrokers.com
+          </a>
+          .
         </p>
       </Section>
 

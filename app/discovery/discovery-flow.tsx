@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   CATEGORIES,
   STEPS,
@@ -25,9 +25,9 @@ import { Label } from "@/app/components/ui/label";
 import { TenantMark } from "@/app/components/logo";
 import { Checkbox } from "@/app/components/ui/checkbox";
 import type { Branding } from "@/lib/tenant/branding";
-import { voiceFor } from "@/lib/tenant/partner";
+import { partnerReferrer, voiceFor, withPartnerReferral } from "@/lib/tenant/partner";
 import {
-  CONSENT_SMS_TEXT,
+  CONSENT_CALL_TEXT,
   CONSENT_TERMS_TEXT,
   SUBMIT_NOTICE_TEXT,
   splitConsentLinks,
@@ -100,6 +100,8 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
     page, so it is the right destination again.
   */
   const homeHref = "/";
+  // Step 6's "Referred by" answer on a partner's site: their name, locked.
+  const referrer = partnerReferrer(tenant);
 
   // A draft resumed from an emailed link is available at first render.
   // A category in the URL skips the picker; a renewal entry preselects the
@@ -119,8 +121,8 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
   const [visited, setVisited] = useState<number[]>(
     Array.from({ length: resumedStep + 1 }, (_, i) => i),
   );
-  const [answers, setAnswers] = useState<Answers>(
-    resumed?.answers ?? seeded,
+  const [answers, setAnswers] = useState<Answers>(() =>
+    withPartnerReferral(resumed?.answers ?? seeded, tenant),
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState<Toast | null>(null);
@@ -141,7 +143,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
     server records them at submission, against the text in lib/legal.ts.
   */
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [smsConsent, setSmsConsent] = useState(false);
+  const [callConsent, setCallConsent] = useState(false);
 
   const handleRef = useRef<DraftHandle | null>(resumed?.handle ?? null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -172,7 +174,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
           // Through the same sanitiser as the server, so a draft written by an
           // older schema (a removed field, a multi-select that became single)
           // is coerced rather than shown as unselected.
-          setAnswers(sanitizeAnswers(saved.answers));
+          setAnswers(withPartnerReferral(sanitizeAnswers(saved.answers), tenant));
           setStep(Math.min(Math.max(saved.step, 0), TOTAL_STEPS - 1));
           setVisited(
             Array.isArray(saved.visited) && saved.visited.length
@@ -355,8 +357,8 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
       const res = await submitRecord({
         handle: handleRef.current,
         answers,
-        // Consent to calls and texts means nothing without a number to cover.
-        consent: { terms: termsAccepted, sms: smsConsent && hasPhone },
+        // Consent to calls means nothing without a number to cover.
+        consent: { terms: termsAccepted, sms: callConsent && hasPhone },
       });
       if (res.ok) {
         const d = new Date();
@@ -557,10 +559,15 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
                     <span className="whitespace-nowrap rounded-sm border border-ink px-1.5 py-0.5 font-mono text-[10.5px] uppercase tracking-[.1em]">
                       Sensitive
                     </span>
+                    {/*
+                      Who can see this step, worded per site: on a partner's
+                      site the partner who referred the visitor sees the
+                      record too, as section 1 of the privacy policy says.
+                    */}
                     <span className="text-[13.5px] leading-normal text-ink-soft">
-                      {v(
-                        "Stored with encryption at rest and never exposed through a public endpoint. Visible to your broker\u2019s team only, never to a provider without your approval.",
-                      )}
+                      {isPartner
+                        ? "Stored with encryption at rest and never exposed through a public endpoint. Visible only to Prime\u2019s advisory team and the partner who referred you, never to a provider without your approval."
+                        : "Stored with encryption at rest and never exposed through a public endpoint. Visible only to Prime\u2019s advisory team, never to a provider without your approval."}
                     </span>
                   </div>
                 )}
@@ -578,6 +585,11 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
                         }}
                         answers={answers}
                         error={errors[f.id] ?? ""}
+                        lockedNote={
+                          f.id === "referredBy" && referrer
+                            ? `Filled in for you, because you started on ${referrer}\u2019s site.`
+                            : undefined
+                        }
                         onKey={onKey}
                         set={set}
                         onBlurValidate={() => {
@@ -586,20 +598,20 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
                         }}
                       />
                     ));
-                    // Counsel: the call and text consent sits right beside
-                    // the number it covers.
+                    // Counsel: the call consent sits right beside the
+                    // number it covers.
                     if (row.length === 1 && row[0].id === "phone") {
                       return (
                         <div key="phone+consent" className="flex flex-col gap-3.5">
                           {cells}
                           <ConsentCheck
-                            id="pv-consent-sms"
-                            checked={smsConsent && hasPhone}
-                            onChange={setSmsConsent}
+                            id="pv-consent-call"
+                            checked={callConsent && hasPhone}
+                            onChange={setCallConsent}
                             disabled={!hasPhone}
                             note={hasPhone ? undefined : "Add a phone number above to choose this. It is optional."}
                           >
-                            {CONSENT_SMS_TEXT}
+                            {CONSENT_CALL_TEXT}
                           </ConsentCheck>
                         </div>
                       );
@@ -656,7 +668,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
               Review
             </div>
             <h1 className="mt-3 font-display text-[clamp(26px,3.6vw,34px)] font-semibold leading-[1.06] tracking-[-.025em]">
-              Check the record before it goes to a broker.
+              Check the record before it goes to your Prime advisor.
             </h1>
             <p className="mt-3.5 max-w-[58ch] text-base leading-normal text-ink-soft">
               Nothing here is shared with a provider until you approve the
@@ -691,15 +703,21 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
                     </button>
                   </div>
                   {visibleFields(i, answers).map((f) => (
-                    <div
-                      key={f.id}
-                      className="grid grid-cols-[240px_1fr] items-baseline gap-6 border-b border-surface px-[22px] py-[13px] max-sm:grid-cols-1 max-sm:gap-1.5"
-                    >
-                      <div className="text-[14.5px] text-ink-muted">{v(f.label)}</div>
-                      <div className="font-mono text-[14.5px]">
-                        {formatAnswer(f.id, answers)}
-                      </div>
-                    </div>
+                    <Fragment key={f.id}>
+                      <ReviewRow label={v(f.label)} value={formatAnswer(f.id, answers)} />
+                      {/*
+                        The call consent, under the number it covers. Not an
+                        answer (it is never saved to the draft), so it is
+                        added here rather than read from the schema. Edit
+                        on this step goes to the box itself.
+                      */}
+                      {f.id === "phone" && (
+                        <ReviewRow
+                          label="Call consent"
+                          value={callConsent && hasPhone ? "Yes" : "No"}
+                        />
+                      )}
+                    </Fragment>
                   ))}
                 </div>
               ))}
@@ -774,17 +792,17 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
               Submitted · ref {doneRef} · {doneAt}
             </div>
             <h1 className="mt-4 font-display text-[clamp(28px,4vw,38px)] font-semibold leading-[1.05] tracking-[-.028em] [text-wrap:balance]">
-              Your record is with the brokerage team.
+              Your record is with Prime’s advisory team.
             </h1>
             <p className="mt-4 max-w-[54ch] text-[17px] leading-normal text-ink-soft">
-              A licensed broker in your state has your record in front of
-              them. Here is the sequence from here.
+              A licensed Prime advisor has your record in front of them. Here
+              is the sequence from here.
             </p>
             <div className="mt-[30px] rounded-md border border-line bg-raised">
               {[
                 {
                   when: "Within 1 day",
-                  what: "A broker reads the record",
+                  what: "Your Prime advisor reads the record",
                   detail:
                     "If anything is ambiguous (classification, the renewal date, the bundled fee) they ask you before quoting.",
                 },
@@ -938,6 +956,18 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ---------- review ---------- */
+
+/** One label/answer line on the review screen. */
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid grid-cols-[240px_1fr] items-baseline gap-6 border-b border-surface px-[22px] py-[13px] max-sm:grid-cols-1 max-sm:gap-1.5">
+      <div className="text-[14.5px] text-ink-muted">{label}</div>
+      <div className="font-mono text-[14.5px]">{value}</div>
     </div>
   );
 }
@@ -1120,6 +1150,7 @@ function Field({
   field: f,
   answers,
   error,
+  lockedNote,
   set,
   onKey,
   onBlurValidate,
@@ -1127,6 +1158,12 @@ function Field({
   field: FieldDef;
   answers: Answers;
   error: string;
+  /**
+   * Set when the value is decided by the site, not the visitor (the referrer
+   * on a partner's site). The input becomes read-only and this replaces the
+   * help line, saying why. Text fields only.
+   */
+  lockedNote?: string;
   set: (id: string, value: Answers[string]) => void;
   onKey: (e: React.KeyboardEvent) => void;
   onBlurValidate: () => void;
@@ -1138,6 +1175,8 @@ function Field({
   const isChoice =
     f.type === "radio" || f.type === "check" || f.type === "chips";
   const errorId = `${f.id}-error`;
+  const helpId = `${f.id}-help`;
+  const help = lockedNote ?? f.help;
 
   // The category picker is the whole of step 1 and carries its own heading.
   if (f.type === "cards") {
@@ -1202,9 +1241,9 @@ function Field({
       >
         {f.label}
       </Label>
-      {f.help && (
-        <div className="mt-[5px] text-[13.5px] leading-snug text-ink-muted">
-          {f.help}
+      {help && (
+        <div id={helpId} className="mt-[5px] text-[13.5px] leading-snug text-ink-muted">
+          {help}
         </div>
       )}
 
@@ -1252,13 +1291,19 @@ function Field({
           type="text"
           inputMode={f.type === "num" ? "numeric" : undefined}
           value={typeof val === "string" ? val : ""}
-          onChange={(e) => set(f.id, e.target.value)}
-          onBlur={onBlurValidate}
+          // readOnly, not disabled: it stays focusable and is read out, and
+          // keeps full-contrast text instead of disabled's 50% opacity.
+          readOnly={lockedNote !== undefined}
+          onChange={lockedNote ? undefined : (e) => set(f.id, e.target.value)}
+          onBlur={lockedNote ? undefined : onBlurValidate}
           onKeyDown={onKey}
-          placeholder={f.placeholder}
+          placeholder={lockedNote ? undefined : f.placeholder}
           aria-invalid={!!error}
-          aria-describedby={error ? errorId : undefined}
-          className={inputClass}
+          aria-describedby={error ? errorId : lockedNote ? helpId : undefined}
+          className={cn(
+            inputClass,
+            lockedNote && "cursor-default border-line bg-sunken text-ink-soft focus-visible:border-line-strong",
+          )}
         />
       )}
 

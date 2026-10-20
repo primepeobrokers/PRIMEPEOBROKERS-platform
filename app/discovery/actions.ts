@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { claimRequest, clientIp } from "@/lib/auth/throttle";
 import { currentTenantIdForWrite, leadAttribution, getTenant } from "@/lib/tenant/resolve";
 import { brandFor } from "@/lib/tenant/email-brand";
+import { withPartnerReferral } from "@/lib/tenant/partner";
 import {
   TOTAL_STEPS,
   sanitizeAnswers,
@@ -15,7 +16,7 @@ import {
   type Answers,
 } from "@/lib/discovery/schema";
 import {
-  CONSENT_SMS_TEXT,
+  CONSENT_CALL_TEXT,
   CONSENT_TERMS_TEXT,
   PRIVACY_VERSION,
   SUBMIT_NOTICE_TEXT,
@@ -119,7 +120,9 @@ export async function saveDraft(input: {
   | { ok: true; handle: DraftHandle }
   | { ok: false; error: string }
 > {
-  const answers = sanitizeAnswers(input.answers);
+  // A partner's lead is credited to that partner whatever the referrer field
+  // says: see withPartnerReferral.
+  const answers = withPartnerReferral(sanitizeAnswers(input.answers), await getTenant());
   const stepsCompleted = Math.max(
     0,
     Math.min(TOTAL_STEPS, Math.trunc(Number(input.stepsCompleted) || 0)),
@@ -199,7 +202,11 @@ export async function saveDraft(input: {
 export async function submitRecord(input: {
   handle: DraftHandle | null;
   answers: unknown;
-  /** The two step 6 checkboxes. Booleans only: the wording is the server's own. */
+  /**
+   * The two consents: Terms on the review screen, calls on step 6. Booleans
+   * only: the wording is the server's own. `sms` is the call consent, named
+   * for the consent_records column it is written to.
+   */
   consent?: { terms?: unknown; sms?: unknown };
 }): Promise<
   | { ok: true; ref: number }
@@ -212,7 +219,9 @@ export async function submitRecord(input: {
     };
   }
 
-  const answers = visibleAnswers(sanitizeAnswers(input.answers));
+  const answers = visibleAnswers(
+    withPartnerReferral(sanitizeAnswers(input.answers), await getTenant()),
+  );
 
   for (let i = 0; i < TOTAL_STEPS; i++) {
     const errors = validateStep(i, answers);
@@ -322,7 +331,7 @@ export async function submitRecord(input: {
 async function recordConsent(
   handle: DraftHandle,
   answers: ReturnType<typeof visibleAnswers>,
-  smsTicked: boolean,
+  callTicked: boolean,
 ): Promise<boolean> {
   const supabase = createAdminClient();
   const tenantId = await currentTenantIdForWrite();
@@ -337,9 +346,9 @@ async function recordConsent(
     .maybeSingle();
 
   const phone = typeof answers["phone"] === "string" ? answers["phone"].trim() : "";
-  // Consent to calls and texts with no number covers nothing, so it is not
-  // recorded as given. The database enforces the same rule.
-  const sms = smsTicked && phone !== "";
+  // Consent to calls with no number covers nothing, so it is not recorded as
+  // given. The database enforces the same rule.
+  const call = callTicked && phone !== "";
 
   const { error } = await supabase.from("consent_records").insert({
     submission_id: handle.draftId,
@@ -352,9 +361,11 @@ async function recordConsent(
     privacy_version: PRIVACY_VERSION,
     terms_text: CONSENT_TERMS_TEXT,
     terms_accepted: true,
-    sms_text: CONSENT_SMS_TEXT,
-    sms_consented: sms,
-    sms_phone: sms ? phone.slice(0, 60) : null,
+    // The sms_* columns predate calls-only consent (20 Oct 2026). They hold
+    // the call consent; the stored text says exactly what was agreed to.
+    sms_text: CONSENT_CALL_TEXT,
+    sms_consented: call,
+    sms_phone: call ? phone.slice(0, 60) : null,
     submit_notice_text: SUBMIT_NOTICE_TEXT,
   });
   if (error) {
@@ -482,7 +493,10 @@ export async function requestCall(input: {
     };
   }
 
-  const answers: Answers = { fullName, email, contactPreference: "call" };
+  const answers: Answers = withPartnerReferral(
+    { fullName, email, contactPreference: "call" },
+    await getTenant(),
+  );
   const phone = clean(input.phone, 60);
   const company = clean(input.company, 200);
   const notes = clean(input.notes, 2000);
@@ -503,6 +517,9 @@ export async function requestCall(input: {
       intent: "shop",
       status: "complete",
       submitted_at: new Date().toISOString(),
+      // Credited like a discovery lead: a call request from a partner's
+      // site is still that partner's referral.
+      ...(await leadAttribution()),
       ...denormalize(answers),
     })
     .select("id, ref")

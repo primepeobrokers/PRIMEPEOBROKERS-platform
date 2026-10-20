@@ -21,7 +21,7 @@ export const LEGAL_ENTITY = "A&G Advisors, LLC d/b/a Prime PEO Brokers";
 
 /** ISO dates. Shown as "Last updated" and stamped onto each consent record. */
 export const TERMS_VERSION = "2026-10-17";
-export const PRIVACY_VERSION = "2026-10-17";
+export const PRIVACY_VERSION = "2026-10-20";
 
 /**
  * Checkbox 1, required. Mentions "Section 14" by number: the arbitration
@@ -32,9 +32,15 @@ export const PRIVACY_VERSION = "2026-10-17";
 export const CONSENT_TERMS_TEXT =
   "I agree to the Terms and Conditions and Privacy Policy of A&G Advisors, LLC d/b/a Prime PEO Brokers, including the binding arbitration provision and class action waiver in Section 14 of the Terms. I confirm I am authorized to act for this company and have the authority and any required consents to submit the information provided, including information about employees.";
 
-/** Checkbox 2, optional. Sits beside the phone field and never blocks submission. */
-export const CONSENT_SMS_TEXT =
-  "I agree that Prime PEO Brokers may contact me at the phone number I provided by call and text message, including through automated technology and prerecorded or artificial voice messages, about PEO, payroll, and employer services. Consent is not a condition of any purchase. Message and data rates may apply. Message frequency varies. Reply STOP to opt out or HELP for help.";
+/**
+ * Checkbox 2, optional. Sits beside the phone field and never blocks
+ * submission. Calls only: Prime does not text clients (client decision,
+ * 20 Oct 2026), so the wording carries no texting, automated-dialling or
+ * STOP/HELP language. Stored in consent_records.sms_text, a column named
+ * before that decision; the column holds whatever this constant says.
+ */
+export const CONSENT_CALL_TEXT =
+  "I agree that Prime PEO Brokers may call me at the phone number I provided about PEO, payroll, and employer services. Consent is not a condition of any purchase.";
 
 /** Shown directly under the Submit button. */
 export const SUBMIT_NOTICE_TEXT =

@@ -295,9 +295,9 @@ export async function logRecordOpen(submissionId: string): Promise<void> {
 }
 
 /**
- * Records a STOP (or any "do not call or text me") against this lead's
- * consent record, and against every other lead that consented with the same
- * number.
+ * Records a withdrawal of call consent against this lead's consent record,
+ * and against every other lead that consented with the same number. The RPC
+ * keeps its 0015 name (record_sms_opt_out); calls are all it covers now.
  *
  * The RPC (migration 0015) is the boundary: it re-checks that the caller is on
  * Prime's team and can see this lead, and it is the one write path into
@@ -335,7 +335,7 @@ export async function recordSmsOptOut(input: {
       n === 0
         ? "Already opted out. Nothing changed."
         : n === 1
-          ? "Opt-out recorded. Do not call or text this number."
-          : `Opt-out recorded on ${n} records with this number. Do not call or text it.`,
+          ? "Call opt-out recorded for this number."
+          : `Call opt-out recorded on ${n} records with this number.`,
   };
 }

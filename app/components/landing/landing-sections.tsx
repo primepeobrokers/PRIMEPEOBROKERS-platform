@@ -952,9 +952,18 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                 "linear-gradient(to top,rgba(25,35,59,.82),rgba(25,35,59,0))",
             }}
           >
-            <div className="max-w-[28ch] font-display text-[clamp(19px,2.4vw,26px)] font-semibold leading-[1.15] tracking-[-.02em] text-dark-ink-bright [text-wrap:balance]">
-              A 38-employee technology company saved $170,000 annually across
-              admin, medical, and workers&rsquo; comp.
+            {/*
+              Credited to Prime and qualified on every site, not only a
+              partner's: the hero card's "Results vary" was partner-only,
+              and this second mention of the same figure had neither
+              (client correction, 20 Oct 2026). Wider than the old 28ch so
+              the longer sentence stays at three or four lines.
+            */}
+            <div className="max-w-[40ch] font-display text-[clamp(19px,2.4vw,26px)] font-semibold leading-[1.15] tracking-[-.02em] text-dark-ink-bright [text-wrap:balance]">
+              A recent Prime placement: a{" "}
+              <span className="whitespace-nowrap">38-employee</span> technology
+              company saved $170,000 annually across admin, medical, and
+              workers&rsquo; comp. Results vary.
             </div>
           </figcaption>
         </figure>

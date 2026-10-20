@@ -110,7 +110,7 @@ export default async function LeadDetailPage(
         The latest consent for this lead. RLS limits consent_records to
         Prime's own team (0015). An error, including the table not existing
         before 0015 is applied, reads as "no consent on file", which is the
-        safe answer: it tells the advisor not to text.
+        safe answer: it never claims a call consent that is not there.
       */
       supabase
         .from("consent_records")

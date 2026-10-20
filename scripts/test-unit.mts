@@ -29,9 +29,16 @@ import {
 import { imageInfo } from "../lib/tenant/image-size";
 import { brandFor, formatFrom, houseBrand, inboxList, parseSender } from "../lib/tenant/email-brand";
 import { landingBrand } from "../app/components/landing/landing-sections";
-import { partnerContact, partnerLegalName, partnerVoice, voiceFor } from "../lib/tenant/partner";
 import {
-  CONSENT_SMS_TEXT,
+  partnerContact,
+  partnerLegalName,
+  partnerReferrer,
+  partnerVoice,
+  voiceFor,
+  withPartnerReferral,
+} from "../lib/tenant/partner";
+import {
+  CONSENT_CALL_TEXT,
   CONSENT_TERMS_TEXT,
   PRIVACY_VERSION,
   SUBMIT_NOTICE_TEXT,
@@ -537,9 +544,9 @@ equal(partnerVoice("We hold agreements across the market"),
       "Prime holds agreements across the market", "We hold agreements -> Prime holds agreements");
 equal(partnerVoice("Your assigned advisor and their team."),
       "Your assigned Prime advisor and their team.", "the longer phrase wins over 'your advisor'");
-equal(partnerVoice("Visible to your broker’s team only"),
-      "Visible to Prime’s advisory team only",
-      "the sensitive-data notice does not tell a partner's visitor the partner sees their payroll");
+equal(partnerVoice("We hold agreements across the market and quote your record against every model that fits it."),
+      "Prime holds agreements across the market and quotes your record against every model that fits it.",
+      "the verb agrees with Prime once 'we' is rewritten ('quotes', not 'quote')");
 {
   const once = partnerVoice("Your advisor and our team. We hold agreements.");
   equal(partnerVoice(once), once, "partnerVoice is idempotent (no 'Prime Prime advisor')");
@@ -565,6 +572,27 @@ for (const step of STEPS) {
         "Acme Advisors LLC", "the legal name is named in the disclosure when set");
   equal(partnerLegalName({ isHouse: true, name: "Prime PEO Brokers", branding: {} }), null,
         "the house tenant names no referral partner");
+}
+
+// ---------------------------------------------------------------------------
+describe("referred by: a partner's lead is credited to the partner, whatever is typed");
+// ---------------------------------------------------------------------------
+{
+  const abs = { isHouse: false, name: "ABS Partner", branding: { companyName: "ABS Payroll" } };
+  equal(partnerReferrer(abs), "ABS Payroll", "the referrer is the partner's display name");
+  equal(partnerReferrer({ ...abs, branding: {} }), "ABS Partner", "falling back to the tenant name");
+  equal(partnerReferrer(null), null, "no referrer on the house site");
+  equal(partnerReferrer({ isHouse: true, name: "Prime PEO Brokers", branding: {} }), null,
+        "the house tenant is not a referrer");
+  equal(withPartnerReferral({ referredBy: "Someone else", fullName: "Jane" }, abs).referredBy, "ABS Payroll",
+        "a typed referrer is overwritten on a partner's site");
+  equal(withPartnerReferral({ fullName: "Jane" }, abs).referredBy, "ABS Payroll",
+        "an empty referrer is filled on a partner's site");
+  const house = { referredBy: "My accountant" };
+  equal(withPartnerReferral(house, null), house, "the house site leaves the free-text answer alone");
+  const actions = readFileSync("app/discovery/actions.ts", "utf8");
+  equal((actions.match(/withPartnerReferral\(/g) ?? []).length, 3,
+        "the server applies it on save, on submit, and on a call request");
 }
 
 // ---------------------------------------------------------------------------
@@ -617,9 +645,18 @@ describe("consent: what is shown is what is stored");
   ok(CONSENT_TERMS_TEXT.includes("Section 14 of the Terms"), "the consent cites Section 14 for arbitration");
   ok(/^\d{4}-\d{2}-\d{2}$/.test(TERMS_VERSION) && /^\d{4}-\d{2}-\d{2}$/.test(PRIVACY_VERSION),
      "version dates are ISO, since they are written to a date column");
-  ok(CONSENT_SMS_TEXT.includes("Reply STOP to opt out"), "the call/text consent carries STOP");
+  // Calls only (client decision, 20 Oct 2026): Prime does not text clients.
+  equal(CONSENT_CALL_TEXT,
+        "I agree that Prime PEO Brokers may call me at the phone number I provided about PEO, payroll, and employer services. Consent is not a condition of any purchase.",
+        "the phone consent is the client's calls-only wording");
+  ok(!/\b(STOP|HELP|text|texts|message)\b/i.test(CONSENT_CALL_TEXT), "the phone consent says nothing about texting");
+  {
+    const privacy = readFileSync("app/privacy/page.tsx", "utf8");
+    ok(!/Reply STOP|HELP for help/.test(privacy), "the privacy policy carries no STOP/HELP instructions");
+    ok(privacy.includes("can see the information you submit"), "the privacy policy says partners see the submitted record");
+  }
   ok(SUBMIT_NOTICE_TEXT.startsWith("By clicking Submit"), "the notice under Submit is counsel's");
-  for (const t of [CONSENT_TERMS_TEXT, CONSENT_SMS_TEXT, SUBMIT_NOTICE_TEXT]) {
+  for (const t of [CONSENT_TERMS_TEXT, CONSENT_CALL_TEXT, SUBMIT_NOTICE_TEXT]) {
     ok(!t.includes("\u2014"), "no em dash in the legal copy");
   }
 }
@@ -633,7 +670,7 @@ describe("consent: what is shown is what is stored");
   ok(terms.includes('heading="2A. Partner-branded Sites"'), "the partner section is numbered 2A");
 }
 {
-  // Phone sits on the step that renders the call/text consent beside it.
+  // Phone sits on the step that renders the call consent beside it.
   const last = STEPS[STEPS.length - 1]!;
   ok(last.fields.some((f) => f.id === "phone"), "phone is on step 6, beside its consent");
   ok(STEPS.slice(0, -1).every((s) => !s.fields.some((f) => f.id === "phone")),

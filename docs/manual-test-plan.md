@@ -95,8 +95,8 @@ Step 6
 - [ ] Steps 3 and 4 carry the SENSITIVE badge.
 - [ ] Click **Edit** on step 2, change the company name, click Continue
       through to step 6, then Review again. The new name is shown.
-- [ ] Click **Submit the record**. You see "Your record is with the
-      brokerage team" with a REF and time.
+- [ ] Click **Submit the record**. You see "Your record is with Prime’s
+      advisory team" with a REF and time.
 - [ ] You receive "Your record is in · REF n".
 - [ ] Team inboxes receive "New discovery record · REF n · company".
 - [ ] `/console` lists the lead as complete with your company name, 15 FTE,

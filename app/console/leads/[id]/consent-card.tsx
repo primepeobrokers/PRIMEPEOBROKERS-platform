@@ -30,16 +30,17 @@ export interface ConsentView {
 }
 
 /**
- * What the visitor agreed to, and whether they may be called or texted.
+ * What the visitor agreed to, and whether they consented to calls.
  *
- * The call/text line is the one an advisor acts on, so it leads with the
- * instruction ("Do not call or text") rather than the record. Without
- * consent, or after a STOP, automated calls and texts are off; a manual call
- * about their own request is a separate question this card does not answer.
+ * Calls only: Prime does not text clients (client decision, 20 Oct 2026), so
+ * there is no STOP or HELP handling. A visitor withdraws call consent by
+ * telling their advisor or emailing Prime, as section 7 of the privacy policy
+ * says; recording it here is how that reaches the record, and it applies to
+ * the number across every lead that consented with it.
  *
- * No SMS provider is wired up yet, so a STOP reply arrives on whichever phone
- * the advisor texted from. Recording it here is how it reaches the record,
- * and it applies to the number across every lead that consented with it.
+ * The card states the record ("No call consent") rather than issuing an
+ * instruction: whether a lead who asked for a call but left the box unticked
+ * may be called is the client's call, not this card's.
  */
 export function ConsentCard({
   submissionId,
@@ -67,7 +68,7 @@ export function ConsentCard({
   };
 
   const optedOut = consent?.smsOptedOutAt != null;
-  const canText = consent?.smsConsented === true && !optedOut;
+  const canCall = consent?.smsConsented === true && !optedOut;
 
   return (
     <Card className="gap-0 rounded-md py-row-x">
@@ -79,7 +80,7 @@ export function ConsentCard({
         {!consent ? (
           <p className="mt-2 text-[13px] leading-snug text-ink-muted">
             No consent on file. Drafts, call requests and leads from before
-            October 2026 have none, so do not text or autodial this lead.
+            October 2026 have none.
           </p>
         ) : (
           <div className="mt-3 flex flex-col gap-3 text-sm">
@@ -94,8 +95,8 @@ export function ConsentCard({
             </div>
 
             <div>
-              <div className="text-[13px] text-ink-muted">Calls and texts</div>
-              {canText ? (
+              <div className="text-[13px] text-ink-muted">Calls</div>
+              {canCall ? (
                 <>
                   <div className="mt-1 font-mono text-[13px]">
                     Consented · {consent.smsPhone}
@@ -112,18 +113,18 @@ export function ConsentCard({
                     ) : (
                       <PhoneOffIcon className="size-4" aria-hidden="true" />
                     )}
-                    Record STOP / opt-out
+                    Record call opt-out
                   </Button>
                 </>
               ) : (
                 <>
                   <Badge variant="destructive" tone="mono" className="mt-1.5">
-                    Do not call or text
+                    No call consent
                   </Badge>
                   <div className="mt-1.5 text-[12.5px] text-ink-muted">
                     {optedOut
-                      ? `Opted out ${when.optedOutAt} UTC.`
-                      : "No call or text consent was given."}
+                      ? `Withdrawn ${when.optedOutAt} UTC.`
+                      : "The call consent box was not ticked."}
                   </div>
                 </>
               )}
@@ -136,13 +137,14 @@ export function ConsentCard({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="font-display tracking-[-.015em]">
-              Record an opt-out for {consent?.smsPhone}?
+              Record a call opt-out for {consent?.smsPhone}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Use this when they reply STOP or ask not to be called or texted.
-              It applies to this number on every lead, is kept with the
-              consent record, and cannot be undone here: renewed consent has to
-              come from a new submission.
+              Use this when they withdraw consent to calls, by telling their
+              advisor or emailing admin@primepeobrokers.com. It applies to this
+              number on every lead, is kept with the consent record, and cannot
+              be undone here: renewed consent has to come from a new
+              submission.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
