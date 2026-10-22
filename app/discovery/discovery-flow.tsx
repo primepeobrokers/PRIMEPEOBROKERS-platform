@@ -566,8 +566,8 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
                     */}
                     <span className="text-[13.5px] leading-normal text-ink-soft">
                       {isPartner
-                        ? "Stored with encryption at rest and never exposed through a public endpoint. Visible only to Prime\u2019s advisory team and the partner who referred you, never to a provider without your approval."
-                        : "Stored with encryption at rest and never exposed through a public endpoint. Visible only to Prime\u2019s advisory team, never to a provider without your approval."}
+                        ? "Stored with encryption at rest and never exposed through a public endpoint. Visible only to Prime\u2019s advisory team, the partner who referred you, and the providers Prime selects to quote you."
+                        : "Stored with encryption at rest and never exposed through a public endpoint. Visible only to Prime\u2019s advisory team and the providers Prime selects to quote you."}
                     </span>
                   </div>
                 )}
@@ -671,8 +671,9 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
               Check the record before it goes to your Prime advisor.
             </h1>
             <p className="mt-3.5 max-w-[58ch] text-base leading-normal text-ink-soft">
-              Nothing here is shared with a provider until you approve the
-              shortlist. Edit any answer and you return to this page.
+              Once you submit, your Prime advisor reviews the record, follows
+              up for anything else needed to quote, then sends it to the
+              providers that fit. Edit any answer and you return to this page.
             </p>
             <div className="mt-[30px] overflow-hidden rounded-md border border-line bg-raised">
               {STEPS.map((s, i) => (
@@ -808,12 +809,12 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
                 },
                 {
                   when: "Days 1–2",
-                  what: "You approve the shortlist",
+                  what: "Your Prime advisor gathers what’s needed",
                   detail:
-                    v("They name the providers they intend to quote. Nothing leaves our team until you confirm that list."),
+                    "Depending on your situation, they may ask for documents such as current invoices, an employee census, or workers’ comp details before requesting quotes.",
                 },
                 {
-                  when: "Days 3–5",
+                  when: "Once quotes are in",
                   what: "Written comparison",
                   detail:
                     "Every model on one axis, per employee per month, with the assumptions stated in plain text.",

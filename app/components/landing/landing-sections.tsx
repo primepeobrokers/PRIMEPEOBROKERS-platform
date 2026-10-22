@@ -229,6 +229,8 @@ const TRUST = [
     tag: "Access",
     title: "Named staff only",
     body: "Your assigned advisor and their team. Access is authenticated and scoped at the data layer, not just the interface.",
+    /* Partner tenants only: the referring partner sees the submitted record too. */
+    partnerBody: "Your assigned Prime advisor and their team, and the partner who referred you. Access is authenticated and scoped at the data layer, not just the interface.",
   },
   {
     tag: "Retention",
@@ -248,11 +250,11 @@ const FAQS = [
   },
   {
     q: "Do providers see my submission?",
-    a: "Not until you approve it. Your advisor reviews the record first and tells you which providers they intend to quote. You confirm the list.",
+    a: "Only the providers we quote. After you submit, your Prime advisor reviews the record and asks for anything else needed, such as invoices or a census for a PEO quote, then sends it to the providers that fit. Use the vendor include/exclude question in Step 5 to keep anyone off the list.",
   },
   {
     q: "What happens after I submit?",
-    a: "An advisor reads your record within one business day and sends a written comparison of the models that fit. If something in your record is ambiguous, they ask before quoting.",
+    a: "An advisor reads your record within one business day and follows up for anything else needed to quote. Once quotes are in, you get a written comparison of the models that fit.",
   },
   {
     q: "Can I stop halfway?",
@@ -320,7 +322,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
     `null` (the house route, which resolves no tenant at all) and the house
     tenant itself both render exactly what shipped before.
   */
-  const { brandName, contact, voice: v, legalName, showPartnerSection } =
+  const { isPartner, brandName, contact, voice: v, legalName, showPartnerSection } =
     landingBrand(tenant);
 
   // The narrowed tenant, not a boolean: TypeScript cannot carry `isPartner`
@@ -1069,11 +1071,12 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
               Refer a client, keep the relationship.
             </h2>
             <p className="mt-4 max-w-[52ch] text-[16px] leading-relaxed text-dark-ink-soft">
-              We work alongside many different partners, from financial
-              advisors, fractional HR teams, HR consulting firms, and
-              accountants who would rather not run a PEO search themselves. You
-              bring the relationship, we run the discovery and the market
-              comparison, and your client sees the whole shortlist.
+              We work alongside many different partners, from insurance
+              brokerages, financial advisors, fractional HR teams, HR
+              consulting firms, and accountants who would rather not run a PEO
+              search themselves. You bring the relationship, we run the
+              discovery and the market comparison, and your client gets a
+              written comparison of every option that fits.
             </p>
           </div>
           <div className="rounded-md border border-dark-line bg-dark-raised p-7">
@@ -1110,7 +1113,7 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
                   {t.title}
                 </h3>
                 <p className="mt-[9px] text-[14.5px] leading-normal text-ink-soft [text-wrap:pretty]">
-                  {v(t.body)}
+                  {isPartner && t.partnerBody ? t.partnerBody : v(t.body)}
                 </p>
               </div>
             ))}
@@ -1150,8 +1153,8 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
             </h2>
             <p className="mt-5 max-w-[46ch] text-[17px] leading-normal text-dark-ink-muted">
               Start now, or start the parts you know and finish later from the
-              link we email you. Nothing is shared with a provider until you say
-              so.
+              link we email you. Your record goes only to the providers that
+              fit it.
             </p>
             <div className="mt-8 flex flex-wrap gap-3.5">
               <Link
@@ -1176,8 +1179,8 @@ export function LandingSections({ tenant }: { tenant: LandingTenant }) {
           <div data-sequence className="rounded-md border border-dark-line">
             {[
               ["Now", "You pick a category and work through six short steps. Each one is saved as you go."],
-              ["1 business day", "An advisor reads the record and confirms which providers fit it."],
-              ["3–5 days", "A written comparison, one axis, with the assumptions stated."],
+              ["1 business day", "An advisor reads the record and follows up for anything else needed to quote."],
+              ["Once quotes are in", "A written comparison, one axis, with the assumptions stated."],
             ].map(([when, what]) => (
               <div
                 key={when}

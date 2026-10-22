@@ -583,7 +583,7 @@ export async function sendResumeLink(input: {
 /**
  * Confirms submission to the visitor. "call" is the short /talk form: no
  * record to speak of, so the message is about the phone call, not the
- * shortlist.
+ * comparison.
  */
 export function composeSubmissionConfirmation(input: {
   ref: number;
@@ -634,7 +634,7 @@ export function composeSubmissionConfirmation(input: {
     text: [
       `${input.name},`,
       ``,
-      `Your six steps are with a broker. They read the record within one business day and confirm which providers fit before anything is quoted. Nothing is shared with a provider until you approve the shortlist.`,
+      `Your six steps are with a broker. They read the record within one business day and follow up for anything else needed to quote, then send it to the providers that fit. Once quotes are in, you get a written comparison of the models that fit.`,
       ``,
       `Something wrong in the record? Reply to this email and it is corrected before quoting starts.`,
     ].join("\n"),
@@ -646,7 +646,7 @@ export function composeSubmissionConfirmation(input: {
       bodyHtml:
         para(`${escapeHtml(input.name)},`) +
         para(
-          "Your six steps are with a broker. They read the record within one business day and confirm which providers fit before anything is quoted. Nothing is shared with a provider until you approve the shortlist.",
+          "Your six steps are with a broker. They read the record within one business day and follow up for anything else needed to quote, then send it to the providers that fit. Once quotes are in, you get a written comparison of the models that fit.",
         ),
       footerLines: [
         "Something wrong in the record? Reply to this email and it is corrected before quoting starts.",

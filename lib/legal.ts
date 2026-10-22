@@ -44,7 +44,7 @@ export const CONSENT_CALL_TEXT =
 
 /** Shown directly under the Submit button. */
 export const SUBMIT_NOTICE_TEXT =
-  "By clicking Submit, you agree to the Terms and Privacy Policy above. Nothing is shared with a provider until your advisor confirms the list with you.";
+  "By clicking Submit, you agree to the Terms and Privacy Policy above and authorize Prime to share your record and any documents you provide with the providers it selects to quote.";
 
 /**
  * The phrases inside CONSENT_TERMS_TEXT that render as links. The flow splits
