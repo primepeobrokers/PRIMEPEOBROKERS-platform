@@ -185,5 +185,5 @@ rather than quietly changing:
 - The CSV export sends every lead, ignoring the filters active on the list
   the button sits above. Changing that changes what the button means.
 - The privacy page promises 30-day deletion and nothing implements it: no
-  TTL, no cron, no delete policy on any table. A Phase 1 gap, not a Phase 2
+  TTL, no cron, no delete policy on any table. A Phase 1 gap, not a Phase II
   one.
