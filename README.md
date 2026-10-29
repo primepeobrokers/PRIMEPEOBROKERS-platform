@@ -86,14 +86,15 @@ body.
      created automatically.
 
 3. **Storage** (Supabase dashboard → Storage): create a bucket named
-   `tenant-logos`, **public**, file size limit **200KB**, allowed MIME types
-   `image/png` and `image/webp`.
+   `tenant-logos`, **public**, no file size limit, allowed MIME types
+   `image/*`.
 
    No migration creates this: Supabase buckets are not part of the SQL schema.
    Partner logo upload writes here, so without it the Partners screen fails
-   with a bucket-not-found error from inside the storage client. SVG is
-   excluded deliberately: one served from our own origin can carry `<script>`,
-   and `next/image` passes SVG through untouched.
+   with a bucket-not-found error from inside the storage client. Any image
+   format and size is accepted (client decision, Oct 2026); the browser
+   uploads straight to Storage through a signed URL, so no server request
+   limit applies.
 
    Verify with `pnpm check:storage`, which asserts all of the above.
 

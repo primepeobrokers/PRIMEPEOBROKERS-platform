@@ -17,10 +17,8 @@
  * It also checks the settings the upload path ASSUMES rather than enforces:
  *
  *   - public, because an unauthenticated portal header renders the image
- *   - a size cap, because the action checks 200KB client-side and a bucket
- *     with no cap makes that the only limit
- *   - PNG and WebP only. SVG is excluded deliberately: one served from our own
- *     origin can carry <script>, and next/image passes SVG through untouched.
+ *   - no size cap, because a partner's logo is whatever file they send
+ *   - images only ("image/*"), so a document cannot be published from it
  *
  * Needs credentials, so it is NOT part of `pnpm check`. It skips cleanly
  * without them, exactly like the integration suite.
@@ -33,10 +31,9 @@ const env = { ...loadEnv(), ...process.env } as Record<string, string>;
 const URL = env.NEXT_PUBLIC_SUPABASE_URL;
 const SRV = env.SUPABASE_SERVICE_ROLE_KEY;
 
-/** Kept in step with LOGO_BUCKET / LOGO_MAX_BYTES in the partners actions. */
+/** Kept in step with LOGO_BUCKET in the partners actions. */
 const BUCKET = "tenant-logos";
-const MAX_BYTES = 200 * 1024;
-const WANT_MIME = ["image/png", "image/webp"];
+const WANT_MIME = ["image/*"];
 
 describe("storage: the tenant-logos bucket");
 
@@ -60,8 +57,8 @@ if (error || !bucket) {
     `the ${BUCKET} bucket exists`,
     `Partner logo upload writes here and will fail without it. Create it in ` +
       `the Supabase dashboard: Storage, New bucket, name "${BUCKET}", public ` +
-      `on, file size limit ${MAX_BYTES / 1024}KB, allowed MIME types ` +
-      `${WANT_MIME.join(" and ")}. Reported: ${error?.message ?? "not found"}`,
+      `on, no file size limit, allowed MIME types ` +
+      `${WANT_MIME.join(", ")}. Reported: ${error?.message ?? "not found"}`,
   );
   done("check-storage");
 }
@@ -76,50 +73,23 @@ ok(true, `the ${BUCKET} bucket exists`);
 equal(bucket.public, true, `${BUCKET} is public`);
 
 /*
-  A cap on the bucket, not only in the action. uploadPartnerLogo checks the
-  size before uploading, but that check runs in our code: the bucket limit is
-  what holds if anything ever writes here by another path.
+  No size cap, by client decision (29 Oct 2026): a partner's logo is whatever
+  file they send. The browser uploads straight to Storage through a signed
+  URL, so no server request limit applies either. Only the Supabase project's
+  global upload limit remains, and that is a dashboard setting, not this one.
 */
-ok(
-  bucket.file_size_limit !== null && bucket.file_size_limit !== undefined,
-  `${BUCKET} has a file size limit`,
-  "Unlimited uploads into a public bucket. Set it to 200KB.",
-);
-
-if (bucket.file_size_limit) {
-  ok(
-    bucket.file_size_limit <= MAX_BYTES,
-    `${BUCKET} caps uploads at ${MAX_BYTES / 1024}KB or less`,
-    `Bucket allows ${Math.round(bucket.file_size_limit / 1024)}KB, while the ` +
-      `upload action rejects anything over ${MAX_BYTES / 1024}KB.`,
-  );
-}
+equal(bucket.file_size_limit ?? null, null, `${BUCKET} has no file size limit`);
 
 /*
-  The MIME allowlist is a security boundary, not a convenience. An SVG served
-  from our own origin can carry <script>, and next/image passes SVG through
-  untouched unless dangerouslyAllowSVG is set. The upload path also sniffs
-  magic bytes (lib/tenant/image-size.ts), so this is the second lock.
+  Images only, as "image/*". Any image format is accepted, SVG included, but
+  not text/html or other documents: the bucket is public, so anything stored
+  here is downloadable by anyone with the link.
 */
 const mime = bucket.allowed_mime_types;
-ok(
-  Array.isArray(mime) && mime.length > 0,
-  `${BUCKET} restricts MIME types`,
-  `Any file type may be uploaded. Set the allowlist to ${WANT_MIME.join(", ")}.`,
+equal(
+  JSON.stringify(mime ?? null),
+  JSON.stringify(WANT_MIME),
+  `${BUCKET} allows images only (${WANT_MIME.join(", ")})`,
 );
-
-if (Array.isArray(mime)) {
-  const lower = mime.map((m) => m.toLowerCase());
-  for (const bad of ["image/svg+xml", "text/html"]) {
-    ok(!lower.includes(bad), `${BUCKET} does not allow ${bad}`);
-  }
-  for (const want of WANT_MIME) {
-    ok(
-      lower.includes(want),
-      `${BUCKET} allows ${want}`,
-      "Partner logos are uploaded as PNG or WebP; excluding one breaks upload.",
-    );
-  }
-}
 
 done("check-storage");

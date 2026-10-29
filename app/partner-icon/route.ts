@@ -27,10 +27,10 @@ import { getTenant } from "@/lib/tenant/resolve";
 /**
  * Cap on the logo we are willing to inline.
  *
- * The upload path already limits artwork to 200KB, so this is a backstop
- * against a bucket object that predates that rule or was written by hand.
- * Base64 inflates by about a third, and a favicon response measured in
- * megabytes would be absurd for a 16px slot.
+ * Uploads have no size limit, so a large logo does reach this cap, and that
+ * is intended: such a partner gets the letter tile as their favicon rather
+ * than a multi-megabyte response for a 16px slot. Base64 inflates by about a
+ * third on top.
  */
 const MAX_INLINE_BYTES = 300_000;
 
@@ -175,9 +175,9 @@ async function inlineLogo(
     if (!res.ok) return giveUp(`storage returned ${res.status}`);
 
     const type = res.headers.get("content-type") ?? "";
-    // The upload path admits PNG and WebP only. Anything else here means the
+    // Any image type may be uploaded. Anything that is not an image means the
     // object is not what the branding record claims, so do not embed it.
-    if (!/^image\/(png|webp)$/.test(type)) {
+    if (!/^image\/[a-z0-9.+-]+$/i.test(type)) {
       return giveUp(`unexpected content-type ${type || "(none)"}`);
     }
 

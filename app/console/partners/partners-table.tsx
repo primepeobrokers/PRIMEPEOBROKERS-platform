@@ -42,15 +42,21 @@ import {
   TabsTrigger,
 } from "@/app/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { contrastRatio, logoUrl, type Branding } from "@/lib/tenant/branding";
+import {
+  contrastRatio,
+  LOGO_MAX_DIMENSION,
+  logoUrl,
+  type Branding,
+} from "@/lib/tenant/branding";
 import {
   invitePartnerUser,
   setPartnerUserActive,
   removePartnerLogo,
   savePartnerBranding,
+  savePartnerLogo,
   setPartnerSuspended,
   deletePartner,
-  uploadPartnerLogo,
+  startPartnerLogoUpload,
 } from "./actions";
 
 /** One person with a login to a partner's portal. */
@@ -501,6 +507,65 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
 }
 
 /**
+ * Width and height, read by letting the browser load the file as an image.
+ * This is also the only type check: a file the browser cannot show is not
+ * usable as a logo, whatever its extension. An SVG with no intrinsic size
+ * reports 0, so it gets the CSS default for a replaced element.
+ */
+function readImageSize(file: File): Promise<{ width: number; height: number } | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const w = img.naturalWidth || 300;
+      const h = img.naturalHeight || 150;
+      // Only the ratio matters; keep the numbers inside parseBranding's range.
+      const scale = Math.min(1, LOGO_MAX_DIMENSION / Math.max(w, h));
+      resolve({
+        width: Math.max(1, Math.round(w * scale)),
+        height: Math.max(1, Math.round(h * scale)),
+      });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+
+/** Signs, uploads straight to Storage, then saves. Never throws. */
+async function uploadLogo(
+  tenantId: string,
+  file: File,
+): Promise<{ error: string } | { ok: true; message?: string }> {
+  const size = await readImageSize(file);
+  if (!size) return { error: "That file is not an image this browser can display." };
+  try {
+    const start = await startPartnerLogoUpload({ tenantId, fileName: file.name });
+    if ("error" in start) return start;
+    const res = await fetch(start.signedUrl, {
+      method: "PUT",
+      headers: {
+        "content-type": file.type || "application/octet-stream",
+        "cache-control": "max-age=31536000",
+        "x-upsert": "false",
+      },
+      body: file,
+    });
+    if (!res.ok) {
+      return { error: "The file could not be stored. Try again in a moment." };
+    }
+    return await savePartnerLogo({ tenantId, path: start.path, ...size });
+  } catch {
+    // A thrown action or a network drop would otherwise reach the error
+    // boundary and replace the whole console with an error page.
+    return { error: "The upload did not go through. Check your connection and try again." };
+  }
+}
+
+/**
  * The partner's logo.
  *
  * The only branding input that is a file. Uploaded straight from the change
@@ -508,8 +573,8 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
  * and a file cannot travel in it, so making the logo part of "Save branding"
  * would have meant a second, invisible upload step.
  *
- * PNG or WebP, 200KB. Not SVG: served from our own origin it can carry
- * script, and the action rejects it by magic bytes whatever the extension.
+ * Any image, any size: the file goes from the browser straight to Storage
+ * (see uploadLogo below), so no server request limit applies.
  */
 function LogoField({ partner }: { partner: PartnerRow }) {
   const logo = partner.branding.logo;
@@ -520,11 +585,8 @@ function LogoField({ partner }: { partner: PartnerRow }) {
   const onFile = (file: File | null) => {
     if (!file || pending) return;
     setError("");
-    const data = new FormData();
-    data.set("tenantId", partner.id);
-    data.set("file", file);
     startTransition(async () => {
-      const result = await uploadPartnerLogo(data);
+      const result = await uploadLogo(partner.id, file);
       if (inputRef.current) inputRef.current.value = "";
       if ("error" in result) {
         setError(result.error);
@@ -588,7 +650,7 @@ function LogoField({ partner }: { partner: PartnerRow }) {
           ref={inputRef}
           id={inputId}
           type="file"
-          accept="image/png,image/webp"
+          accept="image/*"
           disabled={pending}
           onChange={(e) => onFile(e.target.files?.[0] ?? null)}
           className="sr-only"
@@ -619,7 +681,7 @@ function LogoField({ partner }: { partner: PartnerRow }) {
         )}
       </div>
       <p className="mt-1.5 text-[12.5px] text-ink-muted">
-        PNG or WebP, up to 200KB. Shown in their portal header, on their
+        Any image file. Shown in their portal header, on their
         discovery form and at the top of their emails.
       </p>
       {error && (

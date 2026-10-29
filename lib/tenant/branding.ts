@@ -12,6 +12,7 @@
  * colour", never a broken page.
  */
 
+
 export interface BrandingLogo {
   /** Path inside the `tenant-logos` Storage bucket, not a URL. */
   path: string;
@@ -178,8 +179,8 @@ export function parseBranding(raw: unknown, tenantName: string): Branding {
       : null;
   if (logo) {
     const path = safePath(logo.path);
-    const width = safeInt(logo.width, 1, 4000);
-    const height = safeInt(logo.height, 1, 4000);
+    const width = safeInt(logo.width, 1, LOGO_MAX_DIMENSION);
+    const height = safeInt(logo.height, 1, LOGO_MAX_DIMENSION);
     // All three or none: next/image needs the intrinsic size to reserve
     // space, and a logo without it would shift the header on load.
     if (path && width && height) {
@@ -289,6 +290,13 @@ export function contrastRatio(a: string, b: string): number {
   const [hi, lo] = la > lb ? [la, lb] : [lb, la];
   return (hi + 0.05) / (lo + 0.05);
 }
+
+/**
+ * Largest width or height recorded for a logo. The logo is drawn at a fixed
+ * height, so pixel size only sets the aspect ratio; the upload field scales a
+ * bigger image's numbers down to fit rather than refusing it.
+ */
+export const LOGO_MAX_DIMENSION = 16384;
 
 /**
  * Public URL for a branding logo.

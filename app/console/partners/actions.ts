@@ -9,12 +9,12 @@ import { sendTeamInvite } from "@/lib/email";
 import { confirmUrl, tenantOrigin } from "@/lib/tenant/urls";
 import {
   __testables as brandingRules,
+  LOGO_MAX_DIMENSION,
   contrastRatio,
   parseBranding,
   type Branding,
 } from "@/lib/tenant/branding";
 import { brandFor } from "@/lib/tenant/email-brand";
-import { imageInfo } from "@/lib/tenant/image-size";
 import type { SessionContext } from "@/lib/auth/session";
 import { CONSOLE_EMAIL_RE, escapeLike } from "@/lib/console/email-match";
 
@@ -369,60 +369,89 @@ async function currentBranding(tenantId: string): Promise<Branding> {
 }
 
 const LOGO_BUCKET = "tenant-logos";
-const LOGO_MAX_BYTES = 200 * 1024;
 
 /**
- * Uploads a partner's logo and points their branding at it.
+ * Step one of a logo upload: a one-time link to put the file straight into
+ * Storage.
  *
- * The file type is decided by the bytes (lib/tenant/image-size.ts), not by
- * the name or the browser's MIME type, and only PNG and WebP pass. The bucket
- * enforces the same allowlist and size cap, so a bypass here still fails
- * there; this layer exists to give staff a sentence instead of a 400.
+ * The file never passes through this server. Vercel refuses any function
+ * request over 4.5MB and server actions refuse 1MB by default, so routing the
+ * bytes through an action is what capped logo size. Uploading to a signed URL
+ * goes browser to Storage directly, so there is no app-level size limit; the
+ * only ceiling left is the Supabase project's global upload limit.
  *
- * Storage goes through the service-role client: the bucket is public to READ
- * (an unauthenticated portal header loads it) but has no write policy for
- * anyone, and the staff check has already happened above.
+ * The path is chosen here, not by the browser, and always sits inside the
+ * partner's own folder. The link is valid for that one path only.
  */
-export async function uploadPartnerLogo(formData: FormData): Promise<PartnerResult> {
+export async function startPartnerLogoUpload(input: {
+  tenantId: string;
+  fileName: string;
+}): Promise<{ error: string } | { ok: true; path: string; signedUrl: string }> {
   const guard = await guardStaff();
   if (!guard.ok) return { error: guard.error };
 
-  const tenantId = String(formData.get("tenantId") ?? "");
+  const tenantId = String(input.tenantId ?? "");
   if (!UUID_RE.test(tenantId)) return { error: "That partner is not valid." };
 
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) {
-    return { error: "Choose a PNG or WebP file." };
+  // Keep the extension for a readable bucket listing; it decides nothing.
+  const ext = /\.([a-z0-9]{1,8})$/i.exec(String(input.fileName ?? ""))?.[1]?.toLowerCase() ?? "img";
+  const path = `${tenantId}/${Date.now()}.${ext}`;
+
+  const { data, error } = await createAdminClient()
+    .storage.from(LOGO_BUCKET)
+    .createSignedUploadUrl(path);
+  if (error || !data) {
+    console.error("[partners] could not sign a logo upload", error?.message);
+    return { error: "Could not start the upload. Try again shortly." };
   }
-  if (file.size > LOGO_MAX_BYTES) {
-    return { error: `That file is ${Math.ceil(file.size / 1024)}KB. Logos must be 200KB or smaller.` };
+  return { ok: true, path, signedUrl: data.signedUrl };
+}
+
+/**
+ * Step two: point the partner's branding at the file just uploaded.
+ *
+ * Width and height come from the browser, which read them by loading the
+ * file as an image. They only reserve the header's space, parseBranding
+ * clamps them again on read, and the caller is platform staff, so they are
+ * checked for shape rather than re-measured.
+ */
+export async function savePartnerLogo(input: {
+  tenantId: string;
+  path: string;
+  width: number;
+  height: number;
+}): Promise<PartnerResult> {
+  const guard = await guardStaff();
+  if (!guard.ok) return { error: guard.error };
+
+  const tenantId = String(input.tenantId ?? "");
+  if (!UUID_RE.test(tenantId)) return { error: "That partner is not valid." };
+
+  // Only a file in this partner's own folder, in the shape step one issues.
+  const path = String(input.path ?? "");
+  const name = path.slice(tenantId.length + 1);
+  if (!path.startsWith(`${tenantId}/`) || !/^\d+\.[a-z0-9]{1,8}$/.test(name)) {
+    return { error: "That upload is not valid. Choose the file again." };
+  }
+  const width = Math.round(Number(input.width));
+  const height = Math.round(Number(input.height));
+  const inRange = (n: number) => Number.isInteger(n) && n >= 1 && n <= LOGO_MAX_DIMENSION;
+  if (!inRange(width) || !inRange(height)) {
+    return { error: "Could not read that image's size. Choose the file again." };
   }
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const info = imageInfo(bytes);
-  if (!info) {
-    return { error: "That is not a PNG or WebP image. SVG is not accepted." };
+  const admin = createAdminClient();
+  const { data: found } = await admin.storage
+    .from(LOGO_BUCKET)
+    .list(tenantId, { search: name, limit: 1 });
+  if (!found?.some((o) => o.name === name)) {
+    return { error: "The upload did not finish. Choose the file again." };
   }
 
   const before = await currentBranding(tenantId);
-  const path = `${tenantId}/${Date.now()}.${info.kind}`;
-
-  const admin = createAdminClient();
-  const { error: ue } = await admin.storage
-    .from(LOGO_BUCKET)
-    .upload(path, Buffer.from(bytes), {
-      contentType: info.kind === "png" ? "image/png" : "image/webp",
-      cacheControl: "31536000",
-      upsert: false,
-    });
-  if (ue) {
-    console.error("[partners] logo upload failed", ue.message);
-    return { error: "Could not store that file. Try again shortly." };
-  }
-
   const branding: Branding = {
     ...before,
-    logo: { path, width: info.width, height: info.height, displayHeight: 28 },
+    logo: { path, width, height, displayHeight: 28 },
   };
   const supabase = await createClient();
   const { error } = await supabase.rpc("set_partner_branding", {
@@ -435,14 +464,14 @@ export async function uploadPartnerLogo(formData: FormData): Promise<PartnerResu
     return { error: rpcMessage(error.message, "Could not save that logo.") };
   }
 
-  // The replaced file is unreferenced now. Best-effort: an orphan costs a
-  // few KB, a failed save would have cost the logo.
+  // The replaced file is unreferenced now. Best-effort: an orphan costs
+  // storage, a failed save would have cost the logo.
   if (before.logo && before.logo.path !== path) {
     await admin.storage.from(LOGO_BUCKET).remove([before.logo.path]);
   }
 
   invalidateTenants();
-  return { ok: true, message: `Logo saved (${info.width} × ${info.height}).` };
+  return { ok: true, message: `Logo saved (${width} × ${height}).` };
 }
 
 /** Removes a partner's logo; the header falls back to their name. */
