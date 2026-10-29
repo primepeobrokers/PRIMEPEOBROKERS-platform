@@ -527,6 +527,67 @@ export async function setPartnerSuspended(input: {
 }
 
 /**
+ * Permanently deletes a test partner, or one that never went live.
+ *
+ * The rules live in the delete_partner RPC (0017), not here: suspended first,
+ * never received a lead or a consent record, slug typed to confirm. This
+ * layer only cleans up what SQL should not touch, and both cleanups run after
+ * the delete has committed, so neither can leave a half-deleted tenant.
+ *
+ * Auth users go through the admin API, the supported path, which also ends
+ * their sessions. If one fails the person still reaches nothing, because
+ * their profile is gone and tenant_scope() reads profiles; it is logged so
+ * the address can be freed by hand.
+ */
+export async function deletePartner(input: {
+  tenantId: string;
+  slug: string;
+}): Promise<PartnerResult> {
+  const guard = await guardStaff();
+  if (!guard.ok) return { error: guard.error };
+
+  const tenantId = String(input.tenantId ?? "");
+  if (!UUID_RE.test(tenantId)) return { error: "That partner is not valid." };
+  const slug = String(input.slug ?? "").trim().toLowerCase();
+  if (!slug) return { error: "Type the subdomain to confirm." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("delete_partner", {
+    p_tenant_id: tenantId,
+    p_slug: slug,
+  });
+  if (error) return { error: rpcMessage(error.message, "Could not delete that partner.") };
+
+  const result = (data ?? {}) as {
+    name?: string;
+    user_ids?: string[];
+    logo_path?: string | null;
+  };
+
+  const admin = createAdminClient();
+  const failed: string[] = [];
+  for (const id of result.user_ids ?? []) {
+    const { error: de } = await admin.auth.admin.deleteUser(id);
+    if (de) {
+      console.error("[partners] auth user left behind after partner delete", id, de.message);
+      failed.push(id);
+    }
+  }
+  if (result.logo_path) {
+    await admin.storage.from(LOGO_BUCKET).remove([result.logo_path]);
+  }
+
+  invalidateTenants();
+  const name = result.name ?? "The partner";
+  return {
+    ok: true,
+    message: failed.length
+      ? `${name} deleted, but ${failed.length} login${failed.length === 1 ? "" : "s"} could not be removed from sign-in. They have no access; the address may not be reusable yet.`
+      : `${name} deleted.`,
+  };
+}
+
+/**
  * Invites the first (or another) user into a partner tenant.
  *
  * redirectTo is built from the PARTNER's origin, not the house origin. This is
@@ -1068,6 +1129,11 @@ function rpcMessage(raw: string, fallback: string): string {
     "not an active partner",
     "no lead stages configured",
     "cannot suspend",
+    // 0017's refusals each say why and what to do instead.
+    "cannot delete",
+    "cannot be deleted",
+    "does not match",
+    "before deleting",
     "company name",
     "Unknown branding key",
     // 0013's guards. "only person who can sign in" names the partner and says

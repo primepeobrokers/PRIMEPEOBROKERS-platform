@@ -49,6 +49,7 @@ import {
   removePartnerLogo,
   savePartnerBranding,
   setPartnerSuspended,
+  deletePartner,
   uploadPartnerLogo,
 } from "./actions";
 
@@ -1094,6 +1095,7 @@ function SuspendPanel({ partner }: { partner: PartnerRow }) {
           {pending && <Loader2Icon className="size-4 animate-spin" />}
           Restore access
         </Button>
+        <DeletePartner partner={partner} />
       </div>
     );
   }
@@ -1135,6 +1137,120 @@ function SuspendPanel({ partner }: { partner: PartnerRow }) {
             >
               {pending && <Loader2Icon className="size-4 animate-spin" />}
               Suspend
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+/**
+ * Permanent removal, for test partners and partners that never went live.
+ *
+ * Only offered once a partner is suspended, so deleting is always the second
+ * deliberate step. A partner that has received leads is never deletable (its
+ * leads and six-year consent records stay), and says so instead of showing a
+ * button that would only fail. The server enforces both rules again.
+ *
+ * Typing the subdomain is the confirmation: this cannot be undone, and an
+ * AlertDialog alone is one reflexive Enter away from firing.
+ */
+function DeletePartner({ partner }: { partner: PartnerRow }) {
+  const [pending, startTransition] = useTransition();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [typed, setTyped] = useState("");
+  const confirmed = typed.trim().toLowerCase() === partner.slug;
+  const name = partner.branding.companyName ?? partner.name;
+
+  if (partner.leadCount > 0) {
+    return (
+      <p className="mt-4 border-t border-line pt-3.5 text-[13px] text-ink-muted">
+        This partner has received {partner.leadCount} lead
+        {partner.leadCount === 1 ? "" : "s"}, so it cannot be deleted. Its
+        history is kept; leaving it suspended is the way to retire it.
+      </p>
+    );
+  }
+
+  const run = () => {
+    startTransition(async () => {
+      const result = await deletePartner({ tenantId: partner.id, slug: typed });
+      if ("error" in result) {
+        // Stays open so the reason sits next to what was typed.
+        toast.error(result.error);
+        return;
+      }
+      setDialogOpen(false);
+      toast.success(result.message ?? `${name} deleted.`);
+    });
+  };
+
+  return (
+    <div className="mt-4 border-t border-line pt-3.5">
+      <p className="text-[13px] text-ink-soft">
+        It has never received a lead, so you can delete it permanently: the
+        partner, its {partner.members.length} login
+        {partner.members.length === 1 ? "" : "s"}, its pipeline and its logo.
+        Use this for test partners.
+      </p>
+      <AlertDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          if (pending) return;
+          setDialogOpen(open);
+          if (!open) setTyped("");
+        }}
+      >
+        <AlertDialogTrigger asChild>
+          <Button variant="secondary" className="mt-3 w-fit cursor-pointer text-danger">
+            Delete partner
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-display tracking-[-.015em]">
+              Delete {name} permanently?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the partner, its logins, pipeline and logo. It
+              cannot be undone, and the subdomain becomes free to reuse.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div>
+            <label
+              htmlFor={`delete-${partner.id}`}
+              className="block text-[13px] text-ink-soft"
+            >
+              Type <span className="font-mono font-medium text-ink">{partner.slug}</span>{" "}
+              to confirm
+            </label>
+            <Input
+              id={`delete-${partner.id}`}
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && confirmed && !pending) run();
+              }}
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              disabled={pending}
+              className="mt-1.5 font-mono"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={pending || !confirmed}
+              onClick={(e) => {
+                e.preventDefault();
+                run();
+              }}
+            >
+              {pending && <Loader2Icon className="size-4 animate-spin" />}
+              Delete permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
