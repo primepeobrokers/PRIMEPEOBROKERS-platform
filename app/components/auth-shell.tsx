@@ -11,7 +11,7 @@ export type AuthTenant = {
   branding: Branding;
 } | null;
 
-const HOUSE_SUPPORT = "ops@primepeobrokers.com";
+const HOUSE_SUPPORT = "admin@primepeobrokers.com";
 
 /**
  * Frame for the auth pages: the mark, the card, and the links under it.
