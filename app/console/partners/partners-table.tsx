@@ -183,7 +183,13 @@ function PartnerRowView({
   return (
     <>
       <TableRow className={suspended ? "opacity-60" : undefined}>
-        <TableCell>
+        {/*
+          Wraps, unlike the cells around it: a long partner name ("The
+          Unbreakable Advantage Institute") otherwise sets the table's width,
+          and the table must stay inside its container with Status and the
+          expand control in view.
+        */}
+        <TableCell className="min-w-[180px] whitespace-normal">
           <div className="text-[15px] font-semibold text-ink">
             {partner.branding.companyName ?? partner.name}
           </div>
