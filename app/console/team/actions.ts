@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { confirmUrl, houseOrigin as siteUrl } from "@/lib/tenant/urls";
 import { createClient } from "@/lib/supabase/server";
 import { sendTeamInvite } from "@/lib/email";
+import { asTeamRole, type TeamRole } from "@/lib/console/columns";
 import { houseBrand } from "@/lib/tenant/email-brand";
 
 /**
@@ -53,7 +54,7 @@ export type TeamResult = { error: string } | { ok: true; message?: string };
 export async function inviteTeammate(input: {
   email: string;
   fullName: string;
-  role: "admin" | "member";
+  role: TeamRole;
 }): Promise<TeamResult> {
   const guard = await guardAction("admin");
   if (!guard.ok) return { error: guard.error };
@@ -61,7 +62,7 @@ export async function inviteTeammate(input: {
 
   const email = String(input.email ?? "").trim().toLowerCase();
   const fullName = String(input.fullName ?? "").trim();
-  const role = input.role === "admin" ? "admin" : "member";
+  const role = asTeamRole(input.role);
 
   if (!EMAIL_RE.test(email)) return { error: "Enter a valid email address." };
   if (fullName.length > 120) {
@@ -177,13 +178,13 @@ export async function inviteTeammate(input: {
  */
 export async function changeRole(input: {
   profileId: string;
-  role: "admin" | "member";
+  role: TeamRole;
 }): Promise<TeamResult> {
   const guard = await guardAction("admin");
   if (!guard.ok) return { error: guard.error };
 
   const profileId = String(input.profileId ?? "");
-  const role = input.role === "admin" ? "admin" : "member";
+  const role = asTeamRole(input.role);
   if (!UUID_RE.test(profileId)) return { error: "That teammate is not valid." };
 
   const supabase = await createClient();
@@ -353,6 +354,7 @@ function rpcMessage(raw: string, fallback: string): string {
     "not on your team",
     "Only an admin",
     "Cannot reassign",
+    "Sales reps belong",
   ];
   if (known.some((k) => raw.toLowerCase().includes(k.toLowerCase()))) {
     return raw;

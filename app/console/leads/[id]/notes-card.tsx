@@ -20,9 +20,12 @@ import { NOTE_MAX, type NoteView } from "@/lib/console/notes";
 export function NotesCard({
   submissionId,
   initial,
+  readOnly = false,
 }: {
   submissionId: string;
   initial: NoteView[];
+  /** A sales rep reads the team's notes but cannot add one (RLS refuses it). */
+  readOnly?: boolean;
 }) {
   const [notes, setNotes] = useState(initial);
   const [body, setBody] = useState("");
@@ -51,58 +54,64 @@ export function NotesCard({
 
   return (
     <div>
-      <Textarea
-        value={body}
-        onChange={(e) => {
-          setBody(e.target.value);
-          if (error) setError("");
-        }}
-        onKeyDown={(e) => {
-          /*
-            Cmd or Ctrl + Enter submits, a deliberate divergence from the
-            plain-Enter pattern the auth cards use. A note is multi-line, so
-            binding bare Enter to submit would send half-written notes and
-            make paragraph breaks impossible: a data-loss trap.
-          */
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-            e.preventDefault();
-            submit();
-          }
-        }}
-        placeholder="Add a note for the team"
-        aria-label="New note"
-        aria-invalid={over || !!error ? true : undefined}
-        rows={3}
-        className="resize-y"
-      />
+      {!readOnly && (
+        <>
+          <Textarea
+            value={body}
+            onChange={(e) => {
+              setBody(e.target.value);
+              if (error) setError("");
+            }}
+            onKeyDown={(e) => {
+              /*
+                Cmd or Ctrl + Enter submits, a deliberate divergence from the
+                plain-Enter pattern the auth cards use. A note is multi-line, so
+                binding bare Enter to submit would send half-written notes and
+                make paragraph breaks impossible: a data-loss trap.
+              */
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                submit();
+              }
+            }}
+            placeholder="Add a note for the team"
+            aria-label="New note"
+            aria-invalid={over || !!error ? true : undefined}
+            rows={3}
+            className="resize-y"
+          />
 
-      <div className="mt-2 flex items-center justify-between gap-4">
-        <div className="text-[12.5px] text-ink-muted">
-          {error ? (
-            <span className="text-destructive">{error}</span>
-          ) : over ? (
-            <span className="text-destructive">
-              {body.length.toLocaleString("en-US")} characters, over the{" "}
-              {NOTE_MAX.toLocaleString("en-US")} limit.
-            </span>
-          ) : (
-            "Notes are permanent and visible to your team."
-          )}
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          onClick={submit}
-          disabled={pending || !body.trim() || over}
-        >
-          {pending ? "Saving…" : "Add note"}
-        </Button>
-      </div>
+          <div className="mt-2 flex items-center justify-between gap-4">
+            <div className="text-[12.5px] text-ink-muted">
+              {error ? (
+                <span className="text-destructive">{error}</span>
+              ) : over ? (
+                <span className="text-destructive">
+                  {body.length.toLocaleString("en-US")} characters, over the{" "}
+                  {NOTE_MAX.toLocaleString("en-US")} limit.
+                </span>
+              ) : (
+                "Notes are permanent and visible to your team."
+              )}
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={submit}
+              disabled={pending || !body.trim() || over}
+            >
+              {pending ? "Saving…" : "Add note"}
+            </Button>
+          </div>
+        </>
+      )}
 
-      <div className="mt-5 flex flex-col" data-rows>
+      <div className={readOnly ? "flex flex-col" : "mt-5 flex flex-col"} data-rows>
         {notes.length === 0 && (
           <div className="rounded-md border border-dashed border-line px-4 py-6 text-center text-sm text-ink-muted">
-            No notes yet. Anything you record here stays with the lead.
+            {readOnly
+              ? "No notes on this lead."
+              : "No notes yet. Anything you record here stays with the lead."}
           </div>
         )}
         {notes.map((n) => (

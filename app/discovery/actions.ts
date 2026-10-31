@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { claimRequest, clientIp } from "@/lib/auth/throttle";
 import { currentTenantIdForWrite, leadAttribution, getTenant } from "@/lib/tenant/resolve";
 import { brandFor } from "@/lib/tenant/email-brand";
+import { repInboxFor } from "@/lib/tenant/rep-inbox";
 import { withPartnerReferral } from "@/lib/tenant/partner";
 import {
   TOTAL_STEPS,
@@ -288,7 +289,9 @@ export async function submitRecord(input: {
   const contactEmail = answers["email"];
   const contactName = answers["fullName"];
   try {
-    const brand = brandFor(await getTenant());
+    const tenant = await getTenant();
+    const brand = brandFor(tenant);
+    const repTo = await repInboxFor(tenant);
     /*
       Both sends at once. They are independent, each is a ~300ms call to
       Resend, and awaiting them in series put that whole time on the submit
@@ -296,7 +299,7 @@ export async function submitRecord(input: {
       so one failing address cannot stop the other message.
     */
     const sends: Promise<unknown>[] = [
-      sendSubmissionNotification({ ref: data.ref, id: data.id, answers, brand }),
+      sendSubmissionNotification({ ref: data.ref, id: data.id, answers, brand, repTo }),
     ];
     if (typeof contactEmail === "string" && contactEmail) {
       sends.push(
@@ -544,7 +547,9 @@ export async function requestCall(input: {
   // The team hears about it, and the person gets a confirmation, so the form
   // is never silent even when the team inbox is unset.
   try {
-    const brand = brandFor(await getTenant());
+    const tenant = await getTenant();
+    const brand = brandFor(tenant);
+    const repTo = await repInboxFor(tenant);
     // Both at once, for the same reason as submitRecord above.
     const results = await Promise.allSettled([
       sendSubmissionNotification({
@@ -553,6 +558,7 @@ export async function requestCall(input: {
         answers,
         brand,
         kind: "call",
+        repTo,
       }),
       sendSubmissionConfirmation({
         to: email,

@@ -57,10 +57,13 @@ export function LeadFilters({
   initial,
   stages,
   members,
+  showOwner = true,
 }: {
   initial: LeadFilters;
   stages: Stage[];
   members: Member[];
+  /** False for a sales rep, who is never an owner and has no "my leads". */
+  showOwner?: boolean;
 }) {
   const router = useRouter();
   const [q, setQ] = useState(initial.q);
@@ -172,27 +175,32 @@ export function LeadFilters({
          teammate still appears while they hold leads, so their queue can be
          found and cleared.
       */}
-      <Select value={initial.assignee} onValueChange={(v) => go({ assignee: v })}>
-        <SelectTrigger
-          className="w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1"
-          aria-label="Owner"
-        >
-          <SelectValue placeholder="Any owner" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">Any owner</SelectItem>
-          <SelectItem value={ASSIGNEE_ME}>My leads</SelectItem>
-          <SelectItem value={ASSIGNEE_UNASSIGNED}>Unassigned</SelectItem>
-          {members
-            .filter((m) => !m.deactivated_at || m.id === initial.assignee)
-            .map((m) => (
-              <SelectItem key={m.id} value={m.id}>
-                {memberName(m)}
-                {m.deactivated_at ? " (removed)" : ""}
-              </SelectItem>
-            ))}
-        </SelectContent>
-      </Select>
+      {showOwner && (
+        <Select value={initial.assignee} onValueChange={(v) => go({ assignee: v })}>
+          <SelectTrigger
+            className="w-[150px] max-sm:w-auto max-sm:min-w-0 max-sm:flex-1"
+            aria-label="Owner"
+          >
+            <SelectValue placeholder="Any owner" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any owner</SelectItem>
+            <SelectItem value={ASSIGNEE_ME}>My leads</SelectItem>
+            <SelectItem value={ASSIGNEE_UNASSIGNED}>Unassigned</SelectItem>
+            {members
+              .filter(
+                (m) =>
+                  (!m.deactivated_at && m.role !== "rep") || m.id === initial.assignee,
+              )
+              .map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {memberName(m)}
+                  {m.deactivated_at ? " (removed)" : ""}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+      )}
 
       {filtered && (
         <Button

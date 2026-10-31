@@ -100,12 +100,34 @@ export const SUBMISSION_ROW_KEYS: Record<
   submitted_at: "submitted_at",
 };
 
+/**
+ * A teammate's role. "rep" is a sales rep (migration 0018): view-only, scoped
+ * to the partners assigned to them, never an owner of a lead.
+ */
+export type TeamRole = "admin" | "member" | "rep";
+
+/** How each role reads in the console. One map, so the pickers agree. */
+export const ROLE_LABELS: Record<TeamRole, string> = {
+  admin: "Admin",
+  member: "Member",
+  rep: "Sales rep",
+};
+
+/**
+ * Narrows an untrusted string (a Select value, a form field) to a role.
+ * Anything unknown becomes "member", the least-privileged staff role, never
+ * a guess at something wider.
+ */
+export function asTeamRole(v: unknown): TeamRole {
+  return v === "admin" || v === "rep" ? v : "member";
+}
+
 /** One row of the tenant roster, used by the assignee picker and filters. */
 export interface Member {
   id: string;
   full_name: string | null;
   email: string | null;
-  role: "admin" | "member";
+  role: TeamRole;
   deactivated_at: string | null;
 }
 

@@ -111,7 +111,7 @@ export function PipelineCard({
     blank Select. Picking anyone else then clears them.
   */
   const options = members.filter(
-    (m) => !m.deactivated_at || m.id === assigneeId,
+    (m) => (!m.deactivated_at && m.role !== "rep") || m.id === assigneeId,
   );
   const live = stages.filter((s) => !s.retired || s.slug === stage);
 

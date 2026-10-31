@@ -5,7 +5,12 @@ import { createClient } from "@/lib/supabase/server";
 import { parseBranding } from "@/lib/tenant/branding";
 import { APEX_HOST } from "@/lib/tenant/host";
 import { CreatePartnerDialog } from "./create-partner-dialog";
-import { PartnersTable, type PartnerMember, type PartnerRow } from "./partners-table";
+import {
+  PartnersTable,
+  type PartnerMember,
+  type PartnerRow,
+  type RepOption,
+} from "./partners-table";
 
 export const metadata: Metadata = {
   title: "Partners",
@@ -37,10 +42,10 @@ interface TenantRecord {
  * the route useless to them even if the guard were removed.
  */
 export default async function PartnersPage() {
-  await requireStaff("/console/partners");
+  const ctx = await requireStaff("/console/partners");
   const supabase = await createClient();
 
-  const [{ data: tenantRows }, { data: profileRows }] = await Promise.all([
+  const [{ data: tenantRows }, { data: profileRows }, { data: assignmentRows }] = await Promise.all([
     supabase
       .from("tenants")
       .select("id, slug, name, branding, is_house, suspended_at")
@@ -49,8 +54,10 @@ export default async function PartnersPage() {
     // a login so the client can resend or revoke without asking us.
     supabase
       .from("profiles")
-      .select("id, tenant_id, full_name, email, deactivated_at")
+      .select("id, tenant_id, full_name, email, role, deactivated_at")
       .order("full_name", { ascending: true, nullsFirst: false }),
+    // Which sales reps look after which partner (0018).
+    supabase.from("rep_partners").select("rep_id, tenant_id"),
   ]);
 
   const tenants = (tenantRows ?? []) as TenantRecord[];
@@ -85,15 +92,26 @@ export default async function PartnersPage() {
   );
   const leadsByTenant = new Map<string, number>(counts);
 
+  const house = tenants.find((t) => t.is_house === true);
   const membersByTenant = new Map<string, PartnerMember[]>();
+  const reps: RepOption[] = [];
   for (const row of profileRows ?? []) {
     const r = row as {
       id: string;
       tenant_id: string;
       full_name: string | null;
       email: string | null;
+      role: string;
       deactivated_at: string | null;
     };
+    if (r.tenant_id === house?.id) {
+      // The house team is not a partner roster; only its active reps matter
+      // here, as the people a partner can be assigned to.
+      if (r.role === "rep" && !r.deactivated_at) {
+        reps.push({ id: r.id, name: r.full_name, email: r.email });
+      }
+      continue;
+    }
     const list = membersByTenant.get(r.tenant_id) ?? [];
     list.push({
       id: r.id,
@@ -102,6 +120,13 @@ export default async function PartnersPage() {
       deactivatedAt: r.deactivated_at,
     });
     membersByTenant.set(r.tenant_id, list);
+  }
+
+  const repIdsByTenant = new Map<string, string[]>();
+  for (const a of assignmentRows ?? []) {
+    const list = repIdsByTenant.get(a.tenant_id) ?? [];
+    list.push(a.rep_id);
+    repIdsByTenant.set(a.tenant_id, list);
   }
 
   // The house tenant is managed through /console/team, and it must never be
@@ -116,6 +141,7 @@ export default async function PartnersPage() {
       suspendedAt: t.suspended_at,
       leadCount: leadsByTenant.get(t.id) ?? 0,
       members: membersByTenant.get(t.id) ?? [],
+      repIds: repIdsByTenant.get(t.id) ?? [],
     }));
 
   const apexHost = APEX_HOST;
@@ -148,7 +174,12 @@ export default async function PartnersPage() {
         <h2 className="mb-3 font-mono text-[10.5px] uppercase tracking-[.12em] text-ink-faint">
           {partners.length} partner{partners.length === 1 ? "" : "s"}
         </h2>
-        <PartnersTable partners={partners} apexHost={apexHost} />
+        <PartnersTable
+          partners={partners}
+          apexHost={apexHost}
+          reps={reps}
+          canAssignReps={ctx.role === "admin"}
+        />
       </section>
     </main>
   );

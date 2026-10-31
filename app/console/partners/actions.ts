@@ -556,6 +556,51 @@ export async function setPartnerSuspended(input: {
 }
 
 /**
+ * Replaces the set of sales reps who look after a partner.
+ *
+ * The whole set in one call, not add/remove pairs, so a checklist saves
+ * atomically. set_partner_reps (0018) re-checks staff and admin, refuses the
+ * house, and refuses anyone who is not an active rep, so this layer only
+ * shapes the input. Takes effect on the rep's next request: tenant_scope()
+ * reads rep_partners live.
+ */
+export async function setPartnerReps(input: {
+  tenantId: string;
+  repIds: string[];
+}): Promise<PartnerResult> {
+  const guard = await guardStaff();
+  if (!guard.ok) return { error: guard.error };
+  if (guard.ctx.role !== "admin") {
+    return { error: "Only an admin can assign reps to a partner." };
+  }
+
+  const tenantId = String(input.tenantId ?? "");
+  if (!UUID_RE.test(tenantId)) return { error: "That partner is not valid." };
+  const raw = Array.isArray(input.repIds) ? input.repIds : [];
+  if (raw.length > 200) return { error: "That is more reps than this team has." };
+  const repIds = [...new Set(raw.map(String))];
+  if (!repIds.every((id) => UUID_RE.test(id))) {
+    return { error: "One of those reps is not valid." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_partner_reps", {
+    p_tenant_id: tenantId,
+    p_rep_ids: repIds,
+  });
+  if (error) return { error: rpcMessage(error.message, "Could not save the reps for that partner.") };
+
+  revalidatePath("/console/partners");
+  return {
+    ok: true,
+    message:
+      repIds.length === 0
+        ? "No reps on this partner now."
+        : `Saved. ${repIds.length} rep${repIds.length === 1 ? "" : "s"} on this partner.`,
+  };
+}
+
+/**
  * Permanently deletes a test partner, or one that never went live.
  *
  * The rules live in the delete_partner RPC (0017), not here: suspended first,
@@ -1170,6 +1215,10 @@ function rpcMessage(raw: string, fallback: string): string {
     "only person who can sign in",
     "not on this partner",
     "Team screen",
+    // 0018's set_partner_reps refusals.
+    "Only an admin can assign reps",
+    "not an active sales rep",
+    "does not exist",
   ];
   if (known.some((k) => raw.toLowerCase().includes(k.toLowerCase()))) return raw;
   console.error("[partners] rpc failed", raw);

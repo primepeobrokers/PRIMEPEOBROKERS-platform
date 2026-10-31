@@ -49,7 +49,7 @@ export async function setStage(input: {
   submissionId: string;
   stage: string;
 }): Promise<ActionResult> {
-  const guard = await guardAction();
+  const guard = await guardAction("write");
   if (!guard.ok) return { error: guard.error };
 
   const submissionId = String(input.submissionId ?? "");
@@ -101,7 +101,7 @@ export async function setAssignee(input: {
   submissionId: string;
   assigneeId: string | null;
 }): Promise<ActionResult> {
-  const guard = await guardAction();
+  const guard = await guardAction("write");
   if (!guard.ok) return { error: guard.error };
 
   const submissionId = String(input.submissionId ?? "");
@@ -179,7 +179,7 @@ export async function addNote(input: {
   submissionId: string;
   body: string;
 }): Promise<{ error: string } | { ok: true; note: NoteView }> {
-  const guard = await guardAction();
+  const guard = await guardAction("write");
   if (!guard.ok) return { error: guard.error };
   const { ctx } = guard;
 
@@ -307,7 +307,7 @@ export async function logRecordOpen(submissionId: string): Promise<void> {
 export async function recordSmsOptOut(input: {
   submissionId: string;
 }): Promise<{ error: string } | { ok: true; message: string }> {
-  const guard = await guardAction();
+  const guard = await guardAction("write");
   if (!guard.ok) return { error: guard.error };
 
   const submissionId = String(input.submissionId ?? "");

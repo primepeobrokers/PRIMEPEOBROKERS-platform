@@ -30,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/app/components/ui/table";
-import { memberName, type Member } from "@/lib/console/columns";
+import { asTeamRole, memberName, ROLE_LABELS, type Member } from "@/lib/console/columns";
 import { changeRole, removeTeammate, restoreTeammate } from "./actions";
 
 const UNASSIGNED = "unassigned";
@@ -136,7 +136,7 @@ export function MembersTable({
                         run(() =>
                           changeRole({
                             profileId: m.id,
-                            role: v === "admin" ? "admin" : "member",
+                            role: asTeamRole(v),
                           }),
                         );
                       }}
@@ -149,8 +149,9 @@ export function MembersTable({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="member">Member</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="member">{ROLE_LABELS.member}</SelectItem>
+                        <SelectItem value="rep">{ROLE_LABELS.rep}</SelectItem>
+                        <SelectItem value="admin">{ROLE_LABELS.admin}</SelectItem>
                       </SelectContent>
                     </Select>
                   </TableCell>
@@ -269,8 +270,9 @@ export function MembersTable({
                   <SelectItem value={UNASSIGNED}>
                     Leave unassigned
                   </SelectItem>
+                  {/* Not reps: a rep never owns a lead (0018). */}
                   {active
-                    .filter((m) => m.id !== removing.id)
+                    .filter((m) => m.id !== removing.id && m.role !== "rep")
                     .map((m) => (
                       <SelectItem key={m.id} value={m.id}>
                         {memberName(m)}

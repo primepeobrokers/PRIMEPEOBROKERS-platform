@@ -6,8 +6,14 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantOrigin } from "@/lib/tenant/urls";
 import { DEFAULT_TENANT_ID } from "@/lib/tenant";
+import { asTeamRole, type TeamRole } from "@/lib/console/columns";
 
-export type Role = "admin" | "member";
+/**
+ * "rep" is a sales rep (migration 0018): a house login that reads only the
+ * partners assigned to it, never direct leads, and writes nothing. Never
+ * platform staff.
+ */
+export type Role = TeamRole;
 
 export interface SessionContext {
   userId: string;
@@ -88,7 +94,7 @@ const resolveSession = cache(
         userId: user.id,
         email: user.email ?? "",
         tenantId: profile.tenant_id,
-        role: profile.role === "admin" ? "admin" : "member",
+        role: asTeamRole(profile.role),
         fullName: profile.full_name ?? null,
         isPlatformStaff: profile.is_platform_staff === true,
       },
@@ -166,6 +172,23 @@ export async function requireStaff(next = "/console"): Promise<SessionContext> {
 }
 
 /**
+ * Console context: platform staff, or a sales rep. For the console layout and
+ * the leads pages a rep shares with staff.
+ *
+ * A rep is never platform staff (0018), so requireStaff would 404 them. Their
+ * reach inside the console is RLS's business: tenant_scope() hands them only
+ * their assigned partners, and every write policy refuses them. Staff-only
+ * pages (Partners) keep requireStaff, which still 404s a rep, because a rep's
+ * home tenant is the house and has no portal to redirect to.
+ */
+export async function requireConsole(next = "/console"): Promise<SessionContext> {
+  const ctx = await getSessionContext();
+  if (!ctx) redirect(await signInRedirect(next));
+  if (ctx.role === "rep") return ctx;
+  return requireStaff(next);
+}
+
+/**
  * The absolute URL of a partner's own portal, or null for the house tenant.
  *
  * Absolute because a partner portal lives on its own subdomain: a relative
@@ -200,12 +223,17 @@ export type ActionGuard =
  * admin". Both are the same thing to the person reading it, and the difference
  * is only useful to someone probing.
  */
-export async function guardAction(need?: Role): Promise<ActionGuard> {
+export async function guardAction(need?: "admin" | "write"): Promise<ActionGuard> {
   const ctx = await getSessionContext();
   if (!ctx) {
     return { ok: false, error: "Your session has expired. Sign in again." };
   }
-  if (need === "admin" && ctx.role !== "admin") {
+  // "write" is any lead write. Sales reps are view-only; RLS refuses them too,
+  // and this turns that refusal into a sentence before the round trip.
+  if (
+    (need === "admin" && ctx.role !== "admin") ||
+    (need === "write" && ctx.role === "rep")
+  ) {
     return {
       ok: false,
       error: "You do not have permission to do that. Ask an admin on your team.",

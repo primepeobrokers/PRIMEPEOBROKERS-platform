@@ -12,7 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/app/components/ui/select";
+import { asTeamRole, ROLE_LABELS, type TeamRole } from "@/lib/console/columns";
 import { inviteTeammate } from "./actions";
+
+const ROLE_HINTS: Record<TeamRole, string> = {
+  member: "Team members work leads. They cannot manage the team.",
+  admin: "Admins can invite, remove and change roles, edit the pipeline, and assign reps to partners.",
+  rep: "Sales reps see leads from the partners assigned to them, view only. Assign partners from the Partners screen.",
+};
 
 /**
  * Invite a teammate.
@@ -24,7 +31,7 @@ import { inviteTeammate } from "./actions";
 export function InviteCard() {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
-  const [role, setRole] = useState<"admin" | "member">("member");
+  const [role, setRole] = useState<TeamRole>("member");
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
 
@@ -102,20 +109,19 @@ export function InviteCard() {
             </label>
             <Select
               value={role}
-              onValueChange={(v) => setRole(v === "admin" ? "admin" : "member")}
+              onValueChange={(v) => setRole(asTeamRole(v))}
             >
               <SelectTrigger id="invite-role" className="mt-1.5 w-full">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="member">Team member</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="rep">{ROLE_LABELS.rep}</SelectItem>
+                <SelectItem value="admin">{ROLE_LABELS.admin}</SelectItem>
               </SelectContent>
             </Select>
             <div className="mt-1.5 text-[12.5px] leading-normal text-ink-muted">
-              {role === "admin"
-                ? "Admins can invite, remove and change roles, and edit the pipeline."
-                : "Team members work leads. They cannot manage the team."}
+              {ROLE_HINTS[role]}
             </div>
           </div>
 

@@ -78,7 +78,7 @@ async function sessionFor(email: string): Promise<SupabaseClient | null> {
 async function makeUser(
   email: string,
   tenantId: string,
-  role: "admin" | "member",
+  role: "admin" | "member" | "rep",
   invitedBy?: string,
 ) {
   // Remove a leftover from an interrupted run, so the suite is re-runnable.
@@ -244,6 +244,17 @@ async function teardown() {
     word rather than to any string containing z, z and a space.
   */
   await admin.from("tenant_events").delete().ilike("detail", "ZZ %");
+  /*
+    Partner-admin RPCs name the fixture mid-sentence ("Branding updated for
+    ZZ Test Partner 3", "Lead #1167 routed from ZZ Test Partner 1 to ...",
+    "Reps for ZZ Test Partner 1: ..."), which "ZZ %" never matched, so every
+    run left three lines in the client's Team activity feed. One anchored
+    pattern per sentence shape (check-fixtures.mts refuses a leading %), each
+    requiring the fixture tenant name, which no real partner carries.
+  */
+  await admin.from("tenant_events").delete().ilike("detail", "Branding updated for ZZ Test Partner %");
+  await admin.from("tenant_events").delete().ilike("detail", "Lead #% routed from ZZ Test Partner %");
+  await admin.from("tenant_events").delete().ilike("detail", "Reps for ZZ Test Partner %");
   await admin.from("tenant_events").delete().ilike("actor", "ZZ %");
 }
 
@@ -946,6 +957,165 @@ try {
     .update({ branding: [1, 2, 3] })
     .eq("id", a.tenantId);
   ok(!!badBranding.error, "branding must be a JSON object, not an array");
+
+  // =========================================================================
+  describe("sales reps (0018): assigned partners only, view only");
+  // =========================================================================
+  /*
+    A rep is a house login, invited by staff, which before 0018 would have
+    made them platform staff with every tenant in scope. Every assertion here
+    runs through the rep's own session.
+  */
+  const adminRow = await admin
+    .from("profiles")
+    .select("id, email")
+    .eq("tenant_id", HOUSE)
+    .eq("role", "admin")
+    .eq("is_platform_staff", true)
+    .is("deactivated_at", null)
+    .limit(1)
+    .maybeSingle();
+  const repSchema = await admin.from("rep_partners").select("rep_id").limit(1);
+
+  if (repSchema.error) {
+    skip("sales reps", `run migration 0018 first (${repSchema.error.message})`);
+  } else if (!adminRow.data?.email) {
+    skip("sales reps", "no active house admin with an email to sign in as");
+  } else {
+    const repEmail = `${PREFIX}-rep@example.invalid`;
+    const repId = await makeUser(repEmail, HOUSE, "rep", adminRow.data.id);
+    if (repId) created.users.push(repId);
+    const houseAdmin = await sessionFor(adminRow.data.email);
+    const rep = repEmail && repId ? await sessionFor(repEmail) : null;
+
+    if (!repId || !houseAdmin || !rep) {
+      skip("sales reps", "could not create the rep or sign in as the house admin");
+    } else {
+      const prof = await admin
+        .from("profiles")
+        .select("role, is_platform_staff, tenant_id")
+        .eq("id", repId)
+        .single();
+      equal(prof.data?.role, "rep", "a rep invite makes a rep");
+      equal(prof.data?.is_platform_staff, false,
+            "a rep invited by platform staff is still NOT platform staff");
+
+      const own = await rep.from("profiles").select("id").eq("id", repId);
+      equal(own.data?.length ?? 0, 1, "a rep can read its own profile (so it can sign in)");
+      const houseStages = await rep.from("lead_stages").select("id").eq("tenant_id", HOUSE);
+      ok((houseStages.data?.length ?? 0) > 0, "a rep can read the house pipeline labels");
+
+      const before = await rep.from("submissions").select("*", { count: "exact", head: true });
+      equal(before.count ?? 0, 0, "an unassigned rep sees no leads at all, not the house's");
+
+      const asRep = await rep.rpc("set_partner_reps", { p_tenant_id: a.tenantId, p_rep_ids: [repId] });
+      ok(!!asRep.error, "a rep cannot assign itself to a partner");
+
+      const notRep = await houseAdmin.rpc("set_partner_reps", {
+        p_tenant_id: a.tenantId, p_rep_ids: [a.userId],
+      });
+      ok(!!notRep.error, "set_partner_reps refuses someone who is not a rep");
+
+      const assign = await houseAdmin.rpc("set_partner_reps", {
+        p_tenant_id: a.tenantId, p_rep_ids: [repId],
+      });
+      ok(!assign.error, "a house admin assigns the rep to partner A", assign.error?.message);
+
+      const scopeR = await rep.rpc("tenant_scope");
+      equal(JSON.stringify(scopeR.data), JSON.stringify([a.tenantId]),
+            "the rep's tenant_scope() is exactly partner A");
+
+      const aCount = await admin
+        .from("submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("tenant_id", a.tenantId);
+      const repSees = await rep.from("submissions").select("*", { count: "exact", head: true });
+      equal(repSees.count, aCount.count, "the rep sees exactly partner A's leads");
+
+      const bByRep = await rep.from("submissions").select("id").eq("id", b.leadId);
+      equal(bByRep.data?.length ?? 0, 0, "the rep cannot read partner B's lead by id");
+
+      const houseLead = await admin
+        .from("submissions").select("id").eq("tenant_id", HOUSE).limit(1).maybeSingle();
+      if (houseLead.data?.id) {
+        const hByRep = await rep.from("submissions").select("id").eq("id", houseLead.data.id);
+        equal(hByRep.data?.length ?? 0, 0, "the rep cannot read a direct (house) lead by id");
+      } else {
+        skip("house lead isolation", "the house has no leads to try");
+      }
+
+      /*
+        A lead of the rep suite's own. a.leadId is not safe here: the routing
+        tests above move it to another tenant, and a refused write against a
+        lead the rep cannot even see would pass for the wrong reason.
+      */
+      const fresh = await admin
+        .from("submissions")
+        .insert({
+          tenant_id: a.tenantId,
+          answers: { company: "ZZ Rep Lead" },
+          steps_completed: 6,
+          status: "complete",
+          intent: "shop",
+          company_name: "ZZ Rep Lead",
+        })
+        .select("id")
+        .single();
+      const repLead = fresh.data?.id ?? "";
+      const visible = await rep.from("submissions").select("id").eq("id", repLead);
+      equal(visible.data?.length ?? 0, 1, "the rep can read a lead on its partner (so the refusals below are real)");
+
+      // View only. Re-read with the service role: a discarded write is not an error.
+      const stageBefore = await admin.from("submissions").select("lead_stage").eq("id", repLead).single();
+      await rep.from("submissions").update({ lead_stage: "closed" }).eq("id", repLead);
+      const stageAfter = await admin.from("submissions").select("lead_stage").eq("id", repLead).single();
+      equal(stageAfter.data?.lead_stage, stageBefore.data?.lead_stage, "a rep cannot change a lead's stage");
+
+      const note = await rep.from("submission_notes").insert({
+        tenant_id: a.tenantId, submission_id: repLead, author_id: repId,
+        author_name: "ZZ Rep", body: "ZZ should not land",
+      });
+      equal(note.error?.code, "42501", "a rep cannot add a note (refused by RLS, not a schema error)");
+
+      const opened = await rep.from("submission_events").insert({
+        tenant_id: a.tenantId, submission_id: repLead, actor: "ZZ Rep",
+        actor_id: repId, action: "opened", detail: "Record opened",
+      });
+      ok(!opened.error, "a rep's 'opened' audit line is still recorded", opened.error?.message);
+
+      const forged = await rep.from("submission_events").insert({
+        tenant_id: a.tenantId, submission_id: repLead, actor: "ZZ Rep",
+        actor_id: repId, action: "stage_changed", detail: "ZZ forged",
+      });
+      equal(forged.error?.code, "42501", "a rep cannot write any other event (refused by RLS)");
+
+      const consent = await rep.from("consent_records").select("*", { count: "exact", head: true });
+      equal(consent.count ?? 0, 0, "a rep reads no consent records (IP and user agent)");
+
+      const own2 = await admin.from("submissions").update({ assigned_to: repId }).eq("id", repLead);
+      ok(!!own2.error, "a rep can never be made the owner of a lead");
+
+      // Role changes keep the staff flag and the assignments consistent.
+      const toMember = await houseAdmin.rpc("set_teammate_role", { p_profile_id: repId, p_role: "member" });
+      ok(!toMember.error, "an admin can turn a rep into a member", toMember.error?.message);
+      const asMember = await admin.from("profiles").select("is_platform_staff").eq("id", repId).single();
+      equal(asMember.data?.is_platform_staff, true, "a former rep becomes platform staff like any member");
+      const leftover = await admin.from("rep_partners").select("rep_id").eq("rep_id", repId);
+      equal(leftover.data?.length ?? 0, 0, "leaving the rep role drops their partner assignments");
+
+      const backToRep = await houseAdmin.rpc("set_teammate_role", { p_profile_id: repId, p_role: "rep" });
+      ok(!backToRep.error, "an admin can make a member a rep", backToRep.error?.message);
+      const asRepAgain = await admin.from("profiles").select("is_platform_staff").eq("id", repId).single();
+      equal(asRepAgain.data?.is_platform_staff, false, "becoming a rep clears platform staff");
+
+      const after = await rep.from("submissions").select("*", { count: "exact", head: true });
+      equal(after.count ?? 0, 0, "with no partners assigned, the rep sees nothing again");
+
+      await rep.auth.signOut();
+      // Local only: a global sign-out would end the real admin's own sessions.
+      await houseAdmin.auth.signOut({ scope: "local" });
+    }
+  }
 
   await a.session.auth.signOut();
   await b.session.auth.signOut();

@@ -20,6 +20,7 @@ import {
   composeResumeLink,
   composeSubmissionConfirmation,
   composeSubmissionNotification,
+  composeRepNotification,
   composeTeamInvite,
   type ComposedEmail,
 } from "../lib/email";
@@ -72,6 +73,9 @@ const messages: Record<string, ComposedEmail> = {
     via: "Acme Brokers",
     footer: "Sent to the team the moment a discovery record is submitted.",
   }),
+  "rep-notification": composeRepNotification({
+    ref: 1087, id: "00000000-0000-4000-8000-000000000042", answers, partnerName: "Acme Brokers",
+  }),
   "partner-notification": composeSubmissionNotification({
     ref: 1087, id: "00000000-0000-4000-8000-000000000042", answers, brand: partner,
     link: `${partner.origin}/portal/leads/00000000-0000-4000-8000-000000000042`,
@@ -87,6 +91,10 @@ const messages: Record<string, ComposedEmail> = {
   "house-invite": composeTeamInvite({
     acceptUrl: `${house.origin}/auth/confirm?token_hash=x&type=invite`,
     invitedBy: "Sam Rivera", role: "member", brand: house, destination: "console",
+  }),
+  "rep-invite": composeTeamInvite({
+    acceptUrl: `${house.origin}/auth/confirm?token_hash=x&type=invite`,
+    invitedBy: "Sam Rivera", role: "rep", brand: house, destination: "console",
   }),
   "partner-invite": composeTeamInvite({
     acceptUrl: `${partner.origin}/auth/confirm?token_hash=x&type=invite`,

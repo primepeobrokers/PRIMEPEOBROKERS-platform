@@ -9,12 +9,14 @@ import {
   Loader2Icon,
   MailIcon,
   PaletteIcon,
+  UsersIcon,
   XIcon,
 } from "lucide-react";
 
 import { Button } from "@/app/components/ui/button";
 import { Input } from "@/app/components/ui/input";
 import { Badge } from "@/app/components/ui/badge";
+import { Checkbox } from "@/app/components/ui/checkbox";
 import { Card, CardContent } from "@/app/components/ui/card";
 import {
   Table,
@@ -55,6 +57,7 @@ import {
   savePartnerBranding,
   savePartnerLogo,
   setPartnerSuspended,
+  setPartnerReps,
   deletePartner,
   startPartnerLogoUpload,
 } from "./actions";
@@ -76,6 +79,15 @@ export interface PartnerRow {
   suspendedAt: string | null;
   leadCount: number;
   members: PartnerMember[];
+  /** Sales reps assigned to this partner (0018). */
+  repIds: string[];
+}
+
+/** An active sales rep on the house team, assignable to partners. */
+export interface RepOption {
+  id: string;
+  name: string | null;
+  email: string | null;
 }
 
 /** Members who can actually sign in. Removed people stay in the list, greyed. */
@@ -94,9 +106,14 @@ function activeMembers(partner: PartnerRow): PartnerMember[] {
 export function PartnersTable({
   partners,
   apexHost,
+  reps,
+  canAssignReps,
 }: {
   partners: PartnerRow[];
   apexHost: string;
+  reps: RepOption[];
+  /** Admins assign reps; other staff see who is assigned. */
+  canAssignReps: boolean;
 }) {
   const [open, setOpen] = useState<string | null>(null);
 
@@ -122,6 +139,7 @@ export function PartnersTable({
             <TableHead>Portal</TableHead>
             <TableHead className="text-right">Leads</TableHead>
             <TableHead className="text-right">Logins</TableHead>
+            <TableHead className="text-right">Reps</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-10" />
           </TableRow>
@@ -132,6 +150,8 @@ export function PartnersTable({
               key={p.id}
               partner={p}
               apexHost={apexHost}
+              reps={reps}
+              canAssignReps={canAssignReps}
               expanded={open === p.id}
               onToggle={() => setOpen(open === p.id ? null : p.id)}
             />
@@ -145,11 +165,15 @@ export function PartnersTable({
 function PartnerRowView({
   partner,
   apexHost,
+  reps,
+  canAssignReps,
   expanded,
   onToggle,
 }: {
   partner: PartnerRow;
   apexHost: string;
+  reps: RepOption[];
+  canAssignReps: boolean;
   expanded: boolean;
   onToggle: () => void;
 }) {
@@ -171,15 +195,22 @@ function PartnerRowView({
             )}
         </TableCell>
 
-        <TableCell>
+        {/*
+          Capped and truncated: a hostname cannot wrap, and the longest
+          partner's ("the-unbreakable-advantage-institute.…") pushed the table
+          past its container, clipping Status and the expand control behind a
+          horizontal scroll. The full address stays in the title and the href.
+        */}
+        <TableCell className="max-w-[300px]">
           <a
             href={`https://${host}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-sm font-mono text-[13px] text-ink-soft outline-none transition-colors duration-150 hover:text-accent-press focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            title={host}
+            className="inline-flex max-w-full items-center gap-1.5 rounded-sm font-mono text-[13px] text-ink-soft outline-none transition-colors duration-150 hover:text-accent-press focus-visible:ring-[3px] focus-visible:ring-ring/50"
           >
-            {host}
-            <ExternalLinkIcon className="size-3" aria-hidden="true" />
+            <span className="truncate">{host}</span>
+            <ExternalLinkIcon className="size-3 shrink-0" aria-hidden="true" />
           </a>
         </TableCell>
 
@@ -188,6 +219,9 @@ function PartnerRowView({
         </TableCell>
         <TableCell className="text-right font-mono text-sm">
           {activeMembers(partner).length}
+        </TableCell>
+        <TableCell className="text-right font-mono text-sm">
+          {assignedReps(partner, reps).length}
         </TableCell>
 
         <TableCell>
@@ -225,7 +259,7 @@ function PartnerRowView({
 
       {expanded && (
         <TableRow className="hover:bg-transparent">
-          <TableCell colSpan={6} className="bg-sunken p-0">
+          <TableCell colSpan={7} className="bg-sunken p-0">
             {/*
               TABS, NOT ONE FLAT WALL.
 
@@ -279,6 +313,13 @@ function PartnerRowView({
                       {activeMembers(partner).length}
                     </span>
                   </TabsTrigger>
+                  <TabsTrigger value="reps" className="flex-none px-3">
+                    <UsersIcon className="size-3.5" aria-hidden="true" />
+                    Reps
+                    <span className="ml-1 font-mono text-[11px] text-ink-faint">
+                      {assignedReps(partner, reps).length}
+                    </span>
+                  </TabsTrigger>
                   <TabsTrigger value="branding" className="flex-none px-3">
                     <PaletteIcon className="size-3.5" aria-hidden="true" />
                     Branding
@@ -290,6 +331,13 @@ function PartnerRowView({
 
                 <TabsContent value="logins" className="min-w-0 max-w-[640px]">
                   <PeoplePanel partner={partner} />
+                </TabsContent>
+                <TabsContent value="reps" className="min-w-0 max-w-[640px]">
+                  <RepsPanel
+                    partner={partner}
+                    reps={reps}
+                    canAssign={canAssignReps}
+                  />
                 </TabsContent>
                 <TabsContent value="branding" className="min-w-0">
                   <BrandingPanel partner={partner} />
@@ -1116,6 +1164,141 @@ function PeoplePanel({ partner }: { partner: PartnerRow }) {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Reps on this partner, among the reps that still exist. A removed rep keeps
+ * their assignment rows (so a Restore returns them intact), but they are not
+ * in `reps` and must not be counted.
+ */
+function assignedReps(partner: PartnerRow, reps: RepOption[]): RepOption[] {
+  return reps.filter((r) => partner.repIds.includes(r.id));
+}
+
+function repName(r: RepOption): string {
+  return r.name?.trim() || r.email || "Unnamed rep";
+}
+
+/**
+ * Which sales reps look after this partner.
+ *
+ * A checklist with one Save, not a toggle per row that saves on click: a
+ * handover is usually "take Dana off, put Sam on", and saving the set at once
+ * means the partner is never briefly covered by nobody (or by both). The
+ * server replaces the whole set atomically.
+ */
+function RepsPanel({
+  partner,
+  reps,
+  canAssign,
+}: {
+  partner: PartnerRow;
+  reps: RepOption[];
+  canAssign: boolean;
+}) {
+  const saved = assignedReps(partner, reps).map((r) => r.id);
+  const [selected, setSelected] = useState<string[]>(saved);
+  const [pending, startTransition] = useTransition();
+  const partnerName = partner.branding.companyName ?? partner.name;
+
+  const dirty =
+    selected.length !== saved.length || selected.some((id) => !saved.includes(id));
+
+  const save = () => {
+    startTransition(async () => {
+      const result = await setPartnerReps({ tenantId: partner.id, repIds: selected });
+      if ("error" in result) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(result.message ?? "Saved.");
+    });
+  };
+
+  if (reps.length === 0) {
+    return (
+      <div className="rounded-md border border-line bg-raised p-3.5">
+        <p className="text-[13px] text-ink-soft">
+          No sales reps on the team yet. Invite one from the Team screen with
+          the Sales rep role, then assign them here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md border border-line bg-raised p-3.5">
+      <p className="text-[13px] text-ink-soft">
+        Reps see {partnerName}&rsquo;s leads in their console, view only, and
+        get an email for each new one. They never see your direct leads or
+        other partners.
+      </p>
+
+      <fieldset className="mt-3.5" disabled={!canAssign || pending}>
+        <legend className="sr-only">Sales reps for {partnerName}</legend>
+        <ul className="flex flex-col divide-y divide-sunken" data-rows>
+          {reps.map((r) => {
+            const id = `rep-${partner.id}-${r.id}`;
+            const checked = selected.includes(r.id);
+            return (
+              <li key={r.id}>
+                <label
+                  htmlFor={id}
+                  className="flex min-h-11 cursor-pointer items-center gap-3 py-2 has-[:disabled]:cursor-default"
+                >
+                  <Checkbox
+                    id={id}
+                    checked={checked}
+                    onCheckedChange={(v) =>
+                      setSelected((s) =>
+                        v === true ? [...s, r.id] : s.filter((x) => x !== r.id),
+                      )
+                    }
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-[14px] font-semibold text-ink">
+                      {repName(r)}
+                    </span>
+                    {r.name && r.email && (
+                      <span className="block truncate text-[12.5px] text-ink-muted">
+                        {r.email}
+                      </span>
+                    )}
+                  </span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      </fieldset>
+
+      {canAssign ? (
+        <div className="mt-3 flex items-center gap-3">
+          <Button
+            onClick={save}
+            disabled={pending || !dirty}
+            className="w-fit cursor-pointer"
+          >
+            {pending && <Loader2Icon className="size-4 animate-spin" />}
+            Save reps
+          </Button>
+          {dirty && !pending && (
+            <button
+              type="button"
+              onClick={() => setSelected(saved)}
+              className="cursor-pointer rounded-sm text-[13px] text-ink-muted underline-offset-4 outline-none transition-colors duration-150 hover:text-ink hover:underline focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              Undo changes
+            </button>
+          )}
+        </div>
+      ) : (
+        <p className="mt-3 text-[12.5px] text-ink-muted">
+          Only an admin can change which reps look after a partner.
+        </p>
+      )}
     </div>
   );
 }

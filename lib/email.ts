@@ -2,6 +2,7 @@ import "server-only";
 
 import { Resend } from "resend";
 import { STEPS, formatAnswer, type Answers } from "@/lib/discovery/schema";
+import type { TeamRole } from "@/lib/console/columns";
 import {
   HOUSE_NAME,
   formatFrom,
@@ -263,6 +264,31 @@ function payload(
 }
 
 /**
+ * The rep's copy of a partner's new lead: the house message, with the console
+ * link and a footer that says why this rep, of everyone, received it.
+ * Exported apart so scripts/preview-email.mts can render it.
+ */
+export function composeRepNotification(input: {
+  ref: number;
+  id: string;
+  answers: Answers;
+  partnerName: string;
+  kind?: "record" | "call";
+}): ComposedEmail {
+  const house = houseBrand();
+  return composeSubmissionNotification({
+    ref: input.ref,
+    id: input.id,
+    answers: input.answers,
+    brand: house,
+    kind: input.kind,
+    link: `${house.origin}/console/leads/${input.id}`,
+    via: input.partnerName,
+    footer: `Sent to you because you look after ${input.partnerName}.`,
+  });
+}
+
+/**
  * Tells someone a new record was submitted.
  *
  * The same message serves two readers with different links and framing: the
@@ -380,6 +406,11 @@ export async function sendSubmissionNotification(input: {
   brand: EmailBrand;
   /** See composeSubmissionNotification. */
   kind?: "record" | "call";
+  /**
+   * Sales reps who look after this partner (lib/tenant/rep-inbox.ts). Each
+   * gets their own message, so no rep sees another's address.
+   */
+  repTo?: string[];
 }) {
   const resend = getResend();
   if (!resend) return;
@@ -441,6 +472,34 @@ export async function sendSubmissionNotification(input: {
     } else {
       console.warn(
         `[email] partner "${input.brand.name}" has no contact address: their copy of REF ${input.ref} was skipped.`,
+      );
+    }
+  }
+
+  /*
+    Reps, in the house brand with a console link: they work from the console,
+    not the partner's portal. Skipped for anyone already in the house inbox,
+    who has just been sent the same lead.
+  */
+  if (!input.brand.isHouse && input.repTo && input.repTo.length > 0) {
+    const already = new Set(houseTo.map((a) => a.toLowerCase()));
+    for (const to of new Set(input.repTo.map((a) => a.toLowerCase()))) {
+      if (already.has(to)) continue;
+      sends.push(
+        resend.emails.send(
+          payload(
+            house,
+            to,
+            composeRepNotification({
+              ref: input.ref,
+              id: input.id,
+              answers: input.answers,
+              partnerName: input.brand.name,
+              kind: input.kind,
+            }),
+            replyTo ?? house.replyTo,
+          ),
+        ),
       );
     }
   }
@@ -690,7 +749,7 @@ export async function sendSubmissionConfirmation(input: {
 export function composeTeamInvite(input: {
   acceptUrl: string;
   invitedBy: string;
-  role: "admin" | "member";
+  role: TeamRole;
   brand: EmailBrand;
   destination: "console" | "portal";
 }): ComposedEmail {
@@ -706,7 +765,9 @@ export function composeTeamInvite(input: {
       ? ""
       : input.role === "admin"
         ? " You are joining as an admin, so you can also manage the team and the pipeline."
-        : " You are joining as a team member.";
+        : input.role === "rep"
+          ? " You are joining as a sales rep, so you will see the leads from the partners you look after."
+          : " You are joining as a team member.";
 
   return {
     subject: `${input.invitedBy} invited you to ${name}`,
@@ -738,7 +799,7 @@ export async function sendTeamInvite(input: {
   to: string;
   acceptUrl: string;
   invitedBy: string;
-  role: "admin" | "member";
+  role: TeamRole;
   brand: EmailBrand;
   destination: "console" | "portal";
 }): Promise<{ ok: boolean }> {

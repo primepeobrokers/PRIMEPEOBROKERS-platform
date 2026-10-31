@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { FilterXIcon, InboxIcon, PlugZapIcon } from "lucide-react";
+import { FilterXIcon, InboxIcon, PlugZapIcon, UsersIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import {
   SUBMISSION_LIST_SELECT,
@@ -72,6 +72,13 @@ export default async function LeadsPage(props: PageProps<"/console">) {
     stageSlugs: stageSlugs(stages),
     memberIds: members.map((m) => m.id),
   });
+  /*
+    A sales rep reads this same page, scoped by RLS to their assigned
+    partners. What changes is only what they are offered: no consent export
+    (RLS returns them nothing there), no discovery link (that is the house's
+    own funnel, and theirs is the partner's), no owner filter.
+  */
+  const isRep = ctx.role === "rep";
 
   return (
     <main className="pv-page mx-auto max-w-[1400px] px-gutter pb-12 pt-6 max-sm:px-gutter-sm">
@@ -92,15 +99,24 @@ export default async function LeadsPage(props: PageProps<"/console">) {
         </div>
         <div className="flex gap-2.5">
           <ExportCsvButton />
-          {/* Counsel's consent record, exportable on request. RLS limits it
-              to Prime's own team. */}
-          <ExportCsvButton href="/console/consent/export" label="Export consent" />
-          <CopyDiscoveryLink className="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-accent-press" />
+          {!isRep && (
+            <>
+              {/* Counsel's consent record, exportable on request. RLS limits
+                  it to Prime's own team. */}
+              <ExportCsvButton href="/console/consent/export" label="Export consent" />
+              <CopyDiscoveryLink className="inline-flex h-9 shrink-0 cursor-pointer items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors duration-150 hover:bg-accent-press" />
+            </>
+          )}
         </div>
       </div>
 
       <div className="mt-5 border-b border-line pb-3.5">
-        <LeadFilters initial={filters} stages={stages} members={members} />
+        <LeadFilters
+          initial={filters}
+          stages={stages}
+          members={members}
+          showOwner={!isRep}
+        />
       </div>
 
       <div className="mt-4">
@@ -115,6 +131,7 @@ export default async function LeadsPage(props: PageProps<"/console">) {
             stages={stages}
             members={members}
             viewerId={ctx.userId}
+            isRep={isRep}
           />
         </Suspense>
       </div>
@@ -146,11 +163,13 @@ async function LeadsTable({
   stages,
   members,
   viewerId,
+  isRep,
 }: {
   filters: Filters;
   stages: Stage[];
   members: Member[];
   viewerId: string;
+  isRep: boolean;
 }) {
   const { q, complete, range, category, stage, assignee, page } = filters;
   const supabase = await createClient();
@@ -271,6 +290,33 @@ async function LeadsTable({
               <Link href={`/console${leadFiltersToQuery(filters)}`}>Retry</Link>
             </Button>
           </EmptyContent>
+        </Empty>
+      </div>
+    );
+  }
+
+  /*
+    For a rep, an empty list nearly always means no partner is assigned yet,
+    or theirs have not sent anything. Pointing them at the discovery link
+    would be wrong: it is the house funnel, and RLS hides its leads from them.
+  */
+  if (isEmpty && isRep) {
+    return (
+      <div className="rounded-md border border-line bg-raised">
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="frame">
+              <UsersIcon />
+            </EmptyMedia>
+            <EmptyTitle className="font-display text-2xl font-semibold tracking-[-.015em]">
+              No partner leads yet.
+            </EmptyTitle>
+            <EmptyDescription>
+              Leads from the partners you look after appear here as they come
+              in. If you expected some, ask an admin to check which partners
+              are assigned to you.
+            </EmptyDescription>
+          </EmptyHeader>
         </Empty>
       </div>
     );

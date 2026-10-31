@@ -154,6 +154,16 @@ export default async function LeadDetailPage(
   });
   // Resolved once: the activity list would otherwise scan the roster per row.
   const byId = new Map(members.map((m) => [m.id, m]));
+  /*
+    A sales rep reads this page view-only. Every write it would offer is
+    refused by RLS for a rep (0018), so the controls are left out rather than
+    rendered to fail: the stage shows in the header badge, the owner in the
+    Record card, and the consent card is not theirs to see.
+  */
+  const isRep = ctx.role === "rep";
+  const partnerName = isRep
+    ? (routeTargets.find((t) => t.id === owner?.tenant_id)?.name ?? null)
+    : null;
   const answers = (lead.answers ?? {}) as Answers;
   const tone = stateTone(lead as SubmissionRow);
   const when = formatWhen(lead.submitted_at ?? lead.created_at);
@@ -278,7 +288,7 @@ export default async function LeadDetailPage(
             </TabsList>
 
             <TabsContent value="notes" className="mt-4">
-              <NotesCard submissionId={lead.id} initial={notes} />
+              <NotesCard submissionId={lead.id} initial={notes} readOnly={isRep} />
             </TabsContent>
 
             <TabsContent value="activity" className="mt-4">
@@ -339,27 +349,42 @@ export default async function LeadDetailPage(
                 value={lead.submitted_at ? formatWhen(lead.submitted_at) : "–"}
               />
               {runway && <SideRow label="Renewal pressure" value={runway} />}
+              {isRep && partnerName && <SideRow label="Partner" value={partnerName} />}
+              {isRep && (
+                <SideRow
+                  label="Owner"
+                  value={
+                    lead.assigned_to
+                      ? memberName(byId.get(lead.assigned_to))
+                      : "Unassigned"
+                  }
+                />
+              )}
             </div>
             </CardContent>
           </Card>
 
-          <PipelineCard
-            submissionId={lead.id}
-            stage={lead.lead_stage}
-            assigneeId={lead.assigned_to}
-            stages={stages}
-            members={members}
-            viewerId={ctx.userId}
-          />
+          {!isRep && (
+            <>
+              <PipelineCard
+                submissionId={lead.id}
+                stage={lead.lead_stage}
+                assigneeId={lead.assigned_to}
+                stages={stages}
+                members={members}
+                viewerId={ctx.userId}
+              />
 
-          <ConsentCard
-            submissionId={lead.id}
-            consent={consent}
-            when={{
-              consentedAt: consent ? formatWhen(consent.consentedAt) : "",
-              optedOutAt: consent?.smsOptedOutAt ? formatWhen(consent.smsOptedOutAt) : null,
-            }}
-          />
+              <ConsentCard
+                submissionId={lead.id}
+                consent={consent}
+                when={{
+                  consentedAt: consent ? formatWhen(consent.consentedAt) : "",
+                  optedOutAt: consent?.smsOptedOutAt ? formatWhen(consent.smsOptedOutAt) : null,
+                }}
+              />
+            </>
+          )}
 
           {ctx.isPlatformStaff && (
             <RouteCard

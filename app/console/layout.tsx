@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireStaff } from "@/lib/auth/session";
+import { requireConsole } from "@/lib/auth/session";
 import { Logo } from "@/app/components/logo";
 import { signOut } from "@/app/login/actions";
 import { Toaster } from "@/app/components/ui/sonner";
@@ -16,16 +16,18 @@ export default async function ConsoleLayout({
   children,
 }: LayoutProps<"/console">) {
   /*
-    requireStaff also rejects a deactivated teammate, whose profile row still
-    exists so their name keeps resolving in old notes and events. Removal
-    therefore takes effect on the next request rather than at token expiry.
+    requireConsole also rejects a deactivated teammate, whose profile row
+    still exists so their name keeps resolving in old notes and events.
+    Removal therefore takes effect on the next request rather than at token
+    expiry.
 
-    Staff, not merely signed in: the console is Prime PEO Brokers' own
-    workflow tooling. A partner user reaching this URL gets a 404 rather than
-    a half-rendered console full of empty panels, which is what RLS alone
-    would produce.
+    Staff or a sales rep, not merely signed in: the console is Prime PEO
+    Brokers' own workflow tooling. A partner user reaching this URL gets a 404
+    rather than a half-rendered console full of empty panels, which is what
+    RLS alone would produce. A rep gets in, and RLS shows them only their
+    assigned partners' leads.
   */
-  const ctx = await requireStaff("/console");
+  const ctx = await requireConsole("/console");
 
   const name = ctx.fullName || ctx.email || "";
   const firstName = (ctx.fullName || "").trim().split(/\s+/)[0] || "";
@@ -99,7 +101,11 @@ export default async function ConsoleLayout({
       <ArrivalToast
         param="welcome"
         title={firstName ? `Signed in as ${firstName}` : "Signed in"}
-        description="Leads are scoped to your team."
+        description={
+          ctx.role === "rep"
+            ? "Showing leads from your assigned partners."
+            : "Leads are scoped to your team."
+        }
       />
     </div>
   );

@@ -44,6 +44,9 @@ function bodies(src: string): Record<string, string> {
 // revalidate rule. logRecordOpen must NOT revalidate: it fires from a mount
 // effect and would re-render the page that triggered it, in a loop.
 const READ_ONLY = new Set(["logRecordOpen"]);
+// Lead writes. Sales reps are view-only (0018): these must refuse them in the
+// action, not only at RLS, so the rep gets a sentence instead of a 500.
+const WRITE_ONLY = new Set(["setStage", "setAssignee", "addNote", "recordSmsOptOut"]);
 const ADMIN_ONLY = new Set([
   "inviteTeammate", "changeRole", "removeTeammate", "restoreTeammate",
   "createStage", "renameStage", "reorderStages", "retireStage", "restoreStage",
@@ -76,6 +79,11 @@ for (const file of FILES) {
        `${file}: ${name}() does not call guardAction. Server actions are ` +
        `addressable endpoints; an unguarded one is an open write endpoint.`);
 
+    if (WRITE_ONLY.has(name)) {
+      ok(/guardAction\(\s*"write"\s*\)/.test(body),
+         `${file}: ${name}() writes a lead but does not guard with "write", so a sales rep reaches RLS`);
+    }
+
     if (ADMIN_ONLY.has(name)) {
       ok(/guardAction\(\s*"admin"\s*\)/.test(body),
          `${file}: ${name}() is admin-only but guards with no role argument`);
@@ -93,6 +101,28 @@ for (const file of FILES) {
   }
 }
 console.log(`ok ${checked} actions across ${FILES.length} files guard and revalidate`);
+
+// Every WRITE_ONLY name must still exist, or a rename silently drops the rule.
+{
+  const lead = bodies(readFileSync("app/console/leads/[id]/actions.ts", "utf8"));
+  for (const name of WRITE_ONLY) ok(name in lead, `lead actions no longer export ${name}`);
+}
+
+// setPartnerReps: admin-gated in the action, and its RPC arguments match 0018.
+{
+  const partners = bodies(readFileSync("app/console/partners/actions.ts", "utf8"));
+  const body = partners["setPartnerReps"] ?? "";
+  ok(body.includes("guardStaff()"), "setPartnerReps() must call guardStaff()");
+  ok(/role !== "admin"/.test(body), "setPartnerReps() must refuse non-admins");
+  ok(/revalidatePath\("\/console\/partners"\)/.test(body), "setPartnerReps() must revalidate /console/partners");
+  const reps = readFileSync("supabase/migrations/0018_sales_reps.sql", "utf8");
+  ok(reps.includes("function public.set_partner_reps("), "no migration defines set_partner_reps");
+  for (const arg of ["p_tenant_id", "p_rep_ids"]) {
+    ok(reps.includes(arg), `set_partner_reps no longer declares ${arg}`);
+    ok(body.includes(`${arg}:`), `setPartnerReps does not pass ${arg}; PostgREST will 404 the call`);
+  }
+  console.log("ok setPartnerReps is admin-gated and matches its RPC");
+}
 
 // The dynamic-segment form. revalidatePath on a dynamic route needs the
 // literal bracket path plus the "page" kind; interpolating the real id

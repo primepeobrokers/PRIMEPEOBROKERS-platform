@@ -172,7 +172,7 @@ export async function updatePassword(input: {
   const host = classifyHost((await headers()).get("host"));
   if (host.kind === "partner") {
     const ctx = await getSessionContext();
-    redirect(ctx?.isPlatformStaff ? "/console" : "/portal");
+    redirect(ctx?.isPlatformStaff || ctx?.role === "rep" ? "/console" : "/portal");
   }
   redirect("/console");
 }
