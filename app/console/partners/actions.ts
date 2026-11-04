@@ -184,10 +184,14 @@ export async function savePartnerBranding(input: {
   shortName: string;
   supportEmail: string;
   crmPartnerName: string;
-  /** Named in the footer disclosure as the referral partner. */
+  /** "All Staff, Inc.": named in the footer's "Presented by" and copyright lines. */
   legalName: string;
-  /** Where "Contact" and "Talk to an advisor" go: an https URL or an email. */
-  contactUrl: string;
+  /** Where Contact, Talk to an advisor and the footer contact line go. */
+  contactEmail: string;
+  /** Optional, footer contact line. */
+  phone: string;
+  /** Optional, footer contact line. */
+  mailingAddress: string;
   accent: string;
   ink: string;
   dark: string;
@@ -223,17 +227,24 @@ export async function savePartnerBranding(input: {
   }
 
   /*
-    The same rule parseBranding applies on read, run here so staff get a
-    sentence instead of a value that silently vanishes on save. It is rendered
-    as an href on a public page, so https and email only: no javascript:, no
-    plain http.
+    The same rules parseBranding applies on read, run here so staff get a
+    sentence instead of a value that silently vanishes on save. All three are
+    printed on the partner's public pages, the email and phone as links.
   */
-  const rawContact = String(input.contactUrl ?? "").trim();
-  const contactUrl = rawContact ? brandingRules.safeContact(rawContact) : undefined;
-  if (rawContact && !contactUrl) {
-    return {
-      error: "The contact must be an https:// link or an email address.",
-    };
+  const rawContact = String(input.contactEmail ?? "").trim();
+  const contactEmail = rawContact ? brandingRules.safeEmail(rawContact) : undefined;
+  if (rawContact && !contactEmail) {
+    return { error: "That contact email is not a valid address." };
+  }
+  const rawPhone = String(input.phone ?? "").trim();
+  const phone = rawPhone ? brandingRules.safePhone(rawPhone) : undefined;
+  if (rawPhone && !phone) {
+    return { error: "That phone number is not valid. Use digits, with an optional + and extension." };
+  }
+  const rawAddress = String(input.mailingAddress ?? "").trim();
+  const mailingAddress = rawAddress ? brandingRules.safeAddress(rawAddress) : undefined;
+  if (rawAddress && !mailingAddress) {
+    return { error: "That mailing address is too long. Keep it under 300 characters." };
   }
 
   const colors: Record<string, string> = {};
@@ -314,7 +325,9 @@ export async function savePartnerBranding(input: {
   if (supportEmail) branding.supportEmail = supportEmail;
   if (crmPartnerName) branding.crmPartnerName = crmPartnerName;
   if (legalName) branding.legalName = legalName;
-  if (contactUrl) branding.contactUrl = contactUrl;
+  if (contactEmail) branding.contactEmail = contactEmail;
+  if (phone) branding.phone = phone;
+  if (mailingAddress) branding.mailingAddress = mailingAddress;
   if (Object.keys(colors).length) branding.colors = colors;
 
   // The existing logo survives a colour-only save: the form does not carry it.
@@ -362,7 +375,9 @@ async function currentBranding(tenantId: string): Promise<Branding> {
   */
   if (parsed.crmPartnerName) out.crmPartnerName = parsed.crmPartnerName;
   if (parsed.legalName) out.legalName = parsed.legalName;
-  if (parsed.contactUrl) out.contactUrl = parsed.contactUrl;
+  if (parsed.contactEmail) out.contactEmail = parsed.contactEmail;
+  if (parsed.phone) out.phone = parsed.phone;
+  if (parsed.mailingAddress) out.mailingAddress = parsed.mailingAddress;
   if (parsed.colors) out.colors = parsed.colors;
   if (parsed.logo) out.logo = parsed.logo;
   return out;

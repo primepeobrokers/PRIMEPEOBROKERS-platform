@@ -376,7 +376,9 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
   const [supportEmail, setSupportEmail] = useState(b.supportEmail ?? "");
   const [crmPartnerName, setCrmPartnerName] = useState(b.crmPartnerName ?? "");
   const [legalName, setLegalName] = useState(b.legalName ?? "");
-  const [contactUrl, setContactUrl] = useState(b.contactUrl ?? "");
+  const [contactEmail, setContactEmail] = useState(b.contactEmail ?? "");
+  const [phone, setPhone] = useState(b.phone ?? "");
+  const [mailingAddress, setMailingAddress] = useState(b.mailingAddress ?? "");
   const [accent, setAccent] = useState(b.colors?.accent ?? "#ff2d00");
   const [ink, setInk] = useState(b.colors?.ink ?? "#19233b");
   const [dark, setDark] = useState(b.colors?.dark ?? "#19233b");
@@ -403,7 +405,9 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
         supportEmail,
         crmPartnerName,
         legalName,
-        contactUrl,
+        contactEmail,
+        phone,
+        mailingAddress,
         accent,
         ink,
         dark,
@@ -450,8 +454,9 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
             disabled={pending}
           />
           <p className="mt-1.5 text-[12.5px] text-ink-muted">
-            Their registered entity. The footer of every page on their site
-            names them as the referral partner.
+            Their registered entity, e.g. &ldquo;All Staff, Inc.&rdquo; Their
+            site&rsquo;s footer reads &ldquo;Presented by&rdquo; this name and
+            credits it with their name and logo.
           </p>
         </div>
         <div>
@@ -468,19 +473,43 @@ function BrandingPanel({ partner }: { partner: PartnerRow }) {
             to their leads&rsquo; emails land here.
           </p>
         </div>
+        {/* Public contact. Everything here is printed on the partner's own
+            pages; Privacy, Terms and data requests always go to Prime. */}
         <div>
           <Field
-            id={`cu-${partner.id}`}
-            label="Contact link"
-            value={contactUrl}
-            onChange={setContactUrl}
-            placeholder="https://partner.com/contact or an email"
+            id={`ce-${partner.id}`}
+            label="Contact email"
+            type="email"
+            value={contactEmail}
+            onChange={setContactEmail}
+            placeholder={b.supportEmail ?? "hello@partner.com"}
             disabled={pending}
           />
           <p className="mt-1.5 text-[12.5px] text-ink-muted">
-            Where Contact and Talk to an advisor go on their site. Falls back
-            to the partner email. Privacy, terms and data requests always go to
-            Prime.
+            Contact, Talk to an advisor, the footer and the sign-in help line
+            on their site. Falls back to the partner email, then to Prime.
+          </p>
+        </div>
+        <Field
+          id={`ph-${partner.id}`}
+          label="Phone (optional)"
+          type="tel"
+          value={phone}
+          onChange={setPhone}
+          placeholder="(210) 555-0100"
+          disabled={pending}
+        />
+        <div>
+          <Field
+            id={`ad-${partner.id}`}
+            label="Mailing address (optional)"
+            value={mailingAddress}
+            onChange={setMailingAddress}
+            placeholder="100 Main St, Suite 200, San Antonio, TX 78205"
+            disabled={pending}
+          />
+          <p className="mt-1.5 text-[12.5px] text-ink-muted">
+            Phone and address appear in their footer only when filled in.
           </p>
         </div>
 
@@ -754,6 +783,7 @@ function Field({
   onChange,
   placeholder,
   disabled,
+  type = "text",
 }: {
   id: string;
   label: string;
@@ -761,6 +791,7 @@ function Field({
   onChange: (v: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  type?: "text" | "email" | "tel";
 }) {
   /*
     `block` on the label is load-bearing, not cosmetic. A bare <label> is
@@ -775,6 +806,7 @@ function Field({
       </label>
       <Input
         id={id}
+        type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}

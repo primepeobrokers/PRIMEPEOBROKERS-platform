@@ -1,13 +1,24 @@
 import type { Metadata } from "next";
 import { LegalPage, Section } from "@/app/components/legal-page";
-import { PRIVACY_VERSION } from "@/lib/legal";
+import { PRIVACY_VERSION, privacyPartnerNotice } from "@/lib/legal";
+import { getTenant } from "@/lib/tenant/resolve";
+import { partnerDisplayName } from "@/lib/tenant/partner";
 
-export const metadata: Metadata = {
-  title: "Privacy policy",
-  description:
-    "How Prime PEO Brokers collects, uses, discloses, and protects personal information in connection with the PEO, payroll, and employer services evaluation.",
-  alternates: { canonical: "/privacy" },
-};
+/*
+  `absolute` on a partner's site, so the root layout's template does not
+  append a second "Prime PEO Brokers". Title per the client's template.
+*/
+export async function generateMetadata(): Promise<Metadata> {
+  const name = partnerDisplayName(await getTenant());
+  return {
+    title: name
+      ? { absolute: `Privacy Policy · ${name}, powered by Prime PEO Brokers` }
+      : "Privacy policy",
+    description:
+      "How Prime PEO Brokers collects, uses, discloses, and protects personal information in connection with the PEO, payroll, and employer services evaluation.",
+    alternates: { canonical: "/privacy" },
+  };
+}
 
 /*
  * Client-supplied legal copy, adapted from the white-label template. As in the
@@ -38,7 +49,11 @@ export const metadata: Metadata = {
  */
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" lastUpdated={PRIVACY_VERSION}>
+    <LegalPage
+      title="Privacy policy"
+      lastUpdated={PRIVACY_VERSION}
+      partnerNotice={(p) => privacyPartnerNotice(p.legalName, p.displayName)}
+    >
       <Section heading="Before you begin">
         <p>
           This privacy policy describes how A&amp;G Advisors, LLC d/b/a Prime
@@ -365,8 +380,8 @@ export default function PrivacyPage() {
         </p>
         <p>
           <strong>Making a request.</strong> Submit requests to{" "}
-          <a href="mailto:garrett@primepeobrokers.com">
-            garrett@primepeobrokers.com
+          <a href="mailto:admin@primepeobrokers.com">
+            admin@primepeobrokers.com
           </a>{" "}
           or <a href="tel:+12102012976">210-201-2976</a>. We verify identity
           before acting, typically against information

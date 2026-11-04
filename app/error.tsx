@@ -76,7 +76,7 @@ export default function ErrorBoundary({
           sentence that remains is accurate on every host. */}
       <footer className="border-t border-line">
         <LegalDisclosure
-          partnerLegalName={null}
+          partner={null}
           className="mx-auto max-w-[820px] px-10 py-7 max-sm:px-5"
         />
       </footer>

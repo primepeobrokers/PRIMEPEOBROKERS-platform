@@ -87,7 +87,7 @@ interface Toast {
 
 export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer }: Props) {
   const isPartner = tenant !== null && !tenant.isHouse;
-  // Names Prime in "our team" / "your advisor" copy on a partner's host.
+  // "your Prime advisor" -> "your advisor" etc. on a partner's host.
   const v = voiceFor(tenant);
   const brandName = isPartner
     ? (tenant.branding.companyName ?? tenant.name)
@@ -436,22 +436,13 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
       <header className="sticky top-0 z-30 border-b border-line bg-surface">
         <div className="mx-auto flex h-16 w-full max-w-[1120px] items-center justify-between gap-6 px-8 max-sm:px-[18px]">
           {/*
-            "Powered by" on a partner's host, in every step's header: counsel
-            requires the visitor to be able to see who provides the service
-            while they are filling the form in, not only in the footer.
-            Stacked under the mark on a phone, where the row has no room for
-            it beside the mark and the save controls.
+            The tenant's mark only. A partner's site used to add "Powered by
+            Prime PEO Brokers" beside it; the client's November 2026 template
+            removed it, and Prime is credited in the footer of every step.
           */}
-          <div className="flex min-w-0 items-center gap-3.5 max-sm:flex-col max-sm:items-start max-sm:gap-0">
-            <Link href={homeHref} aria-label={`${brandName} home`} className="flex min-h-11 items-center max-sm:min-h-0">
-              <TenantMark tenant={tenant ?? HOUSE_TENANT} size={30} />
-            </Link>
-            {isPartner && (
-              <span className="whitespace-nowrap border-l border-line pl-3.5 text-[12px] leading-tight text-ink-soft max-sm:border-l-0 max-sm:pl-0 max-sm:pt-1">
-                Powered by Prime PEO Brokers
-              </span>
-            )}
-          </div>
+          <Link href={homeHref} aria-label={`${brandName} home`} className="flex min-h-11 min-w-0 items-center">
+            <TenantMark tenant={tenant ?? HOUSE_TENANT} size={30} />
+          </Link>
           <div className="flex items-center gap-5">
             <div
               aria-live="polite"
@@ -566,7 +557,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
                     */}
                     <span className="text-[13.5px] leading-normal text-ink-soft">
                       {isPartner
-                        ? "Stored with encryption at rest and never exposed through a public endpoint. Visible only to Prime\u2019s advisory team, the partner who referred you, and the providers Prime selects to quote you."
+                        ? v("Stored with encryption at rest and never exposed through a public endpoint. Visible only to Prime\u2019s advisory team, the partner who referred you, and the providers Prime selects to quote you.")
                         : "Stored with encryption at rest and never exposed through a public endpoint. Visible only to Prime\u2019s advisory team and the providers Prime selects to quote you."}
                     </span>
                   </div>
@@ -668,12 +659,12 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
               Review
             </div>
             <h1 className="mt-3 font-display text-[clamp(26px,3.6vw,34px)] font-semibold leading-[1.06] tracking-[-.025em]">
-              Check the record before it goes to your Prime advisor.
+              {v("Check the record before it goes to your Prime advisor.")}
             </h1>
             <p className="mt-3.5 max-w-[58ch] text-base leading-normal text-ink-soft">
-              Once you submit, your Prime advisor reviews the record, follows
-              up for anything else needed to quote, then sends it to the
-              providers that fit. Edit any answer and you return to this page.
+              {v(
+                "Once you submit, your Prime advisor reviews the record, follows up for anything else needed to quote, then sends it to the providers that fit. Edit any answer and you return to this page.",
+              )}
             </p>
             <div className="mt-[30px] overflow-hidden rounded-md border border-line bg-raised">
               {STEPS.map((s, i) => (
@@ -793,25 +784,28 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
               Submitted · ref {doneRef} · {doneAt}
             </div>
             <h1 className="mt-4 font-display text-[clamp(28px,4vw,38px)] font-semibold leading-[1.05] tracking-[-.028em] [text-wrap:balance]">
-              Your record is with Prime’s advisory team.
+              {/* "our advisory team" on a partner's site. The sentence
+                  below keeps "licensed Prime advisor": it is about licensing,
+                  which the client's template keeps credited to Prime. */}
+              {v("Your record is with Prime’s advisory team.")}
             </h1>
             <p className="mt-4 max-w-[54ch] text-[17px] leading-normal text-ink-soft">
               A licensed Prime advisor has your record in front of them. Here
-              is the sequence from here.
+              is what happens next.
             </p>
             <div className="mt-[30px] rounded-md border border-line bg-raised">
               {[
                 {
                   when: "Within 1 day",
-                  what: "Your Prime advisor reads the record",
+                  what: v("Your Prime advisor reads the record"),
                   detail:
                     "If anything is ambiguous (classification, the renewal date, the bundled fee) they ask you before quoting.",
                 },
                 {
                   when: "Days 1–2",
-                  what: "Your Prime advisor gathers what’s needed",
+                  what: v("Your Prime advisor gathers what’s needed"),
                   detail:
-                    "Depending on your situation, they may ask for documents such as current invoices, an employee census, or workers’ comp details before requesting quotes.",
+                    "They may ask for documents such as current invoices, an employee census, or workers’ comp details before requesting quotes.",
                 },
                 {
                   when: "Once quotes are in",
@@ -823,7 +817,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
                   when: "Any time",
                   what: "You can stop",
                   detail:
-                    "Ask for deletion and the record and drafts are removed within 30 days.",
+                    "Ask for deletion and we remove the record and drafts within 30 days.",
                 },
               ].map((n) => (
                 <div
@@ -858,7 +852,7 @@ export function DiscoveryFlow({ resumed, intent, presetCategory, tenant, footer 
             </div>
             <p className="mt-6 text-sm leading-normal text-ink-muted">
               Something wrong in the record? Reply to the confirmation email and
-              it is corrected before quoting starts.
+              we correct it before quoting starts.
             </p>
           </div>
         )}

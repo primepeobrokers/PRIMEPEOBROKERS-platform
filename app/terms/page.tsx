@@ -1,13 +1,24 @@
 import type { Metadata } from "next";
 import { LegalPage, Section } from "@/app/components/legal-page";
-import { TERMS_VERSION } from "@/lib/legal";
+import { TERMS_VERSION, termsPartnerNotice } from "@/lib/legal";
+import { getTenant } from "@/lib/tenant/resolve";
+import { partnerDisplayName } from "@/lib/tenant/partner";
 
-export const metadata: Metadata = {
-  title: "Terms and conditions",
-  description:
-    "The terms governing use of the Prime PEO Brokers site and the PEO, payroll, and employer services evaluation offered through it.",
-  alternates: { canonical: "/terms" },
-};
+/*
+  `absolute` on a partner's site, so the root layout's template does not
+  append a second "Prime PEO Brokers". Title per the client's template.
+*/
+export async function generateMetadata(): Promise<Metadata> {
+  const name = partnerDisplayName(await getTenant());
+  return {
+    title: name
+      ? { absolute: `Terms and Conditions · ${name}, powered by Prime PEO Brokers` }
+      : "Terms and conditions",
+    description:
+      "The terms governing use of the Prime PEO Brokers site and the PEO, payroll, and employer services evaluation offered through it.",
+    alternates: { canonical: "/terms" },
+  };
+}
 
 /*
  * Client-supplied legal copy, adapted from the white-label template, with
@@ -21,7 +32,11 @@ export const metadata: Metadata = {
  */
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms and conditions" lastUpdated={TERMS_VERSION}>
+    <LegalPage
+      title="Terms and conditions"
+      lastUpdated={TERMS_VERSION}
+      partnerNotice={(p) => termsPartnerNotice(p.legalName)}
+    >
       <Section heading="Before you begin">
         <p>
           These Terms and Conditions (&ldquo;Terms&rdquo;) govern your access
@@ -393,8 +408,8 @@ export default function TermsPage() {
         <p>
           <strong>Informal resolution first.</strong> Before initiating
           arbitration, you agree to notify us in writing at{" "}
-          <a href="mailto:garrett@primepeobrokers.com">
-            garrett@primepeobrokers.com
+          <a href="mailto:admin@primepeobrokers.com">
+            admin@primepeobrokers.com
           </a>{" "}
           describing the dispute and the relief sought, and to negotiate in
           good faith for sixty (60) days.

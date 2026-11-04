@@ -13,7 +13,7 @@ import {
 } from "@/app/components/ui/empty";
 import { getTenant } from "@/lib/tenant/resolve";
 import { LegalDisclosure } from "@/app/components/legal-disclosure";
-import { partnerLegalName } from "@/lib/tenant/partner";
+import { partnerFooter } from "@/lib/tenant/partner";
 
 export const metadata = {
   title: "Page not found",
@@ -85,7 +85,7 @@ export default async function NotFound() {
 
       <footer className="border-t border-line">
         <LegalDisclosure
-          partnerLegalName={partnerLegalName(tenant)}
+          partner={partnerFooter(tenant)}
           className="mx-auto max-w-[820px] px-10 py-7 max-sm:px-5"
         />
       </footer>

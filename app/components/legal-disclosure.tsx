@@ -2,14 +2,20 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 import { LEGAL_ENTITY } from "@/lib/legal";
+import { telHref } from "@/lib/tenant/branding";
+import { HOUSE_NAME, type PartnerFooter } from "@/lib/tenant/partner";
 
 /**
  * The provider disclosure, on every page of every tenant.
  *
- * Counsel's wording, hard-coded on purpose: it is not a tenant setting, and
- * the only per-tenant input is the partner's legal name. The Terms and
- * Privacy links always lead to Prime's pages, and the copyright always names
- * Prime's legal entity, never the partner.
+ * The wording is the client's, hard-coded on purpose: it is not a tenant
+ * setting. The only per-tenant inputs are the partner's names and contact
+ * details. The Terms and Privacy links always lead to Prime's pages.
+ *
+ * Two versions. The house site keeps counsel's October text unchanged. A
+ * partner's site (client's November 2026 template) says who presents the
+ * site, who provides the services, whose name and logo are whose, and how to
+ * reach the partner.
  *
  * Counsel asked for at least 12px and WCAG AA. Both tones use the strongest
  * ink token on their ground rather than a muted grey, because a partner can
@@ -22,12 +28,12 @@ import { LEGAL_ENTITY } from "@/lib/legal";
  * No hooks, so it renders inside both server and client trees.
  */
 export function LegalDisclosure({
-  partnerLegalName,
+  partner,
   tone = "light",
   className,
 }: {
-  /** null on the house site, where there is no referral partner to name. */
-  partnerLegalName: string | null;
+  /** null on the house site, where there is no partner to name. */
+  partner: PartnerFooter | null;
   tone?: "light" | "dark";
   className?: string;
 }) {
@@ -35,6 +41,66 @@ export function LegalDisclosure({
     tone === "dark"
       ? "text-dark-ink underline decoration-dark-ink/40 underline-offset-[3px] hover:decoration-dark-ink"
       : "text-ink underline decoration-ink/30 underline-offset-[3px] hover:decoration-ink";
+
+  const policies = (
+    <span className="whitespace-nowrap">
+      <Link href="/terms" className={link}>
+        Terms
+      </Link>
+      <span aria-hidden="true"> · </span>
+      <Link href="/privacy" className={link}>
+        Privacy
+      </Link>
+    </span>
+  );
+
+  if (!partner) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col gap-2 text-[13px] leading-relaxed",
+          tone === "dark" ? "text-dark-ink-soft" : "text-ink",
+          className,
+        )}
+      >
+        <p className="max-w-[88ch] [text-wrap:pretty]">
+          Services provided by {LEGAL_ENTITY}, a licensed insurance producer.{" "}
+          {policies}
+        </p>
+        <p>© {LEGAL_ENTITY}</p>
+      </div>
+    );
+  }
+
+  /*
+    Phone, email, address: whichever are set, in the client's order. A tel:
+    and a mailto: so a visitor on a phone can act on them; the address is
+    text. Each item is kept whole on one line, and the separators wrap.
+  */
+  const contact: Array<{ key: string; node: React.ReactNode }> = [];
+  if (partner.phone) {
+    contact.push({
+      key: "phone",
+      node: (
+        <a href={telHref(partner.phone)} className={link}>
+          {partner.phone}
+        </a>
+      ),
+    });
+  }
+  if (partner.email) {
+    contact.push({
+      key: "email",
+      node: (
+        <a href={`mailto:${partner.email}`} className={link}>
+          {partner.email}
+        </a>
+      ),
+    });
+  }
+  if (partner.address) {
+    contact.push({ key: "address", node: <span>{partner.address}</span> });
+  }
 
   return (
     <div
@@ -45,25 +111,25 @@ export function LegalDisclosure({
       )}
     >
       <p className="max-w-[88ch] [text-wrap:pretty]">
-        Services provided by {LEGAL_ENTITY}, a licensed insurance producer.
-        {partnerLegalName && (
-          <>
-            {" "}
-            {partnerLegalName} is a referral partner; the PEO and HCM
-            evaluation is performed by Prime.
-          </>
-        )}{" "}
-        <span className="whitespace-nowrap">
-          <Link href="/terms" className={link}>
-            Terms
-          </Link>
-          <span aria-hidden="true"> · </span>
-          <Link href="/privacy" className={link}>
-            Privacy
-          </Link>
-        </span>
+        Presented by {partner.legalName} in partnership with {HOUSE_NAME}.
+        Services provided by {LEGAL_ENTITY}, which performs the PEO and HCM
+        evaluation. {policies}
       </p>
-      <p>© {LEGAL_ENTITY}</p>
+      {contact.length > 0 && (
+        <p className="max-w-[88ch]">
+          Contact {partner.displayName}:{" "}
+          {contact.map((c, i) => (
+            <span key={c.key}>
+              {i > 0 && <span aria-hidden="true"> · </span>}
+              {c.node}
+            </span>
+          ))}
+        </p>
+      )}
+      <p className="max-w-[88ch] [text-wrap:pretty]">
+        {partner.displayName} name and logo © {partner.legalName}. Platform ©{" "}
+        {LEGAL_ENTITY}.
+      </p>
     </div>
   );
 }

@@ -666,7 +666,7 @@ export function composeSubmissionConfirmation(input: {
         ``,
         `Your request is with a licensed broker at ${licensed}. They call within one business day, or email first to set a time if you left no number.`,
         ``,
-        `Want the call to be more useful? Start the six steps at ${input.brand.origin}/discovery and anything you answer is in front of them before they dial.`,
+        `Start the six steps at ${input.brand.origin}/discovery, and anything you answer is in front of them before they dial.`,
         ``,
         `Need to change something? Reply to this email.`,
       ].join("\n"),
@@ -681,34 +681,39 @@ export function composeSubmissionConfirmation(input: {
             `Your request is with a licensed broker at ${escapeHtml(licensed)}. They call within one business day, or email first to set a time if you left no number.`,
           ) +
           para(
-            "Want the call to be more useful? Start the six steps now and anything you answer is in front of them before they dial.",
+            "Start the six steps now, and anything you answer is in front of them before they dial.",
           ) +
           button(input.brand, `${input.brand.origin}/discovery`, "Start the six steps"),
         footerLines: ["Need to change something? Reply to this email."],
       }),
     };
   }
+  /*
+    On a partner's mail the record is "with your advisor", matching the
+    confirmation page on their site (client's template, Nov 2026). The house
+    wording is unchanged.
+  */
+  const holder = input.brand.isHouse ? "a broker" : "your advisor";
+  const body = `Your six steps are with ${holder}. They read the record within one business day and follow up for anything else needed to quote, then send it to the providers that fit. Once quotes are in, you get a written comparison of the models that fit.`;
   return {
     subject: `Your record is in · REF ${input.ref}`,
     text: [
       `${input.name},`,
       ``,
-      `Your six steps are with a broker. They read the record within one business day and follow up for anything else needed to quote, then send it to the providers that fit. Once quotes are in, you get a written comparison of the models that fit.`,
+      body,
       ``,
-      `Something wrong in the record? Reply to this email and it is corrected before quoting starts.`,
+      `Something wrong in the record? Reply to this email and we correct it before quoting starts.`,
     ].join("\n"),
     html: renderEmail({
       brand: input.brand,
-      preheader: "A broker reads it within one business day.",
+      preheader: input.brand.isHouse
+        ? "A broker reads it within one business day."
+        : "Your advisor reads it within one business day.",
       eyebrow: `REF ${input.ref}`,
       heading: "Your record is in",
-      bodyHtml:
-        para(`${escapeHtml(input.name)},`) +
-        para(
-          "Your six steps are with a broker. They read the record within one business day and follow up for anything else needed to quote, then send it to the providers that fit. Once quotes are in, you get a written comparison of the models that fit.",
-        ),
+      bodyHtml: para(`${escapeHtml(input.name)},`) + para(body),
       footerLines: [
-        "Something wrong in the record? Reply to this email and it is corrected before quoting starts.",
+        "Something wrong in the record? Reply to this email and we correct it before quoting starts.",
       ],
     }),
   };

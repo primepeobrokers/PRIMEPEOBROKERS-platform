@@ -37,8 +37,8 @@ export async function generateMetadata(): Promise<Metadata> {
     title: {
       absolute: `${name}: the easiest way to shop for PEO, Payroll & HR tech`,
     },
-    description:
-      "Research, evaluate, and choose the right PEO, payroll, and HR software for free. Answer a structured set of questions once; an expert on Prime\u2019s advisory team does the legwork and delivers your tailored proposal. One advisor, every option that fits. You never pay a fee.",
+    // Same sentence as the hero, so the search snippet and the page agree.
+    description: `Research, evaluate, and choose the right PEO, payroll, and HR software for free. Answer a structured set of questions once; your ${name} team, with evaluation by Prime PEO Brokers, does the legwork and delivers your tailored proposal. One advisor, every option that fits. You never pay a fee.`,
     alternates: { canonical: "/" },
     openGraph: { siteName: name, type: "website", url: tenantOrigin(tenant.slug, false) },
   };

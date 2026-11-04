@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Logo, TenantMark } from "@/app/components/logo";
 import { LegalDisclosure } from "@/app/components/legal-disclosure";
-import { partnerLegalName } from "@/lib/tenant/partner";
+import { HOUSE_EMAIL, partnerContactEmail, partnerFooter } from "@/lib/tenant/partner";
 import type { Branding } from "@/lib/tenant/branding";
 
 /** The tenant whose brand the sign-in screen wears. null means the house. */
@@ -10,8 +10,6 @@ export type AuthTenant = {
   name: string;
   branding: Branding;
 } | null;
-
-const HOUSE_SUPPORT = "admin@primepeobrokers.com";
 
 /**
  * Frame for the auth pages: the mark, the card, and the links under it.
@@ -26,7 +24,8 @@ const HOUSE_SUPPORT = "admin@primepeobrokers.com";
  * the card rather than going with the rest.
  *
  * Still tenant-aware. A partner's user signing in on their own subdomain sees
- * their mark and their support address, never Prime's.
+ * their mark, and a help line naming the partner's contact first and Prime
+ * support second (client's template, Nov 2026).
  */
 export function AuthShell({
   children,
@@ -39,9 +38,12 @@ export function AuthShell({
   const brandName = isPartner
     ? (tenant.branding.companyName ?? tenant.name)
     : "Prime PEO Brokers";
-  const supportEmail = isPartner
-    ? (tenant.branding.supportEmail ?? HOUSE_SUPPORT)
-    : HOUSE_SUPPORT;
+  /* Null on the house site, or for a partner with no address configured,
+     who then gets the house line rather than "Contact admin@…, or Prime
+     support at admin@…". */
+  const partnerEmail = partnerContactEmail(tenant);
+  const mailLink =
+    "border-b border-accent/35 text-accent-press hover:border-accent-press hover:text-accent";
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-10 pb-10 pt-7 max-sm:px-5">
@@ -69,22 +71,33 @@ export function AuthShell({
           {children}
         </div>
 
-        <p className="max-w-[62ch] text-center text-[13px] leading-relaxed text-ink-muted">
-          Trouble getting in? Ask an admin on your team to resend the invite, or
-          email{" "}
-          <a
-            href={`mailto:${supportEmail}`}
-            className="border-b border-accent/35 text-accent-press hover:border-accent-press hover:text-accent"
-          >
-            {supportEmail}
-          </a>
-          .
-        </p>
+        {partnerEmail ? (
+          <p className="max-w-[62ch] text-center text-[13px] leading-relaxed text-ink-muted">
+            Trouble signing in? Contact{" "}
+            <a href={`mailto:${partnerEmail}`} className={mailLink}>
+              {partnerEmail}
+            </a>
+            , or Prime support at{" "}
+            <a href={`mailto:${HOUSE_EMAIL}`} className={mailLink}>
+              {HOUSE_EMAIL}
+            </a>
+            .
+          </p>
+        ) : (
+          <p className="max-w-[62ch] text-center text-[13px] leading-relaxed text-ink-muted">
+            Trouble getting in? Ask an admin on your team to resend the invite,
+            or email{" "}
+            <a href={`mailto:${HOUSE_EMAIL}`} className={mailLink}>
+              {HOUSE_EMAIL}
+            </a>
+            .
+          </p>
+        )}
 
         {/* Counsel's disclosure, which carries the Terms and Privacy links
             this row used to hold. The mark above is the link home. */}
         <LegalDisclosure
-          partnerLegalName={partnerLegalName(tenant)}
+          partner={partnerFooter(tenant)}
           className="max-w-[62ch] items-center text-center"
         />
       </div>

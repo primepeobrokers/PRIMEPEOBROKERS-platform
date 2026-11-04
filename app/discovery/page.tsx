@@ -5,7 +5,7 @@ import { tenantIcons } from "@/lib/tenant/favicon";
 import { getTenant } from "@/lib/tenant/resolve";
 import { TenantTheme } from "@/app/components/tenant-theme";
 import { LegalDisclosure } from "@/app/components/legal-disclosure";
-import { partnerLegalName } from "@/lib/tenant/partner";
+import { partnerFooter } from "@/lib/tenant/partner";
 import type { DraftHandle } from "./actions";
 import { DiscoveryFlow } from "./discovery-flow";
 
@@ -28,15 +28,10 @@ export async function generateMetadata(): Promise<Metadata> {
       `absolute` so the root layout's title template does not append
       "· Prime PEO Brokers". This page is what a partner sends their own
       client to, so the house name in the browser tab is a white-label leak in
-      front of the partner's prospect.
-
-      Prime IS named, once, as "Powered by": counsel requires it in the
-      discovery title on partner tenants, so the visitor can see who provides
-      the service from the tab itself.
+      front of the partner's prospect. Prime is credited in the footer of
+      every step instead (client's template, Nov 2026).
     */
-    title: name
-      ? { absolute: `Discovery · ${name} · Powered by Prime PEO Brokers` }
-      : "Discovery",
+    title: name ? { absolute: `Discovery · ${name}` } : "Discovery",
     description:
       "Pick a category, then six steps about your team, payroll setup, and priorities. Ranges are fine everywhere, and each answered step is saved.",
     alternates: { canonical: "/discovery" },
@@ -100,7 +95,7 @@ export default async function DiscoveryPage(props: PageProps<"/discovery">) {
             ? { isHouse: tenant.isHouse, name: tenant.name, branding: tenant.branding }
             : null
         }
-        footer={<LegalDisclosure partnerLegalName={partnerLegalName(tenant)} />}
+        footer={<LegalDisclosure partner={partnerFooter(tenant)} />}
       />
     </>
   );

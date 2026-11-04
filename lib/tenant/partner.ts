@@ -1,15 +1,20 @@
-import { contactHref, type Branding } from "@/lib/tenant/branding";
+import type { Branding } from "@/lib/tenant/branding";
 import type { Answers } from "@/lib/discovery/schema";
 
 /**
  * What changes when a page is served on a partner's subdomain, beyond the
  * logo and palette.
  *
- * Counsel's position (October 2026): on a partner's site, the visitor must be
- * able to tell that Prime, not the partner, provides the Services. So the
- * first-person copy written for Prime's own site ("our team", "your advisor",
- * "we hold agreements") is rewritten to name Prime, because on a partner's
- * page "our" reads as the partner.
+ * The client's November 2026 template (after All Staff's feedback): the
+ * partner's site introduces the work once, in the homepage hero, as "your
+ * [partner] team, with evaluation by Prime PEO Brokers", and from then on
+ * speaks as "your advisor" and "our advisory team". Prime stays named where
+ * the sentence is a factual claim (a Prime placement, Prime's agreements
+ * across the market) or about licensing, and in the footer, the legal pages
+ * and the consent wording, which are not run through this.
+ *
+ * This reverses the October rule, which rewrote "your advisor" to "your Prime
+ * advisor" on every partner page.
  *
  * Pure and client-bundleable: the discovery flow is a client component and
  * the unit suite imports this directly.
@@ -27,24 +32,25 @@ export const HOUSE_EMAIL = "admin@primepeobrokers.com";
 
 /**
  * Phrase -> partner-tenant phrase. Ordered longest first, so "your assigned
- * advisor" is rewritten before "your advisor" could match inside it, and the
- * whole "we hold agreements ... and quote" clause before its first half: the
- * verb after "and" has to agree with "Prime" once "we" is gone, or the
- * partner's page reads "Prime holds agreements ... and quote your record".
+ * Prime advisor" is rewritten before "your Prime advisor" could match inside
+ * it, and the whole "we hold agreements ... and quote" clause before its
+ * first half: the verb after "and" has to agree with "Prime" once "we" is
+ * gone, or the partner's page reads "Prime holds agreements ... and quote".
+ *
+ * "A licensed Prime advisor" is deliberately not matched: it is a licensing
+ * statement, and those keep Prime's name.
  */
 const VOICE: ReadonlyArray<readonly [RegExp, string]> = [
-  [/\bYour assigned advisor\b/g, "Your assigned Prime advisor"],
-  [/\byour assigned advisor\b/g, "your assigned Prime advisor"],
-  [/\bYour advisor\b/g, "Your Prime advisor"],
-  [/\byour advisor\b/g, "your Prime advisor"],
-  [/\bOur team\b/g, "Prime’s advisory team"],
-  [/\bour team\b/g, "Prime’s advisory team"],
+  [/\b([Yy])our assigned Prime advisor\b/g, "$1our assigned advisor"],
+  [/\b([Yy])our Prime advisor\b/g, "$1our advisor"],
+  [/\bPrime[’']s advisory team\b/g, "our advisory team"],
+  [/\bOur team\b/g, "Our advisory team"],
+  [/\bour team\b/g, "our advisory team"],
   [/\b[Ww]e hold agreements across the market and quote\b/g, "Prime holds agreements across the market and quotes"],
-  [/\bWe hold agreements\b/g, "Prime holds agreements"],
-  [/\bwe hold agreements\b/g, "Prime holds agreements"],
+  [/\b[Ww]e hold agreements\b/g, "Prime holds agreements"],
 ];
 
-/** Rewrites first-person copy so it names Prime. Idempotent. */
+/** Rewrites house copy into the partner-site voice. Idempotent. */
 export function partnerVoice(text: string): string {
   let out = text;
   for (const [re, to] of VOICE) out = out.replace(re, to);
@@ -62,47 +68,84 @@ export function voiceFor(tenant: PartnerTenant): (text: string) => string {
   return isPartnerTenant(tenant) ? partnerVoice : (t) => t;
 }
 
+/** The name in the partner's header and browser tab, or null on the house site. */
+export function partnerDisplayName(tenant: PartnerTenant): string | null {
+  if (!isPartnerTenant(tenant)) return null;
+  return tenant.branding.companyName ?? tenant.name;
+}
+
+/**
+ * The partner's public contact address, or null when they have none.
+ *
+ * Their contact email, then their work email (supportEmail), which was where
+ * these links went before contactEmail existed, so a partner configured
+ * before November 2026 does not change behaviour overnight.
+ */
+export function partnerContactEmail(tenant: PartnerTenant): string | null {
+  if (!isPartnerTenant(tenant)) return null;
+  return tenant.branding.contactEmail ?? tenant.branding.supportEmail ?? null;
+}
+
 export interface PartnerContact {
   href: string;
-  /** What to print when the link is shown as text: the address, or the partner's name for a URL. */
   label: string;
-  isEmail: boolean;
 }
 
 /**
  * Where "Contact", "Talk to an advisor" and the FAQ's "Anything else" line go.
  *
- * On a partner tenant: their contact setting, then their work email, then
- * Prime's inbox, so a partner who has not been fully configured still gets a
- * working link rather than a dead one. On the house site: Prime's inbox.
+ * The partner's contact address on their site, else Prime's inbox, so a
+ * partner who has not been fully configured still gets a working link rather
+ * than a dead one (client decision, 4 Nov 2026). On the house site: Prime's
+ * inbox.
  *
- * Privacy, terms, deletion requests, compensation questions and withdrawing
- * call consent are deliberately NOT routed through this. They always reach
- * Prime.
+ * Privacy, terms, deletion requests, "Do not sell my data", legal notices,
+ * compensation questions and withdrawing call consent are deliberately NOT
+ * routed through this. They always reach Prime.
  */
 export function partnerContact(tenant: PartnerTenant): PartnerContact {
-  if (isPartnerTenant(tenant)) {
-    const { contactUrl, supportEmail, companyName } = tenant.branding;
-    if (contactUrl) {
-      const href = contactHref(contactUrl);
-      const isEmail = href.startsWith("mailto:");
-      return {
-        href,
-        label: isEmail ? contactUrl : (companyName ?? tenant.name),
-        isEmail,
-      };
-    }
-    if (supportEmail) {
-      return { href: `mailto:${supportEmail}`, label: supportEmail, isEmail: true };
-    }
-  }
-  return { href: `mailto:${HOUSE_EMAIL}`, label: HOUSE_EMAIL, isEmail: true };
+  const email = partnerContactEmail(tenant) ?? HOUSE_EMAIL;
+  return { href: `mailto:${email}`, label: email };
 }
 
-/** The partner named in the footer disclosure, or null on the house site. */
+/**
+ * The example address in the sign-in email field: "you@" and the partner's
+ * email domain (you@allstaffco.com), so their staff see their own domain
+ * rather than Prime's. A partner with no address gets a neutral example.
+ */
+export function signInPlaceholder(tenant: PartnerTenant): string {
+  if (!isPartnerTenant(tenant)) return "you@primepeobrokers.com";
+  const domain = partnerContactEmail(tenant)?.split("@")[1];
+  return `you@${domain ?? "company.com"}`;
+}
+
+/** The partner named in the footer, or null on the house site. */
 export function partnerLegalName(tenant: PartnerTenant): string | null {
   if (!isPartnerTenant(tenant)) return null;
   return tenant.branding.legalName ?? tenant.branding.companyName ?? tenant.name;
+}
+
+/** Everything the footer says about a partner. null on the house site. */
+export interface PartnerFooter {
+  /** "All Staff, Inc.": "Presented by", and who holds the name and logo. */
+  legalName: string;
+  /** "All Staff": whose name and logo the copyright line is about. */
+  displayName: string;
+  /** Each shown only when set, in this order. */
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+}
+
+export function partnerFooter(tenant: PartnerTenant): PartnerFooter | null {
+  if (!isPartnerTenant(tenant)) return null;
+  return {
+    legalName: partnerLegalName(tenant) ?? tenant.name,
+    displayName: partnerDisplayName(tenant) ?? tenant.name,
+    phone: tenant.branding.phone ?? null,
+    email: partnerContactEmail(tenant),
+    address: tenant.branding.mailingAddress ?? null,
+  };
 }
 
 /**
@@ -116,8 +159,7 @@ export function partnerLegalName(tenant: PartnerTenant): string | null {
  * the name the visitor just saw in the header.
  */
 export function partnerReferrer(tenant: PartnerTenant): string | null {
-  if (!isPartnerTenant(tenant)) return null;
-  return tenant.branding.companyName ?? tenant.name;
+  return partnerDisplayName(tenant);
 }
 
 /**

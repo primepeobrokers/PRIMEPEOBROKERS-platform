@@ -24,15 +24,18 @@ import {
   brandingToCss,
   contrastRatio,
   logoUrl,
+  telHref,
   __testables,
 } from "../lib/tenant/branding";
 import { brandFor, formatFrom, houseBrand, inboxList, parseSender } from "../lib/tenant/email-brand";
 import { landingBrand } from "../app/components/landing/landing-sections";
 import {
   partnerContact,
+  partnerFooter,
   partnerLegalName,
   partnerReferrer,
   partnerVoice,
+  signInPlaceholder,
   voiceFor,
   withPartnerReferral,
 } from "../lib/tenant/partner";
@@ -42,7 +45,9 @@ import {
   PRIVACY_VERSION,
   SUBMIT_NOTICE_TEXT,
   TERMS_VERSION,
+  privacyPartnerNotice,
   splitConsentLinks,
+  termsPartnerNotice,
 } from "../lib/legal";
 import { STEPS } from "../lib/discovery/schema";
 import { CONSOLE_EMAIL_RE, escapeLike } from "../lib/console/email-match";
@@ -58,7 +63,7 @@ import {
   type Stage,
 } from "../lib/console/stages";
 
-const { safeColor, safePath, safeText, safeInt, safeContact } = __testables;
+const { safeColor, safePath, safeText, safeInt, safePhone, safeAddress, safeEmail } = __testables;
 const apex = APEX_HOST.split(":")[0]!;
 
 // ===========================================================================
@@ -444,7 +449,7 @@ describe("landing page: what a partner's own marketing page must not say");
   equal(b.brandName, "Acme Benefits", "a partner is named by branding.companyName");
   equal(b.contact.href, "mailto:hello@acme.com", "a partner's visitors reach the PARTNER, not Prime");
   equal(b.legalName, "Acme Benefits", "no legal name set: the footer names the display name");
-  equal(b.voice("our team"), "Prime\u2019s advisory team", "a partner page names Prime's team");
+  equal(b.voice("our team"), "our advisory team", "a partner page says 'our advisory team'");
   ok(!b.showPartnerSection, "a partner site does not recruit partners for Prime");
   ok(b.isPartner, "a non-house tenant is a partner");
 }
@@ -460,52 +465,101 @@ describe("landing page: what a partner's own marketing page must not say");
 
 
 // ---------------------------------------------------------------------------
-describe("partner tenants: counsel's copy, contact and disclosure rules");
+describe("partner tenants: the November 2026 template's copy, contact and footer");
 // ---------------------------------------------------------------------------
-// Counsel, October 2026: on a partner's site the visitor must be able to tell
-// that Prime provides the service. First-person copy written for Prime's own
-// site reads as the partner's there, so it is rewritten to name Prime.
+// The client's template after All Staff's feedback: Prime is introduced once
+// in the hero, then the copy says "your advisor" and "our advisory team".
+// Prime stays named in factual claims and anything about licensing.
 
 equal(partnerVoice("an expert on our team does the legwork"),
-      "an expert on Prime’s advisory team does the legwork", "our team -> Prime's advisory team");
+      "an expert on our advisory team does the legwork", "our team -> our advisory team");
 equal(partnerVoice("Our team benchmarks your terms"),
-      "Prime’s advisory team benchmarks your terms", "Our team (sentence start)");
+      "Our advisory team benchmarks your terms", "Our team (sentence start)");
 equal(partnerVoice("Your advisor reviews the record"),
-      "Your Prime advisor reviews the record", "Your advisor -> Your Prime advisor");
-equal(partnerVoice("anything else your advisor should know"),
-      "anything else your Prime advisor should know", "your advisor -> your Prime advisor");
+      "Your advisor reviews the record", "plain 'your advisor' is left alone");
+equal(partnerVoice("Check the record before it goes to your Prime advisor."),
+      "Check the record before it goes to your advisor.", "your Prime advisor -> your advisor");
+equal(partnerVoice("Your Prime advisor reads the record"),
+      "Your advisor reads the record", "Your Prime advisor (sentence start)");
+equal(partnerVoice("Your record is with Prime\u2019s advisory team."),
+      "Your record is with our advisory team.", "Prime's advisory team -> our advisory team");
+equal(partnerVoice("Visible only to Prime's advisory team"),
+      "Visible only to our advisory team", "a straight apostrophe matches too");
+equal(partnerVoice("Your assigned Prime advisor and their team."),
+      "Your assigned advisor and their team.", "your assigned Prime advisor -> your assigned advisor");
+equal(partnerVoice("A licensed Prime advisor has your record in front of them."),
+      "A licensed Prime advisor has your record in front of them.",
+      "a licensing statement keeps Prime's name");
 equal(partnerVoice("We hold agreements across the market"),
-      "Prime holds agreements across the market", "We hold agreements -> Prime holds agreements");
-equal(partnerVoice("Your assigned advisor and their team."),
-      "Your assigned Prime advisor and their team.", "the longer phrase wins over 'your advisor'");
+      "Prime holds agreements across the market", "the agreements claim stays credited to Prime");
 equal(partnerVoice("We hold agreements across the market and quote your record against every model that fits it."),
       "Prime holds agreements across the market and quotes your record against every model that fits it.",
       "the verb agrees with Prime once 'we' is rewritten ('quotes', not 'quote')");
 {
-  const once = partnerVoice("Your advisor and our team. We hold agreements.");
-  equal(partnerVoice(once), once, "partnerVoice is idempotent (no 'Prime Prime advisor')");
+  const once = partnerVoice("Your Prime advisor and our team. We hold agreements.");
+  equal(partnerVoice(once), once, "partnerVoice is idempotent (no 'our advisory advisory team')");
 }
-equal(voiceFor(null)("your advisor"), "your advisor", "voiceFor(null) is the identity");
+equal(voiceFor(null)("your Prime advisor"), "your Prime advisor", "voiceFor(null) is the identity");
 
 // Every step string the flow renders through the voice still reads correctly.
 for (const step of STEPS) {
   for (const text of [step.intro, ...step.fields.flatMap((f) => [f.label, f.help ?? "", f.placeholder ?? ""])]) {
-    ok(!/\bPrime Prime\b/.test(partnerVoice(text)), `no doubled "Prime" in: ${text.slice(0, 50)}`);
+    const out = partnerVoice(text);
+    ok(!/\bPrime Prime\b|advisory advisory/.test(out), `no doubled words in: ${text.slice(0, 50)}`);
+    ok(!/Prime advisor|Prime[’']s advisory/.test(out), `no "Prime advisor" left in: ${text.slice(0, 50)}`);
   }
 }
 
 {
   const acme = { isHouse: false, name: "Acme Advisors", branding: {} as Record<string, unknown> };
-  const c1 = partnerContact({ ...acme, branding: { contactUrl: "https://acme.com/contact", supportEmail: "ops@acme.com", companyName: "Acme" } });
-  equal(c1.href, "https://acme.com/contact", "the contact setting wins over the work email");
-  ok(!c1.isEmail, "a URL contact is not printed as an address");
-  equal(c1.label, "Acme", "a URL contact is labelled with the partner's name");
-  const c2 = partnerContact({ ...acme, branding: { contactUrl: "talk@acme.com", supportEmail: "ops@acme.com" } });
-  equal(c2.href, "mailto:talk@acme.com", "an email contact becomes a mailto");
+  const c1 = partnerContact({ ...acme, branding: { contactEmail: "talk@acme.com", supportEmail: "ops@acme.com" } });
+  equal(c1.href, "mailto:talk@acme.com", "the contact email wins over the work email");
+  const c2 = partnerContact({ ...acme, branding: { supportEmail: "ops@acme.com" } });
+  equal(c2.href, "mailto:ops@acme.com", "no contact email: the work email, as before");
+  equal(partnerContact({ ...acme, branding: {} }).href, "mailto:admin@primepeobrokers.com",
+        "neither set: Prime's inbox (client decision, 4 Nov 2026)");
   equal(partnerLegalName({ ...acme, branding: { legalName: "Acme Advisors LLC", companyName: "Acme" } }),
-        "Acme Advisors LLC", "the legal name is named in the disclosure when set");
+        "Acme Advisors LLC", "the legal name is named in the footer when set");
+  equal(partnerLegalName({ ...acme, branding: { companyName: "Acme" } }), "Acme",
+        "no legal name: the display name (client decision, 4 Nov 2026)");
   equal(partnerLegalName({ isHouse: true, name: "Prime PEO Brokers", branding: {} }), null,
-        "the house tenant names no referral partner");
+        "the house tenant names no partner");
+}
+
+{
+  // The All Staff example from the client's brief.
+  const allStaff = {
+    isHouse: false,
+    name: "all-staff",
+    branding: { companyName: "All Staff", legalName: "All Staff, Inc.", contactEmail: "michael@allstaffco.com" },
+  };
+  const f = partnerFooter(allStaff);
+  equal(f?.legalName, "All Staff, Inc.", "footer: Presented by the legal name");
+  equal(f?.displayName, "All Staff", "footer: the display name owns the name and logo");
+  equal(f?.email, "michael@allstaffco.com", "footer: the contact email");
+  equal(f?.phone, null, "footer: no phone until one is set");
+  equal(f?.address, null, "footer: no address until one is set");
+  equal(partnerFooter(null), null, "the house footer has no partner block");
+  equal(signInPlaceholder(allStaff), "you@allstaffco.com", "sign-in example uses the partner's domain");
+  equal(signInPlaceholder({ ...allStaff, branding: {} }), "you@company.com", "no partner address: a neutral example");
+  equal(signInPlaceholder(null), "you@primepeobrokers.com", "the house sign-in is unchanged");
+  ok(privacyPartnerNotice("All Staff, Inc.", "All Staff").startsWith("You\u2019re viewing this through All Staff, Inc.\u2019s site. All Staff can see"),
+     "privacy notice names the legal name, then the display name");
+  ok(termsPartnerNotice("All Staff, Inc.").includes("provides the services under these Terms"),
+     "terms notice states who provides the services");
+}
+
+{
+  // The footer text itself, read from the component, so a later edit to the
+  // client's wording shows up here rather than on a live partner site.
+  const src = readFileSync("app/components/legal-disclosure.tsx", "utf8").replace(/\s+/g, " ");
+  ok(src.includes("Presented by {partner.legalName} in partnership with {HOUSE_NAME}. Services provided by {LEGAL_ENTITY}, which performs the PEO and HCM evaluation."),
+     "partner footer: the client's corrected disclosure (no 'licensed insurance producer that performs')");
+  ok(src.includes("{partner.displayName} name and logo © {partner.legalName}. Platform © {\" \"} {LEGAL_ENTITY}.") ||
+     src.includes("{partner.displayName} name and logo © {partner.legalName}. Platform ©{\" \"} {LEGAL_ENTITY}."),
+     "partner footer: the split copyright line");
+  ok(src.includes("Services provided by {LEGAL_ENTITY}, a licensed insurance producer."),
+     "house footer: unchanged");
 }
 
 // ---------------------------------------------------------------------------
@@ -530,24 +584,41 @@ describe("referred by: a partner's lead is credited to the partner, whatever is 
 }
 
 // ---------------------------------------------------------------------------
-describe("partner contact: an href on a public page, so an injection boundary");
+describe("partner contact details: printed as links on a public page");
 // ---------------------------------------------------------------------------
-equal(safeContact("https://acme.com/contact"), "https://acme.com/contact", "https URL accepted");
-equal(safeContact("ops@acme.com"), "ops@acme.com", "email accepted");
+equal(safeEmail("Michael@AllStaffCo.com"), "michael@allstaffco.com", "email accepted and lower-cased");
 for (const bad of [
-  "javascript:alert(1)",
-  "JAVASCRIPT:alert(1)",
   "javascript:alert(1)//@x.com",
-  "data:text/html,<script>alert(1)</script>",
-  "http://acme.com",
-  "//evil.com",
-  "acme.com/contact",
+  "mailto:ops@acme.com",
+  "ops@acme.com?cc=evil@x.com",
+  "ops@acme.com?body=hi",
+  "\"ops\"@acme.com",
+  "https://acme.com/contact",
+  "ops@acme",
   "",
 ]) {
-  equal(safeContact(bad), undefined, `rejected: ${JSON.stringify(bad)}`);
+  equal(safeEmail(bad), undefined, `email rejected: ${JSON.stringify(bad)}`);
 }
-equal(parseBranding({ contactUrl: "javascript:alert(1)" }, "Acme").contactUrl, undefined,
-      "parseBranding drops a hostile contact rather than rendering it");
+equal(parseBranding({ contactUrl: "Talk@Acme.com" }, "Acme").contactEmail, "talk@acme.com",
+      "a pre-0019 contactUrl address is read as the contact email");
+equal(parseBranding({ contactUrl: "https://acme.com/contact" }, "Acme").contactEmail, undefined,
+      "a pre-0019 contactUrl URL is ignored: every contact surface is an email now");
+equal(parseBranding({ contactEmail: "a@acme.com", contactUrl: "b@acme.com" }, "Acme").contactEmail, "a@acme.com",
+      "contactEmail wins over the legacy field");
+
+for (const good of ["(210) 555-0100", "210-555-0100", "+1 210 555 0100", "210.555.0100 x204", "210-555-0100 ext. 12"]) {
+  equal(safePhone(good), good, `phone accepted: ${good}`);
+}
+for (const bad of ["call me", "555-01", "javascript:alert(1)", "210-555-0100; drop", "+1 (210) 555-0100 <b>", "1".repeat(20)]) {
+  equal(safePhone(bad), undefined, `phone rejected: ${JSON.stringify(bad)}`);
+}
+equal(telHref("(210) 555-0100"), "tel:+12105550100", "a ten-digit number dials as +1");
+equal(telHref("+44 20 7946 0958"), "tel:+442079460958", "an international number keeps its +");
+equal(telHref("210.555.0100 x204"), "tel:+12105550100", "the extension is not dialled");
+
+equal(safeAddress("100 Main St\nSuite 200\n\nSan Antonio, TX 78205"), "100 Main St, Suite 200, San Antonio, TX 78205",
+      "a multi-line address folds onto one line");
+equal(safeAddress("x".repeat(301)), undefined, "an over-long address is refused");
 
 // Counsel: partners cannot add scripts, pixels or content. Branding is a
 // closed shape; an unknown key never reaches a page.
@@ -559,11 +630,11 @@ equal(parseBranding({ contactUrl: "javascript:alert(1)" }, "Acme").contactUrl, u
   for (const k of ["script", "pixel", "footerDisclosure", "consentText"]) {
     ok(!(k in parsed), `parseBranding never carries "${k}"`);
   }
-  const sql = readFileSync("supabase/migrations/0015_partner_compliance_and_consent.sql", "utf8");
+  const sql = readFileSync("supabase/migrations/0019_partner_contact_details.sql", "utf8");
   const allow = sql.match(/if v_key not in \(([\s\S]*?)\) then/)?.[1] ?? "";
   const keys = [...allow.matchAll(/'([A-Za-z]+)'/g)].map((m) => m[1]).sort();
   equal(keys.join(","),
-        "colors,companyName,contactUrl,crmPartnerName,legalName,logo,shortName,supportEmail",
+        "colors,companyName,contactEmail,contactUrl,crmPartnerName,legalName,logo,mailingAddress,phone,shortName,supportEmail",
         "the database allowlist admits exactly the branding keys and nothing that could carry content");
 }
 

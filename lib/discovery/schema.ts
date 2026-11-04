@@ -132,7 +132,7 @@ export const STEPS: StepDef[] = [
   {
     title: "What are you evaluating?",
     intro:
-      "Pick a category. You will walk through a structured needs assessment, we benchmark your spend, and we match you against the market.",
+      "Pick a category. We ask about your needs, benchmark your spend, and match you against the market.",
     summary: (a) => categoryName(str(a, "category")),
     fields: [
       {
@@ -328,7 +328,7 @@ export const STEPS: StepDef[] = [
   {
     title: "Time, HR and benefits",
     intro:
-      "What you need the platform to actually do, and what you offer today.",
+      "What the platform has to do, and what you offer today.",
     sensitive: true,
     summary: (a) => {
       const offered = str(a, "benefitsOffered");
@@ -485,7 +485,7 @@ export const STEPS: StepDef[] = [
       {
         id: "hrGuidance",
         type: "radio",
-        label: "Interested in HR expert guidance and support?",
+        label: "Do you want guidance from HR experts?",
         options: [
           ["yes", "Yes", ""],
           ["no", "No", ""],
@@ -601,7 +601,7 @@ export const STEPS: StepDef[] = [
       {
         id: "vendorPreferences",
         type: "text",
-        label: "Any vendors to specifically include or exclude?",
+        label: "Any vendors to include or exclude?",
         placeholder: "Include TriNet, exclude our current provider...",
       },
     ],

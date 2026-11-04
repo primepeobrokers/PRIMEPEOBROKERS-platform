@@ -223,8 +223,8 @@ export function TalkForm({ tenant, footer }: Props) {
               number they call it; otherwise they email to set a time.
             </p>
             <p className="mt-4 max-w-[54ch] text-[15.5px] leading-normal text-ink-muted">
-              Want the call to be more useful? Start the six steps now. Anything
-              you answer is in front of the advisor before they dial.
+              Start the six steps now, and anything you answer is in front of
+              the advisor before they dial.
             </p>
             <div className="mt-7 flex flex-wrap gap-3.5">
               <Link

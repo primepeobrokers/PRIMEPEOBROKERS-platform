@@ -32,6 +32,7 @@ export function LoginCard({
   linkError,
   revoked = false,
   partnerName = null,
+  emailPlaceholder = "you@primepeobrokers.com",
 }: {
   next: string;
   linkError: boolean;
@@ -43,6 +44,8 @@ export function LoginCard({
    * product on their own domain.
    */
   partnerName?: string | null;
+  /** "you@" plus the partner's email domain on their site. */
+  emailPlaceholder?: string;
 }) {
   const [view, setView] = useState<"signin" | "forgot" | "code">("signin");
   const [email, setEmail] = useState("");
@@ -164,7 +167,7 @@ export function LoginCard({
             onChange={(e) => setEmail(e.target.value)}
             onKeyDown={onKey}
             readOnly={view === "code"}
-            placeholder="you@primepeobrokers.com"
+            placeholder={emailPlaceholder}
             className="mt-[9px] w-full rounded-md border border-line-strong bg-raised px-[15px] py-3.5 text-base transition-all duration-150 focus:border-accent focus:shadow-[0_0_0_3px_color-mix(in oklab,var(--pv-accent) 12%,transparent)] focus:outline-none"
           />
           {view === "forgot" && (

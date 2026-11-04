@@ -105,7 +105,7 @@ export default async function PortalPage() {
             </EmptyMedia>
             <EmptyTitle>No leads yet</EmptyTitle>
             <EmptyDescription>
-              Inquiries completed on your site will appear here, newest first.
+              Completed inquiries from your site appear here, newest first.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>

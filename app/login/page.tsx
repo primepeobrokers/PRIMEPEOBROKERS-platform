@@ -3,6 +3,7 @@ import { AuthShell } from "@/app/components/auth-shell";
 import { TenantTheme } from "@/app/components/tenant-theme";
 import { tenantIcons } from "@/lib/tenant/favicon";
 import { getTenant } from "@/lib/tenant/resolve";
+import { partnerDisplayName, signInPlaceholder } from "@/lib/tenant/partner";
 import { LoginCard } from "./login-card";
 import { Toaster } from "@/app/components/ui/sonner";
 import { ArrivalToast } from "@/app/components/arrival-toast";
@@ -57,11 +58,8 @@ export default async function LoginPage(props: PageProps<"/login">) {
           next={next}
           linkError={linkError}
           revoked={revoked}
-          partnerName={
-            authTenant && !authTenant.isHouse
-              ? (authTenant.branding.companyName ?? authTenant.name)
-              : null
-          }
+          partnerName={partnerDisplayName(authTenant)}
+          emailPlaceholder={signInPlaceholder(authTenant)}
         />
       </AuthShell>
       {/*

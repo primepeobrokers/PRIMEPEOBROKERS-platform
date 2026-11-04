@@ -44,15 +44,22 @@ export interface Branding {
   /** The partner's name as the CRM knows it, which is not always our own. */
   crmPartnerName?: string;
   /**
-   * The partner's registered legal name, for the footer disclosure ("[name]
-   * is a referral partner"). Falls back to the display name when unset.
+   * The partner's registered legal name ("All Staff, Inc."), named in the
+   * footer: "Presented by [legal name]" and the copyright line. Falls back to
+   * the display name when unset.
    */
   legalName?: string;
   /**
-   * Where "Contact" and "Talk to an advisor" go on this partner's pages: an
-   * https URL or an email address. Falls back to supportEmail when unset.
+   * The public contact address on this partner's pages: Contact, Talk to an
+   * advisor, the FAQ's "Anything else", the footer contact line and the
+   * sign-in help line. Distinct from supportEmail, which receives lead alerts
+   * and replies, because a partner may want those somewhere else.
    */
-  contactUrl?: string;
+  contactEmail?: string;
+  /** Optional. Shown in the footer contact line, dialled as a tel: link. */
+  phone?: string;
+  /** Optional. One line, shown in the footer contact line. */
+  mailingAddress?: string;
 }
 
 /**
@@ -114,30 +121,51 @@ function safePath(value: unknown): string | undefined {
 const EMAIL_RE = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/;
 
 /**
- * A partner contact: an https URL or an email address, nothing else.
- *
- * This value is rendered as an href on a public page, so it is the other
- * injection boundary in this file. `javascript:` and `data:` are the obvious
- * payloads; plain http is refused too, since a contact link that downgrades
- * the visitor off an https page is not one we should publish.
+ * A phone number as people write one: digits plus the usual separators, an
+ * optional leading +, and an optional extension. At least seven digits, so a
+ * stray word or a lone area code is refused rather than published.
  */
-function safeContact(value: unknown): string | undefined {
-  const v = safeText(value, 400);
-  if (!v) return undefined;
-  if (EMAIL_RE.test(v) && !v.includes(":") && !v.includes("/")) return v;
-  try {
-    const url = new URL(v);
-    return url.protocol === "https:" && url.hostname ? url.toString() : undefined;
-  } catch {
-    return undefined;
-  }
+const PHONE_RE = /^\+?[0-9().\-\s]+(?:\s*(?:x|ext\.?)\s*[0-9]{1,6})?$/i;
+
+function safePhone(value: unknown): string | undefined {
+  const v = safeText(value, 40);
+  if (!v || !PHONE_RE.test(v)) return undefined;
+  const digits = v.replace(/(?:x|ext\.?)\s*[0-9]+$/i, "").replace(/\D/g, "");
+  return digits.length >= 7 && digits.length <= 15 ? v : undefined;
 }
 
-/** mailto: for an address, the URL itself otherwise. Input must have passed safeContact. */
-export function contactHref(contact: string): string {
-  return EMAIL_RE.test(contact) && !contact.includes("/")
-    ? `mailto:${contact}`
-    : contact;
+/**
+ * tel: href for a number that passed safePhone. A ten-digit number is taken
+ * as North American and gets +1, so it dials from a phone set to any region.
+ */
+export function telHref(phone: string): string {
+  const main = phone.replace(/(?:x|ext\.?)\s*[0-9]+$/i, "");
+  const digits = main.replace(/\D/g, "");
+  const plus = main.trim().startsWith("+");
+  return `tel:${plus ? "+" : digits.length === 10 ? "+1" : ""}${digits}`;
+}
+
+/** A postal address on one line. Newlines are folded into commas. */
+function safeAddress(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const v = value
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join(", ");
+  return safeText(v, 300);
+}
+
+/**
+ * A public contact address, lower-cased. Stricter than EMAIL_RE because it
+ * becomes a mailto: href on a public page: no `?` (a mailto query can add
+ * recipients or a prefilled body), no `:` or `/` (a scheme), no quotes.
+ */
+const PUBLIC_EMAIL_RE = /^[a-z0-9._%+'-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}$/i;
+
+function safeEmail(value: unknown): string | undefined {
+  const v = safeText(value, 200);
+  return v && PUBLIC_EMAIL_RE.test(v) ? v.toLowerCase() : undefined;
 }
 
 /**
@@ -171,7 +199,16 @@ export function parseBranding(raw: unknown, tenantName: string): Branding {
 
   out.crmPartnerName = safeText(src.crmPartnerName, 120);
   out.legalName = safeText(src.legalName, 200);
-  out.contactUrl = safeContact(src.contactUrl);
+  /*
+    contactUrl is the field this replaced (Oct 2026: "an https URL or an
+    email"). Migration 0019 moves stored addresses across, but a row written
+    before it runs still routes correctly: an address there is read as the
+    contact email. A URL there is ignored, since every contact surface is now
+    an email.
+  */
+  out.contactEmail = safeEmail(src.contactEmail) ?? safeEmail(src.contactUrl);
+  out.phone = safePhone(src.phone);
+  out.mailingAddress = safeAddress(src.mailingAddress);
 
   const logo =
     src.logo && typeof src.logo === "object" && !Array.isArray(src.logo)
@@ -312,4 +349,4 @@ export function logoUrl(path: string): string {
 }
 
 /** Exported for the check script, which asserts the injection cases directly. */
-export const __testables = { safeColor, safePath, safeText, safeInt, safeContact };
+export const __testables = { safeColor, safePath, safeText, safeInt, safePhone, safeAddress, safeEmail };

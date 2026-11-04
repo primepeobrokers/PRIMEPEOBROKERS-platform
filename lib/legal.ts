@@ -20,8 +20,21 @@
 export const LEGAL_ENTITY = "A&G Advisors, LLC d/b/a Prime PEO Brokers";
 
 /** ISO dates. Shown as "Last updated" and stamped onto each consent record. */
-export const TERMS_VERSION = "2026-10-17";
-export const PRIVACY_VERSION = "2026-10-20";
+export const TERMS_VERSION = "2026-11-04";
+export const PRIVACY_VERSION = "2026-11-04";
+
+/**
+ * The paragraph at the top of each policy on a partner's site (client's
+ * template, Nov 2026). Only ever shown on a partner host; the house site's
+ * policies open with "Before you begin" as before.
+ */
+export function privacyPartnerNotice(legalName: string, displayName: string): string {
+  return `You\u2019re viewing this through ${legalName}\u2019s site. ${displayName} can see the information you submit and the status of your evaluation. Prime PEO Brokers (A&G Advisors, LLC) operates the platform, prepares the evaluation, and is responsible for your information under this policy.`;
+}
+
+export function termsPartnerNotice(legalName: string): string {
+  return `You\u2019re viewing this through ${legalName}\u2019s site. Prime PEO Brokers (A&G Advisors, LLC) operates the platform and provides the services under these Terms.`;
+}
 
 /**
  * Checkbox 1, required. Mentions "Section 14" by number: the arbitration
