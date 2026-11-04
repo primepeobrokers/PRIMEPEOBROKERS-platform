@@ -127,8 +127,10 @@ export function LegalDisclosure({
         </p>
       )}
       <p className="max-w-[88ch] [text-wrap:pretty]">
-        {partner.displayName} name and logo © {partner.legalName}. Platform ©{" "}
-        {LEGAL_ENTITY}.
+        {/* "© All Staff, Inc." already ends the sentence; a second full stop
+            would print "Inc.." */}
+        {partner.displayName} name and logo © {partner.legalName}
+        {partner.legalName.endsWith(".") ? "" : "."} Platform © {LEGAL_ENTITY}.
       </p>
     </div>
   );

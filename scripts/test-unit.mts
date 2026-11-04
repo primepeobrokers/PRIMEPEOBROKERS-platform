@@ -555,9 +555,11 @@ for (const step of STEPS) {
   const src = readFileSync("app/components/legal-disclosure.tsx", "utf8").replace(/\s+/g, " ");
   ok(src.includes("Presented by {partner.legalName} in partnership with {HOUSE_NAME}. Services provided by {LEGAL_ENTITY}, which performs the PEO and HCM evaluation."),
      "partner footer: the client's corrected disclosure (no 'licensed insurance producer that performs')");
-  ok(src.includes("{partner.displayName} name and logo © {partner.legalName}. Platform © {\" \"} {LEGAL_ENTITY}.") ||
-     src.includes("{partner.displayName} name and logo © {partner.legalName}. Platform ©{\" \"} {LEGAL_ENTITY}."),
+  ok(src.includes("{partner.displayName} name and logo © {partner.legalName}") &&
+     src.includes("Platform © {LEGAL_ENTITY}."),
      "partner footer: the split copyright line");
+  ok(src.includes('{partner.legalName.endsWith(".") ? "" : "."}'),
+     "partner footer: a legal name ending in a period ('All Staff, Inc.') is not followed by a second one");
   ok(src.includes("Services provided by {LEGAL_ENTITY}, a licensed insurance producer."),
      "house footer: unchanged");
 }
