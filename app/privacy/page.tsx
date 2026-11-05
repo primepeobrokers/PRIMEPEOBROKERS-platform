@@ -220,7 +220,7 @@ export default function PrivacyPage() {
             experience ratings
           </li>
           <li>
-            Communicate about your request by email, phone, and text message
+            Communicate about your request by email and phone
           </li>
           <li>
             Provide placement, advisory, implementation, and ongoing service
@@ -318,7 +318,7 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <Section id="marketing" heading="7. Marketing, calls, and text messages">
+      <Section id="marketing" heading="7. Marketing and calls">
         <p>
           <strong>Email.</strong> Opt out of marketing email via the
           unsubscribe link or by contacting us. Transactional messages about an

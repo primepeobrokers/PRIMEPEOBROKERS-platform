@@ -660,6 +660,11 @@ describe("consent: what is shown is what is stored");
   {
     const privacy = readFileSync("app/privacy/page.tsx", "utf8");
     ok(!/Reply STOP|HELP for help/.test(privacy), "the privacy policy carries no STOP/HELP instructions");
+    const terms = readFileSync("app/terms/page.tsx", "utf8");
+    // Comments may explain the decision; only rendered copy is checked.
+    const copy = (src: string) => src.replace(/\/\*[\s\S]*?\*\/|\{\/\*[\s\S]*?\*\/\}|^\s*\/\/.*$/gm, "");
+    ok(!/text messages?|\bSMS\b/i.test(copy(privacy)), "the privacy policy never mentions text messages");
+    ok(!/text messages?|\bSMS\b/i.test(copy(terms)), "the Terms never mention text messages");
     ok(privacy.includes("can see the information you submit"), "the privacy policy says partners see the submitted record");
   }
   ok(SUBMIT_NOTICE_TEXT.startsWith("By clicking Submit"), "the notice under Submit is counsel's");

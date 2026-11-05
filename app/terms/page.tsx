@@ -382,7 +382,7 @@ export default function TermsPage() {
           Act and applicable state law.
         </p>
         <p>
-          Telephone and text message consent is addressed in the{" "}
+          Telephone consent is addressed in the{" "}
           <a href="/privacy">privacy policy</a>.
         </p>
       </Section>

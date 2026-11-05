@@ -20,8 +20,8 @@
 export const LEGAL_ENTITY = "A&G Advisors, LLC d/b/a Prime PEO Brokers";
 
 /** ISO dates. Shown as "Last updated" and stamped onto each consent record. */
-export const TERMS_VERSION = "2026-11-04";
-export const PRIVACY_VERSION = "2026-11-04";
+export const TERMS_VERSION = "2026-11-05";
+export const PRIVACY_VERSION = "2026-11-05";
 
 /**
  * The paragraph at the top of each policy on a partner's site (client's
